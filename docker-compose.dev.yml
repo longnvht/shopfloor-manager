@@ -1,0 +1,41 @@
+name: shopfloor-manager-dev
+
+# Development override — chạy: docker compose -f docker-compose.dev.yml up
+# API và Web chạy trực tiếp trên máy, chỉ cần infrastructure trong Docker
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: shopfloor_dev
+      POSTGRES_USER: shopfloor
+      POSTGRES_PASSWORD: dev_password
+    ports:
+      - "5432:5432"   # expose để kết nối từ IDE/tool
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin123
+    ports:
+      - "9000:9000"   # MinIO API
+      - "9001:9001"   # MinIO Console — truy cập http://localhost:9001
+    volumes:
+      - minio_dev_data:/data
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    volumes:
+      - ./docker/mosquitto/mosquitto.dev.conf:/mosquitto/config/mosquitto.conf:ro
+    ports:
+      - "1883:1883"
+      - "9002:9002"   # WebSocket port (để test từ browser)
+
+volumes:
+  postgres_dev_data:
+  minio_dev_data:

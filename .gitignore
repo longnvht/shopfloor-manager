@@ -1,0 +1,55 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+*.userprefs
+*.DotSettings.user
+TestResults/
+*.nupkg
+*.snupkg
+
+# ASP.NET
+appsettings.Development.json
+appsettings.Local.json
+
+# Next.js
+clients/web/.next/
+clients/web/node_modules/
+clients/web/.env.local
+clients/web/.env.development.local
+clients/web/.env.production.local
+clients/web/out/
+
+# Desktop
+clients/desktop/bin/
+clients/desktop/obj/
+
+# Docker / Environment
+.env
+.env.local
+docker/postgres/data/
+docker/minio/data/
+docker/mosquitto/data/
+docker/mosquitto/log/
+
+# IDE
+.idea/
+*.swp
+*.swo
+.vscode/settings.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Secrets
+*.pfx
+*.p12
+*.key
+*.pem
