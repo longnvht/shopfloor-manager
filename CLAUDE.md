@@ -135,8 +135,8 @@ CalibRequestStatus:Pending=0, Approved=1, Completed=2, Cancelled=3
 |---|---|
 | Phase 0 — Foundation (infrastructure, DB schema, .NET scaffold) | ✅ Done |
 | Phase 1 — Auth & HR (JWT, users, roles, SignalR) | ✅ Done |
-| Phase 2 — Production Core (Jobs, Parts, OPs, Documents) | 🔄 Tiếp theo |
-| Phase 3 — Quality (Dimensions, FAI, NCR, SPC) | ⏳ |
+| Phase 2 — Production Core (Jobs, Parts, OPs, Documents) | ✅ Done |
+| Phase 3 — Quality (Dimensions, FAI, NCR, SPC) | 🔄 Tiếp theo |
 | Phase 4 — Desktop MES (WPF/MAUI, offline, FAI at machine) | ⏳ |
 | Phase 5 — Advanced (Gage, Planning, MQTT pipeline, Dashboard) | ⏳ |
 
@@ -153,6 +153,17 @@ CalibRequestStatus:Pending=0, Approved=1, Completed=2, Cancelled=3
 - `ValidationBehavior` MediatR pipeline, `ExceptionMiddleware`, Swagger + JWT
 
 **Phase 1 — ✅ Hoàn tất** (2026-05-20)
+
+**Phase 2 — ✅ Hoàn tất** (2026-05-20)
+- Entities: Part (SoftDeletable), Job, PartOp, Product, OpType, PoLine, FileType, TechDocument
+- Migration: `Phase2_ProductionCore` — seed 6 OpTypes, 5 FileTypes
+- API: `GET|POST|PUT /api/v1/parts`, `GET|POST|PUT /api/v1/jobs`
+- Nested: `GET /api/v1/jobs/{id}/operations`, `GET|POST /api/v1/jobs/{id}/products/generate`
+- `GET|POST /api/v1/operations`
+- `GET|POST /api/v1/tech-documents`, `GET /{id}/download-url`, `PUT /{id}/inspect`
+- MinIO: pre-signed URL upload/download, `IMinioService` + `MinioService`
+- Web: `/jobs` (list + search + tạo mới), `/jobs/[id]` (detail: OPs + serials)
+- Navbar: link Jobs, Dashboard
 
 ---
 

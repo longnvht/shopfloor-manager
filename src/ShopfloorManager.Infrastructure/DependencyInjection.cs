@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Minio;
+using Minio.DataModel.Args;
 using ShopfloorManager.Application.Common.Interfaces;
 using ShopfloorManager.Infrastructure.Data;
 using ShopfloorManager.Infrastructure.Services;
@@ -22,6 +24,17 @@ public static class DependencyInjection
         services.AddScoped<IJwtTokenService, JwtTokenService>();
         services.AddScoped<IPasswordHasher, PasswordHasher>();
         services.AddScoped<IEmailService, EmailService>();
+        services.AddScoped<IMinioService, MinioService>();
+
+        // MinIO client
+        services.AddSingleton<IMinioClient>(_ =>
+            new MinioClient()
+                .WithEndpoint(config["Minio:Endpoint"] ?? "localhost:9000")
+                .WithCredentials(
+                    config["Minio:AccessKey"] ?? "minioadmin",
+                    config["Minio:SecretKey"] ?? "minioadmin123")
+                .WithSSL(bool.TryParse(config["Minio:UseSsl"], out var ssl) && ssl)
+                .Build());
 
         return services;
     }
