@@ -92,7 +92,8 @@ public class TechDocumentConfiguration : IEntityTypeConfiguration<TechDocument>
         builder.Property(t => t.Description).HasMaxLength(500);
         builder.Property(t => t.Revision).HasMaxLength(50);
         builder.Property(t => t.Code).HasMaxLength(100);
-        builder.Property(t => t.Segment).HasMaxLength(100);
+        builder.Property(t => t.Segment).HasMaxLength(20);      // "1_3" format
+        builder.Property(t => t.MachineType).HasMaxLength(20);  // "Fanuc", "MAZAK", "WC"
         builder.Property(t => t.InspectNote).HasMaxLength(500);
 
         builder.HasOne(t => t.FileType).WithMany(f => f.TechDocuments)

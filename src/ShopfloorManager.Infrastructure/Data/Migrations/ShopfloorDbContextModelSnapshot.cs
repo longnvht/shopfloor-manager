@@ -220,14 +220,30 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("is_gcode");
 
+                    b.Property<bool>("IsJobNumber")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_job_number");
+
+                    b.Property<bool>("IsOpNumber")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_op_number");
+
+                    b.Property<bool>("IsPartNumber")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_part_number");
+
+                    b.Property<bool>("IsRevision")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_revision");
+
+                    b.Property<bool>("IsSegment")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_segment");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("name");
-
-                    b.Property<bool>("RequiresOpNumber")
-                        .HasColumnType("boolean")
-                        .HasColumnName("requires_op_number");
 
                     b.Property<int>("SortOrder")
                         .HasColumnType("integer")
@@ -242,52 +258,114 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                         new
                         {
                             Id = 1,
-                            Code = "DRAWING",
+                            Code = "DRW",
                             Folder = "drawings",
                             IsGcode = false,
+                            IsJobNumber = false,
+                            IsOpNumber = false,
+                            IsPartNumber = true,
+                            IsRevision = true,
+                            IsSegment = false,
                             Name = "Drawing",
-                            RequiresOpNumber = false,
                             SortOrder = 1
                         },
                         new
                         {
                             Id = 2,
-                            Code = "GCODE",
-                            Folder = "gcodes",
-                            IsGcode = true,
-                            Name = "G-code Program",
-                            RequiresOpNumber = true,
+                            Code = "RC",
+                            Folder = "routecards",
+                            IsGcode = false,
+                            IsJobNumber = false,
+                            IsOpNumber = true,
+                            IsPartNumber = true,
+                            IsRevision = true,
+                            IsSegment = false,
+                            Name = "Route Card",
                             SortOrder = 2
                         },
                         new
                         {
                             Id = 3,
-                            Code = "ROUTECARD",
-                            Folder = "routecards",
+                            Code = "FD",
+                            Folder = "fixtures",
                             IsGcode = false,
-                            Name = "Route Card",
-                            RequiresOpNumber = true,
+                            IsJobNumber = false,
+                            IsOpNumber = true,
+                            IsPartNumber = true,
+                            IsRevision = true,
+                            IsSegment = false,
+                            Name = "Fixture Drawing",
                             SortOrder = 3
                         },
                         new
                         {
                             Id = 4,
-                            Code = "FIXTURE",
-                            Folder = "fixtures",
-                            IsGcode = false,
-                            Name = "Fixture Drawing",
-                            RequiresOpNumber = true,
+                            Code = "GC",
+                            Folder = "gcodes",
+                            IsGcode = true,
+                            IsJobNumber = true,
+                            IsOpNumber = true,
+                            IsPartNumber = true,
+                            IsRevision = true,
+                            IsSegment = true,
+                            Name = "G-code (Fanuc)",
                             SortOrder = 4
                         },
                         new
                         {
                             Id = 5,
+                            Code = "MAZAK",
+                            Folder = "gcodes",
+                            IsGcode = true,
+                            IsJobNumber = true,
+                            IsOpNumber = true,
+                            IsPartNumber = true,
+                            IsRevision = true,
+                            IsSegment = true,
+                            Name = "G-code (MAZAK)",
+                            SortOrder = 5
+                        },
+                        new
+                        {
+                            Id = 6,
+                            Code = "WC",
+                            Folder = "gcodes",
+                            IsGcode = true,
+                            IsJobNumber = true,
+                            IsOpNumber = true,
+                            IsPartNumber = true,
+                            IsRevision = true,
+                            IsSegment = true,
+                            Name = "G-code (Wire EDM)",
+                            SortOrder = 6
+                        },
+                        new
+                        {
+                            Id = 7,
                             Code = "SETUP",
                             Folder = "setups",
                             IsGcode = false,
+                            IsJobNumber = false,
+                            IsOpNumber = true,
+                            IsPartNumber = true,
+                            IsRevision = true,
+                            IsSegment = false,
                             Name = "Setup Sheet",
-                            RequiresOpNumber = true,
-                            SortOrder = 5
+                            SortOrder = 7
+                        },
+                        new
+                        {
+                            Id = 8,
+                            Code = "CAM",
+                            Folder = "cam",
+                            IsGcode = false,
+                            IsJobNumber = false,
+                            IsOpNumber = true,
+                            IsPartNumber = true,
+                            IsRevision = true,
+                            IsSegment = false,
+                            Name = "CAM File",
+                            SortOrder = 8
                         });
                 });
 
@@ -1179,6 +1257,11 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("job_id");
 
+                    b.Property<string>("MachineType")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("machine_type");
+
                     b.Property<int>("PartOpId")
                         .HasColumnType("integer")
                         .HasColumnName("part_op_id");
@@ -1189,8 +1272,8 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                         .HasColumnName("revision");
 
                     b.Property<string>("Segment")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
                         .HasColumnName("segment");
 
                     b.Property<int>("Status")

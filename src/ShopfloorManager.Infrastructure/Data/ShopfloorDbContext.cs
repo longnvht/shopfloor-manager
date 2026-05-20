@@ -100,12 +100,36 @@ public class ShopfloorDbContext(DbContextOptions<ShopfloorDbContext> options)
             new OpType { Id = 6, Code = "TURN",  Name = "Turning",        Description = "Manual turning"              }
         );
 
+        // FileType seed — flags phân tích từ bảng filestype legacy (FormUpdateTechnology.cs)
+        // IsPartNumber/IsRevision/IsOpNumber/IsJobNumber điều khiển MinIO path và naming convention
         modelBuilder.Entity<FileType>().HasData(
-            new FileType { Id = 1, Code = "DRAWING",   Name = "Drawing",         Folder = "drawings",   SortOrder = 1 },
-            new FileType { Id = 2, Code = "GCODE",     Name = "G-code Program",  Folder = "gcodes",     IsGcode = true, RequiresOpNumber = true, SortOrder = 2 },
-            new FileType { Id = 3, Code = "ROUTECARD", Name = "Route Card",      Folder = "routecards", RequiresOpNumber = true, SortOrder = 3 },
-            new FileType { Id = 4, Code = "FIXTURE",   Name = "Fixture Drawing", Folder = "fixtures",   RequiresOpNumber = true, SortOrder = 4 },
-            new FileType { Id = 5, Code = "SETUP",     Name = "Setup Sheet",     Folder = "setups",     RequiresOpNumber = true, SortOrder = 5 }
+            // Drawing — gắn PartRev, không cần OPNumber
+            new FileType { Id = 1, Code = "DRW",       Name = "Drawing",         Folder = "drawings",
+                IsPartNumber = true, IsRevision = true,  IsOpNumber = false, IsJobNumber = false, SortOrder = 1 },
+            // Route Card — gắn PartOp (cần OPNumber)
+            new FileType { Id = 2, Code = "RC",        Name = "Route Card",      Folder = "routecards",
+                IsPartNumber = true, IsRevision = true,  IsOpNumber = true,  IsJobNumber = false, SortOrder = 2 },
+            // Fixture Drawing — gắn PartOp
+            new FileType { Id = 3, Code = "FD",        Name = "Fixture Drawing", Folder = "fixtures",
+                IsPartNumber = true, IsRevision = true,  IsOpNumber = true,  IsJobNumber = false, SortOrder = 3 },
+            // G-code Fanuc — có segment, gắn PartOp
+            new FileType { Id = 4, Code = "GC",        Name = "G-code (Fanuc)",  Folder = "gcodes",
+                IsGcode = true, IsSegment = true,
+                IsPartNumber = true, IsRevision = true,  IsOpNumber = true,  IsJobNumber = true,  SortOrder = 4 },
+            // G-code MAZAK
+            new FileType { Id = 5, Code = "MAZAK",     Name = "G-code (MAZAK)",  Folder = "gcodes",
+                IsGcode = true, IsSegment = true,
+                IsPartNumber = true, IsRevision = true,  IsOpNumber = true,  IsJobNumber = true,  SortOrder = 5 },
+            // G-code Wire EDM
+            new FileType { Id = 6, Code = "WC",        Name = "G-code (Wire EDM)", Folder = "gcodes",
+                IsGcode = true, IsSegment = true,
+                IsPartNumber = true, IsRevision = true,  IsOpNumber = true,  IsJobNumber = true,  SortOrder = 6 },
+            // Setup Sheet — gắn PartOp
+            new FileType { Id = 7, Code = "SETUP",     Name = "Setup Sheet",     Folder = "setups",
+                IsPartNumber = true, IsRevision = true,  IsOpNumber = true,  IsJobNumber = false, SortOrder = 7 },
+            // CAM file
+            new FileType { Id = 8, Code = "CAM",       Name = "CAM File",        Folder = "cam",
+                IsPartNumber = true, IsRevision = true,  IsOpNumber = true,  IsJobNumber = false, SortOrder = 8 }
         );
     }
 }

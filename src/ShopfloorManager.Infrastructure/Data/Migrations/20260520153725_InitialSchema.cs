@@ -38,8 +38,12 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                     code = table.Column<string>(type: "text", nullable: false),
                     name = table.Column<string>(type: "text", nullable: false),
                     folder = table.Column<string>(type: "text", nullable: true),
+                    is_segment = table.Column<bool>(type: "boolean", nullable: false),
                     is_gcode = table.Column<bool>(type: "boolean", nullable: false),
-                    requires_op_number = table.Column<bool>(type: "boolean", nullable: false),
+                    is_part_number = table.Column<bool>(type: "boolean", nullable: false),
+                    is_revision = table.Column<bool>(type: "boolean", nullable: false),
+                    is_op_number = table.Column<bool>(type: "boolean", nullable: false),
+                    is_job_number = table.Column<bool>(type: "boolean", nullable: false),
                     sort_order = table.Column<int>(type: "integer", nullable: false)
                 },
                 constraints: table =>
@@ -503,7 +507,8 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                     description = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
                     revision = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
                     code = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
-                    segment = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
+                    segment = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: true),
+                    machine_type = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: true),
                     status = table.Column<int>(type: "integer", nullable: false),
                     inspector_id = table.Column<int>(type: "integer", nullable: true),
                     inspected_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
@@ -685,14 +690,17 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
 
             migrationBuilder.InsertData(
                 table: "file_types",
-                columns: new[] { "id", "code", "folder", "is_gcode", "name", "requires_op_number", "sort_order" },
+                columns: new[] { "id", "code", "folder", "is_gcode", "is_job_number", "is_op_number", "is_part_number", "is_revision", "is_segment", "name", "sort_order" },
                 values: new object[,]
                 {
-                    { 1, "DRAWING", "drawings", false, "Drawing", false, 1 },
-                    { 2, "GCODE", "gcodes", true, "G-code Program", true, 2 },
-                    { 3, "ROUTECARD", "routecards", false, "Route Card", true, 3 },
-                    { 4, "FIXTURE", "fixtures", false, "Fixture Drawing", true, 4 },
-                    { 5, "SETUP", "setups", false, "Setup Sheet", true, 5 }
+                    { 1, "DRW", "drawings", false, false, false, true, true, false, "Drawing", 1 },
+                    { 2, "RC", "routecards", false, false, true, true, true, false, "Route Card", 2 },
+                    { 3, "FD", "fixtures", false, false, true, true, true, false, "Fixture Drawing", 3 },
+                    { 4, "GC", "gcodes", true, true, true, true, true, true, "G-code (Fanuc)", 4 },
+                    { 5, "MAZAK", "gcodes", true, true, true, true, true, true, "G-code (MAZAK)", 5 },
+                    { 6, "WC", "gcodes", true, true, true, true, true, true, "G-code (Wire EDM)", 6 },
+                    { 7, "SETUP", "setups", false, false, true, true, true, false, "Setup Sheet", 7 },
+                    { 8, "CAM", "cam", false, false, true, true, true, false, "CAM File", 8 }
                 });
 
             migrationBuilder.InsertData(

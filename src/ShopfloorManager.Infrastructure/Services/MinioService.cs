@@ -30,6 +30,31 @@ public class MinioService(IMinioClient minio, IConfiguration config, ILogger<Min
             new RemoveObjectArgs().WithBucket(Bucket).WithObject(objectKey), ct);
     }
 
+    /// <summary>
+    /// Rename object = CopyObject (với key mới) → RemoveObject (key cũ).
+    /// Dùng khi upload đè Rejected file: "gcode.nc" → "Rejected_gcode.nc".
+    /// </summary>
+    public async Task RenameAsync(string oldKey, string newKey, CancellationToken ct = default)
+    {
+        try
+        {
+            await minio.CopyObjectAsync(
+                new CopyObjectArgs()
+                    .WithBucket(Bucket)
+                    .WithObject(newKey)
+                    .WithCopyObjectSource(new CopySourceObjectArgs()
+                        .WithBucket(Bucket)
+                        .WithObject(oldKey)), ct);
+
+            await minio.RemoveObjectAsync(
+                new RemoveObjectArgs().WithBucket(Bucket).WithObject(oldKey), ct);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Không thể rename MinIO object từ {Old} → {New}", oldKey, newKey);
+        }
+    }
+
     private async Task EnsureBucketAsync(CancellationToken ct)
     {
         var exists = await minio.BucketExistsAsync(new BucketExistsArgs().WithBucket(Bucket), ct);

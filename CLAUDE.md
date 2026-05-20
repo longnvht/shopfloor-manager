@@ -187,7 +187,53 @@ Job (lệnh SX)
    → Lấy Dimensions từ PartOps của Job (RoutingRev + ForJobOnly)
    → Upsert giá trị đo cho từng (DimensionId, ProductId)
    → Auto-calculate Pass/Fail vs LowerLimit/UpperLimit
+
+7. Upload TechDocument:
+   → Check 3 upload rules (xem bên dưới) trước khi accept
+   → MinIO object key = {PartNumber}/{RevCode}/{RoutingRevCode}/{OpNumber}/{Folder}/{filename}
+      hoặc {JobNumber}/{OpNumber}/{Folder}/{filename} (nếu IsJobNumber)
+   → Sau upload thành công → Status = Pending, chờ Inspector duyệt
 ```
+
+### TechDocument — FileType flags và Upload rules
+
+`FileType` có các flags điều khiển naming convention và path:
+
+```
+IsSegment    — G-code có thể chia thành nhiều segment (upload cùng lúc, đủ N files)
+IsJobNumber  — tên file/path bắt đầu bằng JobNumber
+IsPartNumber — tên file/path bắt đầu bằng PartNumber
+IsRevision   — path include RevCode
+IsOpNumber   — path/tên file include OpNumber
+```
+
+**Naming convention:**
+- PartNumber-based: `{PartNumber}-{RevCode}-{OpNumber}-{FileCode}.pdf`
+- JobNumber-based: `{JobNumber}-{OpNumber}-{FileCode}.nc`
+- Segmented G-code: `{...}-{FileCode}-{index}_{total}.nc` (ví dụ: `O0020-GC-1_3.nc`)
+
+**MinIO object key structure:**
+```
+PartNumber-based: {PartNumber}/{RevCode}/{RoutingRevCode}/{OpNumber}/{Folder}/{filename}
+JobNumber-based:  {JobNumber}/{OpNumber}/{Folder}/{filename}
+```
+→ RoutingRevCode nằm trong path — khi đổi RoutingRev phải upload lại file mới
+
+**3 upload rules bắt buộc:**
+```
+Rule 1: BLOCK nếu Status=Approved → "File đã được approve"
+        (kể cả creator cũng không sửa được — phải tạo RoutingRev mới)
+
+Rule 2: BLOCK nếu Status=Pending + CreatedBy ≠ current user
+        → "File đã được cập nhật bởi người khác"
+
+Rule 3: ALLOW nếu Status=Rejected → rename file cũ thành "Rejected_{filename}"
+        trên MinIO, upload file mới, reset Status=Pending
+```
+
+**Segment validation:**
+- G-code file có segment (e.g. `1_3`) phải upload đủ cả 3 files cùng Code
+- Nếu thiếu → tất cả files trong group bị mark Import=false
 
 ---
 
