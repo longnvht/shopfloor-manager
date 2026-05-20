@@ -134,8 +134,8 @@ CalibRequestStatus:Pending=0, Approved=1, Completed=2, Cancelled=3
 | Phase | Status |
 |---|---|
 | Phase 0 — Foundation (infrastructure, DB schema, .NET scaffold) | ✅ Done |
-| Phase 1 — Auth & HR (JWT, users, roles, SignalR) | 🔄 Đang làm |
-| Phase 2 — Production Core (Jobs, Parts, OPs, Documents) | ⏳ |
+| Phase 1 — Auth & HR (JWT, users, roles, SignalR) | ✅ Done |
+| Phase 2 — Production Core (Jobs, Parts, OPs, Documents) | 🔄 Tiếp theo |
 | Phase 3 — Quality (Dimensions, FAI, NCR, SPC) | ⏳ |
 | Phase 4 — Desktop MES (WPF/MAUI, offline, FAI at machine) | ⏳ |
 | Phase 5 — Advanced (Gage, Planning, MQTT pipeline, Dashboard) | ⏳ |
@@ -152,8 +152,7 @@ CalibRequestStatus:Pending=0, Approved=1, Completed=2, Cancelled=3
 - SignalR hub tại `/hub/shopfloor` (auto-join group theo role)
 - `ValidationBehavior` MediatR pipeline, `ExceptionMiddleware`, Swagger + JWT
 
-**Phase 1 — còn lại:**
-- [ ] Next.js scaffold (login page)
+**Phase 1 — ✅ Hoàn tất** (2026-05-20)
 
 ---
 
