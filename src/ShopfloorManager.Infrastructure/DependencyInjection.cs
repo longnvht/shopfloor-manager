@@ -25,6 +25,7 @@ public static class DependencyInjection
         services.AddScoped<IPasswordHasher, PasswordHasher>();
         services.AddScoped<IEmailService, EmailService>();
         services.AddScoped<IMinioService, MinioService>();
+        services.AddScoped<ISpcService, SpcService>();
 
         // MinIO client
         services.AddSingleton<IMinioClient>(_ =>

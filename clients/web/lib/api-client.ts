@@ -54,6 +54,36 @@ export type PartOpDto = {
 
 export type ProductDto = { id: number; serialNumber: string; jobId: number; isComplete: boolean }
 
+export type DimensionDto = {
+  id: number; partOpId: number; code: string; description: string | null
+  nominal: number; upperTol: number; lowerTol: number
+  upperLimit: number; lowerLimit: number; unit: string
+  isCritical: boolean; sortOrder: number
+}
+
+export type FaiSheetDto = {
+  partOpId: number; jobId: number
+  dimensions: DimensionDto[]
+  rows: {
+    serialNumber: string; productId: number; allPass: boolean
+    cells: { measureValueId: number | null; dimensionCode: string; value: number | null; result: string | null }[]
+  }[]
+}
+
+export type NcrDto = {
+  id: number; ncrNumber: string; jobId: number; jobNumber: string
+  description: string; status: string
+  raisedBy: string; raisedAt: string
+  closedBy: string | null; closedAt: string | null
+}
+
+export type SpcDto = {
+  dimensionId: number; code: string; nominal: number
+  upperLimit: number; lowerLimit: number; unit: string
+  sampleCount: number; mean: number; stdDev: number
+  cp: number; cpu: number; cpl: number; cpk: number; values: number[]
+}
+
 // ── API ───────────────────────────────────────────────────────
 
 export const api = {
@@ -99,5 +129,24 @@ export const api = {
   lookups: {
     roles: () => request<{ id: number; name: string }[]>('/api/v1/roles'),
     departments: () => request<{ id: number; code: string; name: string }[]>('/api/v1/departments'),
+  },
+  fai: {
+    sheet: (partOpId: number, jobId: number) =>
+      request<FaiSheetDto>(`/api/v1/fai?partOpId=${partOpId}&jobId=${jobId}`),
+    saveMeasure: (body: { dimensionId: number; productId: number; value: number; note?: string }) =>
+      request<unknown>('/api/v1/fai/measure', { method: 'POST', body: JSON.stringify(body) }),
+  },
+  dimensions: {
+    list: (opId: number) => request<DimensionDto[]>(`/api/v1/operations/${opId}/dimensions`),
+    spc: (opId: number, dimId: number) => request<SpcDto>(`/api/v1/operations/${opId}/dimensions/${dimId}/spc`),
+  },
+  ncrs: {
+    list: (page = 1, status?: string) =>
+      request<NcrDto[]>(`/api/v1/ncrs?page=${page}&pageSize=20${status ? `&status=${status}` : ''}`),
+    get: (id: number) => request<{ ncr: NcrDto; logs: unknown[] }>(`/api/v1/ncrs/${id}`),
+    create: (body: { jobId: number; productId?: number; partOpId?: number; description: string }) =>
+      request<NcrDto>('/api/v1/ncrs', { method: 'POST', body: JSON.stringify(body) }),
+    addAction: (id: number, action: string, note?: string) =>
+      request<unknown>(`/api/v1/ncrs/${id}/actions`, { method: 'POST', body: JSON.stringify({ action, note }) }),
   },
 }

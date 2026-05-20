@@ -26,5 +26,11 @@ public interface IShopfloorDbContext
     DbSet<FileType> FileTypes { get; }
     DbSet<TechDocument> TechDocuments { get; }
 
+    // Phase 3 — Quality
+    DbSet<Dimension> Dimensions { get; }
+    DbSet<MeasureValue> MeasureValues { get; }
+    DbSet<Ncr> Ncrs { get; }
+    DbSet<NcrLog> NcrLogs { get; }
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

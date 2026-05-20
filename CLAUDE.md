@@ -136,8 +136,8 @@ CalibRequestStatus:Pending=0, Approved=1, Completed=2, Cancelled=3
 | Phase 0 — Foundation (infrastructure, DB schema, .NET scaffold) | ✅ Done |
 | Phase 1 — Auth & HR (JWT, users, roles, SignalR) | ✅ Done |
 | Phase 2 — Production Core (Jobs, Parts, OPs, Documents) | ✅ Done |
-| Phase 3 — Quality (Dimensions, FAI, NCR, SPC) | 🔄 Tiếp theo |
-| Phase 4 — Desktop MES (WPF/MAUI, offline, FAI at machine) | ⏳ |
+| Phase 3 — Quality (Dimensions, FAI, NCR, SPC) | ✅ Done |
+| Phase 4 — Desktop MES (WPF/MAUI, offline, FAI at machine) | 🔄 Tiếp theo |
 | Phase 5 — Advanced (Gage, Planning, MQTT pipeline, Dashboard) | ⏳ |
 
 **Phase 1 — đã xong:**
@@ -155,6 +155,18 @@ CalibRequestStatus:Pending=0, Approved=1, Completed=2, Cancelled=3
 **Phase 1 — ✅ Hoàn tất** (2026-05-20)
 
 **Phase 2 — ✅ Hoàn tất** (2026-05-20)
+
+**Phase 3 — ✅ Hoàn tất** (2026-05-20)
+- Entities: Dimension (BIGSERIAL, DECIMAL(14,4)), MeasureValue, Ncr, NcrLog
+- Migration: `Phase3_Quality`
+- SPC: ISpcService + SpcService (MathNet.Numerics) — Cp, Cpu, Cpl, Cpk
+- API: `GET|POST|PUT /api/v1/operations/{opId}/dimensions`
+- API: `GET /api/v1/operations/{opId}/dimensions/{id}/spc`
+- API: `GET /api/v1/fai?partOpId=&jobId=`, `POST /api/v1/fai/measure`
+- API: `GET|POST /api/v1/ncrs`, `GET /api/v1/ncrs/{id}`, `POST /api/v1/ncrs/{id}/actions`
+- Web: `/jobs/[id]/fai?opId=` — bảng đo FAI spreadsheet-style (blur/Enter to save)
+- Web: `/ncrs` — danh sách NCR, lọc Open/Closed
+- Navbar: thêm link NCR
 - Entities: Part (SoftDeletable), Job, PartOp, Product, OpType, PoLine, FileType, TechDocument
 - Migration: `Phase2_ProductionCore` — seed 6 OpTypes, 5 FileTypes
 - API: `GET|POST|PUT /api/v1/parts`, `GET|POST|PUT /api/v1/jobs`

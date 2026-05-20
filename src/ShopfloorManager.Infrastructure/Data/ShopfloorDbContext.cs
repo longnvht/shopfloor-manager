@@ -29,6 +29,12 @@ public class ShopfloorDbContext(DbContextOptions<ShopfloorDbContext> options)
     public DbSet<FileType> FileTypes => Set<FileType>();
     public DbSet<TechDocument> TechDocuments => Set<TechDocument>();
 
+    // Phase 3 — Quality
+    public DbSet<Dimension> Dimensions => Set<Dimension>();
+    public DbSet<MeasureValue> MeasureValues => Set<MeasureValue>();
+    public DbSet<Ncr> Ncrs => Set<Ncr>();
+    public DbSet<NcrLog> NcrLogs => Set<NcrLog>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -45,6 +51,12 @@ public class ShopfloorDbContext(DbContextOptions<ShopfloorDbContext> options)
         modelBuilder.ApplyConfiguration(new PartOpConfiguration());
         modelBuilder.ApplyConfiguration(new ProductConfiguration());
         modelBuilder.ApplyConfiguration(new TechDocumentConfiguration());
+
+        // Phase 3
+        modelBuilder.ApplyConfiguration(new DimensionConfiguration());
+        modelBuilder.ApplyConfiguration(new MeasureValueConfiguration());
+        modelBuilder.ApplyConfiguration(new NcrConfiguration());
+        modelBuilder.ApplyConfiguration(new NcrLogConfiguration());
 
         SeedStaticData(modelBuilder);
     }
