@@ -17,7 +17,7 @@ cd src
 dotnet run --project ShopfloorManager.API
 
 # API:          http://localhost:5066
-# Swagger UI:   http://localhost:5066/swagger  (once configured)
+# Swagger UI:   http://localhost:5066/swagger
 # MinIO:        http://localhost:9001  (minioadmin / minioadmin123)
 # PostgreSQL:   localhost:5432  (shopfloor / dev_password / shopfloor_dev)
 # MQTT:         localhost:1883
@@ -99,21 +99,113 @@ public abstract class SoftDeletableEntity : BaseEntity
 
 ---
 
+## Domain Model — Production Core
+
+Đây là mô hình cốt lõi của hệ thống, được xây dựng từ phân tích nghiệp vụ thực tế tại xưởng gia công CNC.
+
+### Sơ đồ tổng quan
+
+```
+PartNumber (loại sản phẩm)
+  └── PartRev (phiên bản thiết kế: Rev A, B, C...)
+        └── Routing (quy trình cho PartRev đó)
+              └── RoutingRev (phiên bản quy trình: R1, R2...)
+                    └── PartOp (công đoạn: 10, 20, 30...)
+                          ├── TechDocument  (RouteCard, FixtureDrawing, ToolList)
+                          ├── CNCProgram    (G-code file)
+                          └── Dimension     (kích thước cần kiểm tra)
+                                └── MeasureValue  (kết quả đo thực tế)
+
+Job (lệnh SX)
+  ├── PartRevId    → snapshot PartRev tại thời điểm phát lệnh
+  ├── RoutingRevId → snapshot RoutingRev đang dùng (KHÔNG thay đổi dù routing sau cập nhật)
+  ├── RunQty, ShipBy, POLine
+  └── Product (serial: 001, 002, ..., N)
+        └── MeasureValue (giá trị đo cho từng Dimension của từng serial)
+```
+
+### Các thực thể và quan hệ
+
+**PartRev** — Phiên bản thiết kế sản phẩm
+- Một `PartNumber` có nhiều `PartRev` (Rev A, B, C...)
+- Mỗi `PartRev` có thể có nhiều `Routing` (trường hợp có nhiều phương án gia công)
+- Thực tế thường chỉ có 1 Routing active per PartRev
+
+**Routing / RoutingRev** — Quy trình gia công
+- `Routing` là tập hợp các công đoạn (`PartOp`) để tạo ra một `PartRev`
+- `RoutingRev` là phiên bản của Routing: thay đổi thứ tự, thêm/bớt công đoạn → tạo RoutingRev mới
+- Chỉ một `RoutingRev` là `IsActive=true` tại một thời điểm per Routing
+
+**PartOp** — Công đoạn gia công
+- Thuộc về một `RoutingRev` cụ thể (KHÔNG phải thuộc Part trực tiếp)
+- Có thể là `ForJobOnly=true` — OP bổ sung riêng cho một Job nhất định
+- Mỗi OP có: `OpNumber` (10, 20...), `OpType` (CNC/GRIND...), `SetupTime`, `ProdTime`
+
+**Dimension** — Kích thước cần kiểm tra
+- Thuộc về một `PartOp` cụ thể (kiểm tra sau công đoạn đó)
+- `BalloonNumber`: số bóng trên bản vẽ (ví dụ "Ø1", "L2", "Ra3") — tên theo drawing
+- `Code`: mã nội bộ (ví dụ "D1", "L1")
+- Lưu `Nominal`, `UpperTol`, `LowerTol` dạng DECIMAL(14,4) — không dùng VARCHAR
+- `UpperLimit = Nominal + UpperTol`, `LowerLimit = Nominal + LowerTol`
+
+**Job** — Lệnh sản xuất
+- Tham chiếu cả `PartRevId` VÀ `RoutingRevId` → đây là **snapshot** tại thời điểm phát lệnh
+- Nếu Routing thay đổi sau khi Job đã tạo, Job vẫn giữ nguyên RoutingRev cũ
+- Routing của Job = `RoutingRev.PartOps` (template) + `PartOps ForJobOnly=true` (riêng job này)
+- **KHÔNG copy PartOp vào Job** — query động từ RoutingRev
+
+**MeasureValue** — Kết quả đo
+- Gắn với: `DimensionId` (kích thước nào) + `ProductId` (serial nào) + `PartOpId` (công đoạn nào)
+- `Result`: Pass(1) nếu `LowerLimit ≤ Value ≤ UpperLimit`, Fail(2) nếu ngoài dung sai
+- Upsert — có thể đo lại, ghi đè giá trị cũ
+
+### Business rules quan trọng
+
+```
+1. Tạo PartRev mới:
+   → Deactivate PartRev cũ cùng PartNumber (hoặc giữ nguyên tất cả, chỉ mark active)
+
+2. Tạo RoutingRev mới:
+   → Deactivate RoutingRev cũ của Routing đó
+   → Copy toàn bộ PartOps từ RoutingRev cũ sang RoutingRev mới
+   → Người dùng chỉnh sửa trên RoutingRev mới
+
+3. Tạo Job:
+   → Chọn PartRev (active) + RoutingRev (active của Routing đó)
+   → Lưu snapshot: job.PartRevId + job.RoutingRevId
+   → KHÔNG copy PartOps — query từ RoutingRev khi cần
+
+4. Routing của Job (query):
+   → PartOps WHERE RoutingRevId = job.RoutingRevId  [template OPs]
+   → UNION PartOps WHERE JobId = job.Id             [job-specific OPs]
+
+5. Tạo Product:
+   → Generate serials: 001, 002, ..., RunQty
+   → Một Product per serial
+
+6. Nhập MeasureValue:
+   → Lấy Dimensions từ PartOps của Job (RoutingRev + ForJobOnly)
+   → Upsert giá trị đo cho từng (DimensionId, ProductId)
+   → Auto-calculate Pass/Fail vs LowerLimit/UpperLimit
+```
+
+---
+
 ## Key Design Decisions
 
 **Database:**
-- PostgreSQL only, no MySQL stored procedures — all logic in C#
-- `DECIMAL(14,4)` for all measurement values — never store as VARCHAR
-- `snake_case` for all table/column names
-- Soft delete via `deleted_at TIMESTAMPTZ` on main entities
-- Full schema lives in `docker/postgres/init.sql` — EF Core mirrors this via migrations
+- PostgreSQL only — all logic in C#, no stored procedures
+- `DECIMAL(14,4)` cho tất cả giá trị đo/kích thước — KHÔNG dùng VARCHAR (lỗi của legacy)
+- `snake_case` cho tất cả tên bảng/cột
+- Soft delete via `deleted_at TIMESTAMPTZ` trên các entity chính
+- Schema managed by EF Core migrations — `init.sql` chỉ là reference
 
-**Domain enums** (match PostgreSQL ENUM values):
+**Domain enums:**
 ```csharp
 FileStatus:        Pending=0, Approved=1, Rejected=2
 NcrAction:         Pending=0, Approve=1, Rework=2, Reject=3
 NcrStatus:         Open=0, Closed=1
-MeasureResult:     Pass=1, Fail=2       // Note: 1-indexed (legacy)
+MeasureResult:     Pass=1, Fail=2       // 1-indexed để tương thích legacy
 BorrowStatus:      Active=0, Returned=1, Cancelled=2
 CalibRequestStatus:Pending=0, Approved=1, Completed=2, Cancelled=3
 ```
@@ -121,7 +213,7 @@ CalibRequestStatus:Pending=0, Approved=1, Completed=2, Cancelled=3
 **Roles** (from `AppConstants.Roles`):
 `Administrator`, `Manager`, `Engineer`, `QC Inspector`, `Operator`, `Planner`
 
-**MinIO:** all files stored in bucket `shopfloor-storage`. Upload via pre-signed URL — client uploads direct, API only handles metadata.
+**MinIO:** tất cả file trong bucket `shopfloor-storage`. Upload via pre-signed URL — client upload thẳng, API chỉ quản lý metadata.
 
 **MQTT topics:** `factory/cnc/#` (all CNC data), `factory/cnc/{machineCode}/status` per machine.
 
@@ -135,12 +227,12 @@ CalibRequestStatus:Pending=0, Approved=1, Completed=2, Cancelled=3
 |---|---|
 | Phase 0 — Foundation (infrastructure, DB schema, .NET scaffold) | ✅ Done |
 | Phase 1 — Auth & HR (JWT, users, roles, SignalR) | ✅ Done |
-| Phase 2 — Production Core (Jobs, Parts, OPs, Documents) | ✅ Done |
-| Phase 3 — Quality (Dimensions, FAI, NCR, SPC) | ✅ Done |
-| Phase 4 — Desktop MES (WPF/MAUI, offline, FAI at machine) | 🔄 Tiếp theo |
+| Phase 2 — Production Core (Jobs, Parts, OPs, Documents) | 🔄 Refactoring |
+| Phase 3 — Quality (Dimensions, FAI, NCR, SPC) | 🔄 Refactoring |
+| Phase 4 — Desktop MES (WPF/MAUI, offline, FAI at machine) | ⏳ |
 | Phase 5 — Advanced (Gage, Planning, MQTT pipeline, Dashboard) | ⏳ |
 
-**Phase 1 — đã xong:**
+**Phase 1 — ✅ Hoàn tất** (2026-05-20)
 - EF Core `ShopfloorDbContext` + 9 entities (User, Role, Department, UserType, Position, WorkStatus, Menu, RoleMenu, AuditLog)
 - Migration `InitialSchema` — seed 6 roles, 4 departments, 3 work statuses
 - `DbSeeder` tạo `admin/Admin@123` khi DB trống
@@ -152,30 +244,15 @@ CalibRequestStatus:Pending=0, Approved=1, Completed=2, Cancelled=3
 - SignalR hub tại `/hub/shopfloor` (auto-join group theo role)
 - `ValidationBehavior` MediatR pipeline, `ExceptionMiddleware`, Swagger + JWT
 
-**Phase 1 — ✅ Hoàn tất** (2026-05-20)
+**Phase 2+3 — Refactoring** (data model đúng hơn sau phân tích legacy)
 
-**Phase 2 — ✅ Hoàn tất** (2026-05-20)
-
-**Phase 3 — ✅ Hoàn tất** (2026-05-20)
-- Entities: Dimension (BIGSERIAL, DECIMAL(14,4)), MeasureValue, Ncr, NcrLog
-- Migration: `Phase3_Quality`
-- SPC: ISpcService + SpcService (MathNet.Numerics) — Cp, Cpu, Cpl, Cpk
-- API: `GET|POST|PUT /api/v1/operations/{opId}/dimensions`
-- API: `GET /api/v1/operations/{opId}/dimensions/{id}/spc`
-- API: `GET /api/v1/fai?partOpId=&jobId=`, `POST /api/v1/fai/measure`
-- API: `GET|POST /api/v1/ncrs`, `GET /api/v1/ncrs/{id}`, `POST /api/v1/ncrs/{id}/actions`
-- Web: `/jobs/[id]/fai?opId=` — bảng đo FAI spreadsheet-style (blur/Enter to save)
-- Web: `/ncrs` — danh sách NCR, lọc Open/Closed
-- Navbar: thêm link NCR
-- Entities: Part (SoftDeletable), Job, PartOp, Product, OpType, PoLine, FileType, TechDocument
-- Migration: `Phase2_ProductionCore` — seed 6 OpTypes, 5 FileTypes
-- API: `GET|POST|PUT /api/v1/parts`, `GET|POST|PUT /api/v1/jobs`
-- Nested: `GET /api/v1/jobs/{id}/operations`, `GET|POST /api/v1/jobs/{id}/products/generate`
-- `GET|POST /api/v1/operations`
-- `GET|POST /api/v1/tech-documents`, `GET /{id}/download-url`, `PUT /{id}/inspect`
-- MinIO: pre-signed URL upload/download, `IMinioService` + `MinioService`
-- Web: `/jobs` (list + search + tạo mới), `/jobs/[id]` (detail: OPs + serials)
-- Navbar: link Jobs, Dashboard
+Các vấn đề cần sửa:
+- [ ] Tách `PartOp` ra khỏi `Part` — thêm `Routing` + `RoutingRev` entities
+- [ ] `Part` model: `(PartNumber, Revision)` là identity, `IsActive` per PartNumber
+- [ ] `Job` lưu snapshot `PartRevId` + `RoutingRevId`
+- [ ] `GetJobOps` query: `RoutingRev.PartOps` UNION `Job.ForJobOnly.PartOps`
+- [ ] `Dimension`: thêm `BalloonNumber` field (số bóng bản vẽ)
+- [ ] `MeasureValue`: thêm `PartOpId` trực tiếp
 
 ---
 
@@ -194,8 +271,16 @@ CalibRequestStatus:Pending=0, Approved=1, Completed=2, Cancelled=3
 5. Add EF migration: `dotnet ef migrations add {Name} ...`
 6. Add OpenAPI/Swagger annotation to all new endpoints
 
+**Production Core pattern (CRITICAL — phải theo đúng):**
+- `PartOp` thuộc `RoutingRev`, KHÔNG thuộc `Part` trực tiếp
+- `Job` phải lưu cả `PartRevId` và `RoutingRevId` (snapshot)
+- Routing của Job = query động từ `RoutingRevId` + ForJobOnly OPs
+- `Dimension.BalloonNumber` = số bóng trên bản vẽ (e.g. "Ø1", "L2")
+- `MeasureValue` = upsert per (DimensionId, ProductId)
+
 **Don't:**
 - Put business logic in controllers or EF entities
 - Add Python (Phase 0–5 are C# only)
 - Hardcode credentials, URLs, or ports — use `appsettings.json` / env vars
 - Copy logic from old WinForms source — use it only to understand business rules
+- Store measurement values as VARCHAR — always DECIMAL(14,4)
