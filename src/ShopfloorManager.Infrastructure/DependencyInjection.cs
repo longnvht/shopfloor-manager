@@ -21,6 +21,7 @@ public static class DependencyInjection
         services.AddScoped<IShopfloorDbContext>(sp => sp.GetRequiredService<ShopfloorDbContext>());
         services.AddScoped<IJwtTokenService, JwtTokenService>();
         services.AddScoped<IPasswordHasher, PasswordHasher>();
+        services.AddScoped<IEmailService, EmailService>();
 
         return services;
     }

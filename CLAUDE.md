@@ -145,14 +145,14 @@ CalibRequestStatus:Pending=0, Approved=1, Completed=2, Cancelled=3
 - Migration `InitialSchema` — seed 6 roles, 4 departments, 3 work statuses
 - `DbSeeder` tạo `admin/Admin@123` khi DB trống
 - `POST /api/v1/auth/login` → JWT token (8h)
-- `GET/POST /api/v1/users` (phân trang, role-based)
+- `POST /api/v1/auth/forgot-password` + `POST /api/v1/auth/reset-password` (MailKit)
+- `GET|POST|PUT /api/v1/users` — phân trang, role-based, update, change password
+- `GET|POST|PUT /api/v1/roles`, `/api/v1/departments`
+- `GET|POST /api/v1/positions`, `/api/v1/user-types`; `GET /api/v1/work-statuses`
+- SignalR hub tại `/hub/shopfloor` (auto-join group theo role)
 - `ValidationBehavior` MediatR pipeline, `ExceptionMiddleware`, Swagger + JWT
 
 **Phase 1 — còn lại:**
-- [ ] Forgot password (MailKit)
-- [ ] Change password endpoint
-- [ ] CRUD Roles, Departments, Positions, UserTypes (lookup tables)
-- [ ] SignalR hub setup
 - [ ] Next.js scaffold (login page)
 
 ---

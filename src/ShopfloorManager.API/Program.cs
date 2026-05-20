@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using QuestPDF.Infrastructure;
+using ShopfloorManager.API.Hubs;
 using ShopfloorManager.API.Infrastructure;
 using ShopfloorManager.API.Middleware;
 using ShopfloorManager.Application;
@@ -55,6 +56,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret))
     });
 builder.Services.AddAuthorization();
+builder.Services.AddSignalR();
 
 builder.Services.AddCors(options =>
     options.AddDefaultPolicy(policy =>
@@ -83,5 +85,6 @@ app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHub<ShopfloorHub>("/hub/shopfloor");
 
 app.Run();
