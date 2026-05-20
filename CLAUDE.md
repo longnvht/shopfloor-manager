@@ -129,22 +129,31 @@ CalibRequestStatus:Pending=0, Approved=1, Completed=2, Cancelled=3
 
 ## Project Status
 
+*(cập nhật 2026-05-20)*
+
 | Phase | Status |
 |---|---|
 | Phase 0 — Foundation (infrastructure, DB schema, .NET scaffold) | ✅ Done |
-| Phase 1 — Auth & HR (JWT, users, roles, SignalR) | 🔄 Next |
+| Phase 1 — Auth & HR (JWT, users, roles, SignalR) | 🔄 Đang làm |
 | Phase 2 — Production Core (Jobs, Parts, OPs, Documents) | ⏳ |
 | Phase 3 — Quality (Dimensions, FAI, NCR, SPC) | ⏳ |
 | Phase 4 — Desktop MES (WPF/MAUI, offline, FAI at machine) | ⏳ |
 | Phase 5 — Advanced (Gage, Planning, MQTT pipeline, Dashboard) | ⏳ |
 
-**Current state:** `Program.cs` is a placeholder (`/weatherforecast` endpoint). Application/Infrastructure/Domain projects have stub `Class1.cs` files. EF Core DbContext and migrations have not been created yet.
+**Phase 1 — đã xong:**
+- EF Core `ShopfloorDbContext` + 9 entities (User, Role, Department, UserType, Position, WorkStatus, Menu, RoleMenu, AuditLog)
+- Migration `InitialSchema` — seed 6 roles, 4 departments, 3 work statuses
+- `DbSeeder` tạo `admin/Admin@123` khi DB trống
+- `POST /api/v1/auth/login` → JWT token (8h)
+- `GET/POST /api/v1/users` (phân trang, role-based)
+- `ValidationBehavior` MediatR pipeline, `ExceptionMiddleware`, Swagger + JWT
 
-**Phase 1 starting point:**
-1. Create EF Core `DbContext` + entity configurations in Infrastructure
-2. `dotnet ef migrations add InitialSchema`
-3. Auth: JWT login endpoint, refresh token, middleware
-4. CRUD for Users + Roles
+**Phase 1 — còn lại:**
+- [ ] Forgot password (MailKit)
+- [ ] Change password endpoint
+- [ ] CRUD Roles, Departments, Positions, UserTypes (lookup tables)
+- [ ] SignalR hub setup
+- [ ] Next.js scaffold (login page)
 
 ---
 
