@@ -3,7 +3,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ShopfloorManager.API.Common;
-using ShopfloorManager.Application.Operations;
+using ShopfloorManager.Application.Production;
 
 namespace ShopfloorManager.API.Controllers;
 
@@ -12,32 +12,50 @@ namespace ShopfloorManager.API.Controllers;
 [Authorize]
 public class OperationsController(IMediator mediator) : ControllerBase
 {
-    private int UserId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub") ?? "0");
+    private int UserId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0");
 
-    /// <summary>Lấy danh sách operations theo part hoặc job.</summary>
-    [HttpGet]
-    [ProducesResponseType(typeof(ApiResponse<List<PartOpDto>>), 200)]
-    public async Task<IActionResult> GetOperations([FromQuery] GetPartOpsQuery query)
-    {
-        var result = await mediator.Send(query);
-        return Ok(ApiResponse<List<PartOpDto>>.Ok(result.Value));
-    }
-
-    /// <summary>Tạo operation mới.</summary>
+    /// <summary>Tạo PartOp (template cho RoutingRev hoặc ForJobOnly).</summary>
     [HttpPost]
     [Authorize(Roles = "Administrator,Manager,Engineer")]
-    [ProducesResponseType(typeof(ApiResponse<PartOpDto>), 201)]
-    public async Task<IActionResult> CreateOperation([FromBody] CreatePartOpRequest req)
+    public async Task<IActionResult> CreateOp([FromBody] CreateOpRequest req)
     {
         var result = await mediator.Send(new CreatePartOpCommand(
-            req.OpNumber, req.PartId, req.JobId, req.OpTypeId,
+            req.RoutingRevId, req.JobId, req.OpNumber, req.OpTypeId,
             req.Description, req.Note, req.SetupTime, req.ProdTime, UserId));
         return result.IsSuccess
             ? StatusCode(201, ApiResponse<PartOpDto>.Ok(result.Value))
             : BadRequest(ApiResponse<PartOpDto>.Fail(result.Errors));
     }
+
+    /// <summary>Danh sách dimensions của một OP.</summary>
+    [HttpGet("{opId:int}/dimensions")]
+    public async Task<IActionResult> GetDimensions(int opId, [FromQuery] int jobId)
+    {
+        var result = await mediator.Send(new GetFaiSheetQuery(jobId, opId));
+        if (result.IsFailed) return BadRequest(ApiResponse<object>.Fail(result.Errors));
+        return Ok(ApiResponse<IReadOnlyList<DimensionDto>>.Ok(result.Value.Dimensions));
+    }
+
+    /// <summary>Thêm dimension vào OP.</summary>
+    [HttpPost("{opId:int}/dimensions")]
+    [Authorize(Roles = "Administrator,Manager,Engineer,QC Inspector")]
+    public async Task<IActionResult> CreateDimension(int opId, [FromBody] CreateDimensionRequest req)
+    {
+        var result = await mediator.Send(new CreateDimensionCommand(
+            opId, req.BalloonNumber, req.Code, req.Description,
+            req.Nominal, req.UpperTol, req.LowerTol,
+            req.Unit, req.IsCritical, req.SortOrder, UserId));
+        return result.IsSuccess
+            ? StatusCode(201, ApiResponse<DimensionDto>.Ok(result.Value))
+            : BadRequest(ApiResponse<DimensionDto>.Fail(result.Errors));
+    }
 }
 
-public record CreatePartOpRequest(
-    string OpNumber, int? PartId, int? JobId, int? OpTypeId,
+public record CreateOpRequest(
+    int? RoutingRevId, int? JobId, string OpNumber, int? OpTypeId,
     string? Description, string? Note, decimal? SetupTime, decimal? ProdTime);
+
+public record CreateDimensionRequest(
+    string BalloonNumber, string? Code, string? Description,
+    decimal Nominal, decimal UpperTol, decimal LowerTol,
+    string Unit, bool IsCritical, int SortOrder);

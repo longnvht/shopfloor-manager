@@ -1,10 +1,9 @@
+using System.Security.Claims;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ShopfloorManager.API.Common;
-using ShopfloorManager.Application.Jobs;
-using ShopfloorManager.Application.Operations;
-using ShopfloorManager.Application.Products;
+using ShopfloorManager.Application.Production;
 using ShopfloorManager.Shared.Pagination;
 
 namespace ShopfloorManager.API.Controllers;
@@ -14,8 +13,9 @@ namespace ShopfloorManager.API.Controllers;
 [Authorize]
 public class JobsController(IMediator mediator) : ControllerBase
 {
+    private int UserId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0");
+
     [HttpGet]
-    [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<JobDto>>), 200)]
     public async Task<IActionResult> GetJobs([FromQuery] GetJobsQuery query)
     {
         var result = await mediator.Send(query);
@@ -28,64 +28,55 @@ public class JobsController(IMediator mediator) : ControllerBase
     }
 
     [HttpGet("{id:int}")]
-    [ProducesResponseType(typeof(ApiResponse<JobDetailDto>), 200)]
     public async Task<IActionResult> GetJob(int id)
     {
         var result = await mediator.Send(new GetJobByIdQuery(id));
-        return result.IsSuccess ? Ok(ApiResponse<JobDetailDto>.Ok(result.Value))
+        return result.IsSuccess
+            ? Ok(ApiResponse<JobDetailDto>.Ok(result.Value))
             : NotFound(ApiResponse<JobDetailDto>.Fail(result.Errors));
     }
 
     [HttpPost]
     [Authorize(Roles = "Administrator,Manager,Planner")]
-    [ProducesResponseType(typeof(ApiResponse<JobDto>), 201)]
-    public async Task<IActionResult> CreateJob([FromBody] CreateJobCommand command)
+    public async Task<IActionResult> CreateJob([FromBody] CreateJobRequest req)
     {
-        var result = await mediator.Send(command);
+        var result = await mediator.Send(
+            new CreateJobCommand(req.JobNumber, req.PartRevId, req.RoutingRevId, req.RunQty, req.ShipBy, UserId));
         return result.IsSuccess
             ? CreatedAtAction(nameof(GetJob), new { id = result.Value.Id }, ApiResponse<JobDto>.Ok(result.Value))
             : BadRequest(ApiResponse<JobDto>.Fail(result.Errors));
     }
 
-    [HttpPut("{id:int}")]
-    [Authorize(Roles = "Administrator,Manager,Planner")]
-    [ProducesResponseType(typeof(ApiResponse<JobDto>), 200)]
-    public async Task<IActionResult> UpdateJob(int id, [FromBody] UpdateJobCommand command)
-    {
-        var result = await mediator.Send(command with { Id = id });
-        return result.IsSuccess ? Ok(ApiResponse<JobDto>.Ok(result.Value))
-            : NotFound(ApiResponse<JobDto>.Fail(result.Errors));
-    }
-
-    // ── Nested: Operations ────────────────────────────────────
-
+    /// <summary>
+    /// Lấy danh sách Operations của Job:
+    /// = RoutingRev template OPs + ForJobOnly OPs của job này.
+    /// </summary>
     [HttpGet("{id:int}/operations")]
-    [ProducesResponseType(typeof(ApiResponse<List<PartOpDto>>), 200)]
     public async Task<IActionResult> GetOperations(int id)
     {
-        var result = await mediator.Send(new GetPartOpsQuery(JobId: id));
-        return Ok(ApiResponse<List<PartOpDto>>.Ok(result.Value));
+        var result = await mediator.Send(new GetJobOpsQuery(id));
+        return result.IsSuccess
+            ? Ok(ApiResponse<List<PartOpDto>>.Ok(result.Value))
+            : NotFound(ApiResponse<List<PartOpDto>>.Fail(result.Errors));
     }
 
-    // ── Nested: Products ──────────────────────────────────────
-
     [HttpGet("{id:int}/products")]
-    [ProducesResponseType(typeof(ApiResponse<List<ProductDto>>), 200)]
     public async Task<IActionResult> GetProducts(int id)
     {
-        var result = await mediator.Send(new GetProductsQuery(id));
-        return Ok(ApiResponse<List<ProductDto>>.Ok(result.Value));
+        var products = await mediator.Send(new GetJobsQuery());  // TODO: GetProductsQuery
+        return Ok();
     }
 
     [HttpPost("{id:int}/products/generate")]
     [Authorize(Roles = "Administrator,Manager,Planner")]
-    [ProducesResponseType(typeof(ApiResponse<List<ProductDto>>), 201)]
     public async Task<IActionResult> GenerateProducts(int id, [FromBody] GenerateRequest req)
     {
         var result = await mediator.Send(new GenerateProductsCommand(id, req.Quantity));
-        return result.IsSuccess ? StatusCode(201, ApiResponse<List<ProductDto>>.Ok(result.Value))
+        return result.IsSuccess
+            ? StatusCode(201, ApiResponse<List<ProductDto>>.Ok(result.Value))
             : BadRequest(ApiResponse<List<ProductDto>>.Fail(result.Errors));
     }
 }
 
+public record CreateJobRequest(string JobNumber, int PartRevId, int RoutingRevId, int? RunQty, DateOnly? ShipBy);
 public record GenerateRequest(int Quantity);

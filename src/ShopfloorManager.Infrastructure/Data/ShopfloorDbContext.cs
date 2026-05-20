@@ -8,7 +8,7 @@ namespace ShopfloorManager.Infrastructure.Data;
 public class ShopfloorDbContext(DbContextOptions<ShopfloorDbContext> options)
     : DbContext(options), IShopfloorDbContext
 {
-    // Phase 1 — Auth & HR
+    // ── Phase 1: Auth & HR ────────────────────────────────────
     public DbSet<Department> Departments => Set<Department>();
     public DbSet<UserType> UserTypes => Set<UserType>();
     public DbSet<Position> Positions => Set<Position>();
@@ -19,17 +19,20 @@ public class ShopfloorDbContext(DbContextOptions<ShopfloorDbContext> options)
     public DbSet<User> Users => Set<User>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
-    // Phase 2 — Production Core
-    public DbSet<OpType> OpTypes => Set<OpType>();
-    public DbSet<PoLine> PoLines => Set<PoLine>();
+    // ── Phase 2: Production Core ──────────────────────────────
     public DbSet<Part> Parts => Set<Part>();
-    public DbSet<Job> Jobs => Set<Job>();
+    public DbSet<PartRev> PartRevs => Set<PartRev>();
+    public DbSet<Routing> Routings => Set<Routing>();
+    public DbSet<RoutingRev> RoutingRevs => Set<RoutingRev>();
+    public DbSet<OpType> OpTypes => Set<OpType>();
     public DbSet<PartOp> PartOps => Set<PartOp>();
+    public DbSet<PoLine> PoLines => Set<PoLine>();
+    public DbSet<Job> Jobs => Set<Job>();
     public DbSet<Product> Products => Set<Product>();
     public DbSet<FileType> FileTypes => Set<FileType>();
     public DbSet<TechDocument> TechDocuments => Set<TechDocument>();
 
-    // Phase 3 — Quality
+    // ── Phase 3: Quality ──────────────────────────────────────
     public DbSet<Dimension> Dimensions => Set<Dimension>();
     public DbSet<MeasureValue> MeasureValues => Set<MeasureValue>();
     public DbSet<Ncr> Ncrs => Set<Ncr>();
@@ -47,8 +50,11 @@ public class ShopfloorDbContext(DbContextOptions<ShopfloorDbContext> options)
 
         // Phase 2
         modelBuilder.ApplyConfiguration(new PartConfiguration());
-        modelBuilder.ApplyConfiguration(new JobConfiguration());
+        modelBuilder.ApplyConfiguration(new PartRevConfiguration());
+        modelBuilder.ApplyConfiguration(new RoutingConfiguration());
+        modelBuilder.ApplyConfiguration(new RoutingRevConfiguration());
         modelBuilder.ApplyConfiguration(new PartOpConfiguration());
+        modelBuilder.ApplyConfiguration(new JobConfiguration());
         modelBuilder.ApplyConfiguration(new ProductConfiguration());
         modelBuilder.ApplyConfiguration(new TechDocumentConfiguration());
 
@@ -74,32 +80,32 @@ public class ShopfloorDbContext(DbContextOptions<ShopfloorDbContext> options)
 
         modelBuilder.Entity<Department>().HasData(
             new Department { Id = 1, Code = "ADMIN", Name = "Administration", CreatedAt = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero) },
-            new Department { Id = 2, Code = "QC", Name = "Quality Control", CreatedAt = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero) },
-            new Department { Id = 3, Code = "PROD", Name = "Production", CreatedAt = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero) },
-            new Department { Id = 4, Code = "ENG", Name = "Engineering", CreatedAt = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero) }
+            new Department { Id = 2, Code = "QC",    Name = "Quality Control",  CreatedAt = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero) },
+            new Department { Id = 3, Code = "PROD",  Name = "Production",        CreatedAt = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero) },
+            new Department { Id = 4, Code = "ENG",   Name = "Engineering",       CreatedAt = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero) }
         );
 
         modelBuilder.Entity<WorkStatus>().HasData(
-            new WorkStatus { Id = 1, Name = "Active", IsWorking = true },
+            new WorkStatus { Id = 1, Name = "Active",   IsWorking = true  },
             new WorkStatus { Id = 2, Name = "On Leave", IsWorking = false },
             new WorkStatus { Id = 3, Name = "Resigned", IsWorking = false }
         );
 
         modelBuilder.Entity<OpType>().HasData(
-            new OpType { Id = 1, Code = "CNC", Name = "CNC Machining", Description = "CNC milling/turning" },
-            new OpType { Id = 2, Code = "INSP", Name = "Inspection", Description = "Quality inspection" },
-            new OpType { Id = 3, Code = "GRIND", Name = "Grinding", Description = "Surface/cylindrical grinding" },
-            new OpType { Id = 4, Code = "WIRE", Name = "Wire EDM", Description = "Wire electrical discharge" },
-            new OpType { Id = 5, Code = "MILL", Name = "Milling", Description = "Manual milling" },
-            new OpType { Id = 6, Code = "TURN", Name = "Turning", Description = "Manual turning" }
+            new OpType { Id = 1, Code = "CNC",   Name = "CNC Machining",  Description = "CNC milling/turning"         },
+            new OpType { Id = 2, Code = "INSP",  Name = "Inspection",     Description = "Quality inspection"          },
+            new OpType { Id = 3, Code = "GRIND", Name = "Grinding",       Description = "Surface/cylindrical grinding"},
+            new OpType { Id = 4, Code = "WIRE",  Name = "Wire EDM",       Description = "Wire electrical discharge"   },
+            new OpType { Id = 5, Code = "MILL",  Name = "Milling",        Description = "Manual milling"              },
+            new OpType { Id = 6, Code = "TURN",  Name = "Turning",        Description = "Manual turning"              }
         );
 
         modelBuilder.Entity<FileType>().HasData(
-            new FileType { Id = 1, Code = "DRAWING", Name = "Drawing", Folder = "drawings", SortOrder = 1 },
-            new FileType { Id = 2, Code = "GCODE", Name = "G-code Program", Folder = "gcodes", IsGcode = true, RequiresOpNumber = true, SortOrder = 2 },
-            new FileType { Id = 3, Code = "ROUTECARD", Name = "Route Card", Folder = "routecards", RequiresOpNumber = true, SortOrder = 3 },
-            new FileType { Id = 4, Code = "FIXTURE", Name = "Fixture Drawing", Folder = "fixtures", RequiresOpNumber = true, SortOrder = 4 },
-            new FileType { Id = 5, Code = "SETUP", Name = "Setup Sheet", Folder = "setups", RequiresOpNumber = true, SortOrder = 5 }
+            new FileType { Id = 1, Code = "DRAWING",   Name = "Drawing",         Folder = "drawings",   SortOrder = 1 },
+            new FileType { Id = 2, Code = "GCODE",     Name = "G-code Program",  Folder = "gcodes",     IsGcode = true, RequiresOpNumber = true, SortOrder = 2 },
+            new FileType { Id = 3, Code = "ROUTECARD", Name = "Route Card",      Folder = "routecards", RequiresOpNumber = true, SortOrder = 3 },
+            new FileType { Id = 4, Code = "FIXTURE",   Name = "Fixture Drawing", Folder = "fixtures",   RequiresOpNumber = true, SortOrder = 4 },
+            new FileType { Id = 5, Code = "SETUP",     Name = "Setup Sheet",     Folder = "setups",     RequiresOpNumber = true, SortOrder = 5 }
         );
     }
 }

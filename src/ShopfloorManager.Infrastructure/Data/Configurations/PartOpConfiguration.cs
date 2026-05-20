@@ -15,13 +15,15 @@ public class PartOpConfiguration : IEntityTypeConfiguration<PartOp>
         builder.Property(o => o.ProdTime).HasPrecision(8, 2);
         builder.Property(o => o.OpNumberSort).HasPrecision(8, 2);
 
-        builder.HasOne(o => o.Part).WithMany(p => p.PartOps)
-            .HasForeignKey(o => o.PartId).OnDelete(DeleteBehavior.Restrict);
+        // Template OP: thuộc RoutingRev
+        builder.HasOne(o => o.RoutingRev).WithMany(r => r.PartOps)
+            .HasForeignKey(o => o.RoutingRevId).OnDelete(DeleteBehavior.Restrict);
+
+        // Job-specific OP: thuộc Job (ForJobOnly=true)
+        builder.HasOne(o => o.Job).WithMany(j => j.ForJobOnlyOps)
+            .HasForeignKey(o => o.JobId).OnDelete(DeleteBehavior.Cascade);
 
         builder.HasOne(o => o.OpType).WithMany(t => t.PartOps)
             .HasForeignKey(o => o.OpTypeId).OnDelete(DeleteBehavior.SetNull);
-
-        builder.HasOne(o => o.Job).WithMany(j => j.PartOps)
-            .HasForeignKey(o => o.JobId).OnDelete(DeleteBehavior.Cascade);
     }
 }

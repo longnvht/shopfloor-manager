@@ -55,8 +55,8 @@ export default function JobsPage() {
               <tr>
                 <th className="px-4 py-3 text-left font-medium">Job Number</th>
                 <th className="px-4 py-3 text-left font-medium">Part Number</th>
-                <th className="px-4 py-3 text-left font-medium">Mô tả</th>
-                <th className="px-4 py-3 text-left font-medium">Rev</th>
+                <th className="px-4 py-3 text-left font-medium">Rev (Drawing)</th>
+                <th className="px-4 py-3 text-left font-medium">Routing Rev</th>
                 <th className="px-4 py-3 text-right font-medium">Run Qty</th>
                 <th className="px-4 py-3 text-left font-medium">Ship By</th>
               </tr>
@@ -70,8 +70,8 @@ export default function JobsPage() {
                     </Link>
                   </td>
                   <td className="px-4 py-3 font-mono text-xs">{job.partNumber}</td>
-                  <td className="px-4 py-3 text-muted-foreground max-w-xs truncate">{job.partDescription}</td>
-                  <td className="px-4 py-3">{job.partRevision ?? '—'}</td>
+                  <td className="px-4 py-3">{job.revCode}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{job.routingRevCode}</td>
                   <td className="px-4 py-3 text-right">{job.runQty ?? '—'}</td>
                   <td className="px-4 py-3">{job.shipBy ?? '—'}</td>
                 </tr>

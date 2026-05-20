@@ -12,7 +12,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 const schema = z.object({
   jobNumber: z.string().min(1, 'Bắt buộc').max(20),
-  partId: z.string().min(1, 'Bắt buộc'),
+  partRevId: z.string().min(1, 'Bắt buộc'),
+  routingRevId: z.string().min(1, 'Bắt buộc'),
   runQty: z.string().optional(),
   shipBy: z.string().optional(),
 })
@@ -32,7 +33,8 @@ export function CreateJobDialog({ open, onClose, onCreated }: Props) {
     setError(null)
     const res = await api.jobs.create({
       jobNumber: data.jobNumber,
-      partId: Number(data.partId),
+      partRevId: Number(data.partRevId),
+      routingRevId: Number(data.routingRevId),
       runQty: data.runQty ? Number(data.runQty) : undefined,
       shipBy: data.shipBy || undefined,
     })
@@ -50,13 +52,20 @@ export function CreateJobDialog({ open, onClose, onCreated }: Props) {
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-1.5">
               <Label>Job Number</Label>
-              <Input {...register('jobNumber')} placeholder="JOB-2026-001" />
+              <Input {...register('jobNumber')} placeholder="J2026-0001" />
               {errors.jobNumber && <p className="text-sm text-destructive">{errors.jobNumber.message}</p>}
             </div>
-            <div className="space-y-1.5">
-              <Label>Part ID</Label>
-              <Input {...register('partId')} type="number" placeholder="1" />
-              {errors.partId && <p className="text-sm text-destructive">{errors.partId.message}</p>}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Part Rev ID</Label>
+                <Input {...register('partRevId')} type="number" placeholder="1" />
+                {errors.partRevId && <p className="text-sm text-destructive">{errors.partRevId.message}</p>}
+              </div>
+              <div className="space-y-1.5">
+                <Label>Routing Rev ID</Label>
+                <Input {...register('routingRevId')} type="number" placeholder="1" />
+                {errors.routingRevId && <p className="text-sm text-destructive">{errors.routingRevId.message}</p>}
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">

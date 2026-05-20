@@ -30,43 +30,55 @@ async function request<T>(path: string, init?: RequestInit): Promise<ApiResponse
 
 // ── Types ─────────────────────────────────────────────────────
 
-export type PartDto = {
-  id: number; partNumber: string; description: string
-  revision: string | null; routingRevision: string | null
-  isActive: boolean; isComplete: boolean; status: number; createdAt: string
+export type PartDto = { id: number; partNumber: string; description: string; createdAt: string }
+
+export type PartRevDto = {
+  id: number; partId: number; partNumber: string; revCode: string
+  description: string | null; isActive: boolean; isReleased: boolean; createdAt: string
+}
+
+export type RoutingRevDto = {
+  id: number; routingId: number; revCode: string; changeNote: string | null
+  isActive: boolean; isReleased: boolean; createdAt: string; opCount: number
 }
 
 export type JobDto = {
-  id: number; jobNumber: string; partId: number
-  partNumber: string; partDescription: string; partRevision: string | null
-  runQty: number | null; shipBy: string | null; createdAt: string
-}
-
-export type JobDetailDto = JobDto & {
-  operations: { id: number; opNumber: string; opTypeName: string | null; description: string | null; isComplete: boolean }[]
-  products: { id: number; serialNumber: string; isComplete: boolean }[]
+  id: number; jobNumber: string
+  partRevId: number; partNumber: string; revCode: string
+  routingRevId: number; routingRevCode: string
+  runQty: number | null; shipBy: string | null; isComplete: boolean; createdAt: string
 }
 
 export type PartOpDto = {
-  id: number; opNumber: string; opTypeName: string | null
-  description: string | null; isComplete: boolean; setupTime: number | null; prodTime: number | null
+  id: number; routingRevId: number | null; jobId: number | null; forJobOnly: boolean
+  opNumber: string; opNumberSort: number | null
+  opTypeId: number | null; opTypeName: string | null
+  description: string | null; note: string | null
+  setupTime: number | null; prodTime: number | null; isVisible: boolean; isComplete: boolean
 }
 
-export type ProductDto = { id: number; serialNumber: string; jobId: number; isComplete: boolean }
+export type JobDetailDto = JobDto & {
+  partDescription: string
+  operations: PartOpDto[]
+  products: ProductDto[]
+}
+
+export type ProductDto = { id: number; serialNumber: string; jobId: number; isComplete: boolean; sortOrder: number | null }
 
 export type DimensionDto = {
-  id: number; partOpId: number; code: string; description: string | null
+  id: number; partOpId: number
+  balloonNumber: string; code: string | null; description: string | null
   nominal: number; upperTol: number; lowerTol: number
   upperLimit: number; lowerLimit: number; unit: string
   isCritical: boolean; sortOrder: number
 }
 
 export type FaiSheetDto = {
-  partOpId: number; jobId: number
+  partOpId: number; jobId: number; opNumber: string
   dimensions: DimensionDto[]
   rows: {
     serialNumber: string; productId: number; allPass: boolean
-    cells: { measureValueId: number | null; dimensionCode: string; value: number | null; result: string | null }[]
+    cells: { measureValueId: number | null; balloonNumber: string; value: number | null; result: string | null }[]
   }[]
 }
 
@@ -109,18 +121,20 @@ export const api = {
   parts: {
     list: (page = 1, search?: string) =>
       request<PartDto[]>(`/api/v1/parts?page=${page}&pageSize=20${search ? `&search=${encodeURIComponent(search)}` : ''}`),
-    get: (id: number) => request<PartDto>(`/api/v1/parts/${id}`),
-    create: (body: { partNumber: string; description: string; revision?: string }) =>
-      request<PartDto>('/api/v1/parts', { method: 'POST', body: JSON.stringify(body) }),
-    update: (id: number, body: { description: string; revision?: string; routingRevision?: string; isActive: boolean }) =>
-      request<PartDto>(`/api/v1/parts/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+    create: (body: { partNumber: string; description: string; revCode?: string }) =>
+      request<PartRevDto>('/api/v1/parts', { method: 'POST', body: JSON.stringify(body) }),
+    revisions: (partId: number) =>
+      request<PartRevDto[]>(`/api/v1/parts/${partId}/revisions`),
+    routingRevs: (partRevId: number, routingId: number) =>
+      request<RoutingRevDto[]>(`/api/v1/parts/revisions/${partRevId}/routing-revs?routingId=${routingId}`),
   },
   jobs: {
     list: (page = 1, search?: string) =>
       request<JobDto[]>(`/api/v1/jobs?page=${page}&pageSize=20${search ? `&search=${encodeURIComponent(search)}` : ''}`),
     get: (id: number) => request<JobDetailDto>(`/api/v1/jobs/${id}`),
-    create: (body: { jobNumber: string; partId: number; runQty?: number; shipBy?: string }) =>
+    create: (body: { jobNumber: string; partRevId: number; routingRevId: number; runQty?: number; shipBy?: string }) =>
       request<JobDto>('/api/v1/jobs', { method: 'POST', body: JSON.stringify(body) }),
+    operations: (id: number) => request<PartOpDto[]>(`/api/v1/jobs/${id}/operations`),
     generateProducts: (id: number, quantity: number) =>
       request<ProductDto[]>(`/api/v1/jobs/${id}/products/generate`, {
         method: 'POST', body: JSON.stringify({ quantity }),

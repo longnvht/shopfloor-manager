@@ -3,7 +3,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ShopfloorManager.API.Common;
-using ShopfloorManager.Application.Parts;
+using ShopfloorManager.Application.Production;
 using ShopfloorManager.Shared.Pagination;
 
 namespace ShopfloorManager.API.Controllers;
@@ -13,10 +13,10 @@ namespace ShopfloorManager.API.Controllers;
 [Authorize]
 public class PartsController(IMediator mediator) : ControllerBase
 {
-    private int UserId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub") ?? "0");
+    private int UserId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0");
 
+    /// <summary>Danh sách Parts (phân trang, tìm kiếm).</summary>
     [HttpGet]
-    [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<PartDto>>), 200)]
     public async Task<IActionResult> GetParts([FromQuery] GetPartsQuery query)
     {
         var result = await mediator.Send(query);
@@ -28,37 +28,56 @@ public class PartsController(IMediator mediator) : ControllerBase
         });
     }
 
-    [HttpGet("{id:int}")]
-    [ProducesResponseType(typeof(ApiResponse<PartDto>), 200)]
-    public async Task<IActionResult> GetPart(int id)
-    {
-        var result = await mediator.Send(new GetPartByIdQuery(id));
-        return result.IsSuccess ? Ok(ApiResponse<PartDto>.Ok(result.Value))
-            : NotFound(ApiResponse<PartDto>.Fail(result.Errors));
-    }
-
+    /// <summary>Tạo Part mới (tự động tạo Rev A + Routing Standard R1).</summary>
     [HttpPost]
     [Authorize(Roles = "Administrator,Manager,Engineer")]
-    [ProducesResponseType(typeof(ApiResponse<PartDto>), 201)]
     public async Task<IActionResult> CreatePart([FromBody] CreatePartRequest req)
     {
-        var result = await mediator.Send(new CreatePartCommand(req.PartNumber, req.Description, req.Revision, UserId));
+        var result = await mediator.Send(new CreatePartCommand(req.PartNumber, req.Description, req.RevCode, UserId));
         return result.IsSuccess
-            ? CreatedAtAction(nameof(GetPart), new { id = result.Value.Id }, ApiResponse<PartDto>.Ok(result.Value))
-            : BadRequest(ApiResponse<PartDto>.Fail(result.Errors));
+            ? StatusCode(201, ApiResponse<PartRevDto>.Ok(result.Value))
+            : BadRequest(ApiResponse<PartRevDto>.Fail(result.Errors));
     }
 
-    [HttpPut("{id:int}")]
-    [Authorize(Roles = "Administrator,Manager,Engineer")]
-    [ProducesResponseType(typeof(ApiResponse<PartDto>), 200)]
-    public async Task<IActionResult> UpdatePart(int id, [FromBody] UpdatePartRequest req)
+    /// <summary>Lấy tất cả revisions của một Part.</summary>
+    [HttpGet("{partId:int}/revisions")]
+    public async Task<IActionResult> GetRevisions(int partId)
     {
-        var result = await mediator.Send(
-            new UpdatePartCommand(id, req.Description, req.Revision, req.RoutingRevision, req.IsActive, UserId));
-        return result.IsSuccess ? Ok(ApiResponse<PartDto>.Ok(result.Value))
-            : NotFound(ApiResponse<PartDto>.Fail(result.Errors));
+        var result = await mediator.Send(new GetPartRevsQuery(partId));
+        return Ok(ApiResponse<List<PartRevDto>>.Ok(result.Value));
+    }
+
+    /// <summary>Thêm revision mới cho Part (tự động tạo Routing Standard R1).</summary>
+    [HttpPost("{partId:int}/revisions")]
+    [Authorize(Roles = "Administrator,Manager,Engineer")]
+    public async Task<IActionResult> AddRevision(int partId, [FromBody] AddRevisionRequest req)
+    {
+        var result = await mediator.Send(new AddPartRevCommand(partId, req.RevCode, req.Description, UserId));
+        return result.IsSuccess
+            ? StatusCode(201, ApiResponse<PartRevDto>.Ok(result.Value))
+            : BadRequest(ApiResponse<PartRevDto>.Fail(result.Errors));
+    }
+
+    /// <summary>Lấy danh sách RoutingRevs của một PartRev.</summary>
+    [HttpGet("revisions/{partRevId:int}/routing-revs")]
+    public async Task<IActionResult> GetRoutingRevs(int partRevId, [FromQuery] int routingId)
+    {
+        var result = await mediator.Send(new GetRoutingRevsQuery(routingId));
+        return Ok(ApiResponse<List<RoutingRevDto>>.Ok(result.Value));
+    }
+
+    /// <summary>Tạo RoutingRev mới (copy OPs từ rev đang active).</summary>
+    [HttpPost("routing-revs")]
+    [Authorize(Roles = "Administrator,Manager,Engineer")]
+    public async Task<IActionResult> AddRoutingRev([FromBody] AddRoutingRevRequest req)
+    {
+        var result = await mediator.Send(new AddRoutingRevCommand(req.RoutingId, req.RevCode, req.ChangeNote, UserId));
+        return result.IsSuccess
+            ? StatusCode(201, ApiResponse<RoutingRevDto>.Ok(result.Value))
+            : BadRequest(ApiResponse<RoutingRevDto>.Fail(result.Errors));
     }
 }
 
-public record CreatePartRequest(string PartNumber, string Description, string? Revision);
-public record UpdatePartRequest(string Description, string? Revision, string? RoutingRevision, bool IsActive);
+public record CreatePartRequest(string PartNumber, string Description, string RevCode = "A");
+public record AddRevisionRequest(string RevCode, string? Description);
+public record AddRoutingRevRequest(int RoutingId, string RevCode, string? ChangeNote);

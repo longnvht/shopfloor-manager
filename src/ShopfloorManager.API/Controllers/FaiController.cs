@@ -3,7 +3,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ShopfloorManager.API.Common;
-using ShopfloorManager.Application.Quality;
+using ShopfloorManager.Application.Production;
 
 namespace ShopfloorManager.API.Controllers;
 
@@ -14,21 +14,19 @@ public class FaiController(IMediator mediator) : ControllerBase
 {
     private int UserId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0");
 
-    /// <summary>Lấy FAI sheet (bảng đo) cho một operation + job.</summary>
+    /// <summary>FAI Sheet: ma trận (Serials × Dimensions) cho một OP của một Job.</summary>
     [HttpGet]
-    [ProducesResponseType(typeof(ApiResponse<FaiSheetDto>), 200)]
-    public async Task<IActionResult> GetFaiSheet([FromQuery] int partOpId, [FromQuery] int jobId)
+    public async Task<IActionResult> GetFaiSheet([FromQuery] int jobId, [FromQuery] int partOpId)
     {
-        var result = await mediator.Send(new GetFaiSheetQuery(partOpId, jobId));
+        var result = await mediator.Send(new GetFaiSheetQuery(jobId, partOpId));
         return result.IsSuccess
             ? Ok(ApiResponse<FaiSheetDto>.Ok(result.Value))
             : BadRequest(ApiResponse<FaiSheetDto>.Fail(result.Errors));
     }
 
-    /// <summary>Lưu một giá trị đo (tạo mới hoặc cập nhật).</summary>
+    /// <summary>Lưu giá trị đo (upsert — tự động tính Pass/Fail).</summary>
     [HttpPost("measure")]
     [Authorize(Roles = "Administrator,Manager,Engineer,QC Inspector,Operator")]
-    [ProducesResponseType(typeof(ApiResponse<MeasureValueDto>), 200)]
     public async Task<IActionResult> SaveMeasure([FromBody] SaveMeasureRequest req)
     {
         var result = await mediator.Send(new SaveMeasureCommand(

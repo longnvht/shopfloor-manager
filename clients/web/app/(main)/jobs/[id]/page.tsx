@@ -38,7 +38,8 @@ export default function JobDetailPage() {
         <CardContent className="grid grid-cols-2 gap-4 text-sm md:grid-cols-4">
           <div><p className="text-muted-foreground">Part Number</p><p className="font-mono font-medium">{job.partNumber}</p></div>
           <div><p className="text-muted-foreground">Mô tả</p><p>{job.partDescription}</p></div>
-          <div><p className="text-muted-foreground">Revision</p><p>{job.partRevision ?? '—'}</p></div>
+          <div><p className="text-muted-foreground">Drawing Rev</p><p>{job.revCode}</p></div>
+          <div><p className="text-muted-foreground">Routing Rev</p><p>{job.routingRevCode}</p></div>
           <div><p className="text-muted-foreground">Run Qty</p><p>{job.runQty ?? '—'}</p></div>
           <div><p className="text-muted-foreground">Ship By</p><p>{job.shipBy ?? '—'}</p></div>
           <div><p className="text-muted-foreground">OPs</p><p>{doneOps}/{job.operations.length} hoàn tất</p></div>

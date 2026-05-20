@@ -9,7 +9,6 @@ public class Ncr
     public int JobId { get; set; }
     public int? ProductId { get; set; }
     public int? PartOpId { get; set; }
-    public int? DepartmentId { get; set; }
     public string Description { get; set; } = string.Empty;
     public NcrStatus Status { get; set; } = NcrStatus.Open;
     public int RaisedBy { get; set; }

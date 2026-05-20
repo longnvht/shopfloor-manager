@@ -129,8 +129,13 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
-                    b.Property<string>("Code")
+                    b.Property<string>("BalloonNumber")
                         .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("balloon_number");
+
+                    b.Property<string>("Code")
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")
                         .HasColumnName("code");
@@ -186,9 +191,9 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                     b.HasKey("Id")
                         .HasName("pk_dimensions");
 
-                    b.HasIndex("PartOpId", "Code")
+                    b.HasIndex("PartOpId", "BalloonNumber")
                         .IsUnique()
-                        .HasDatabaseName("ix_dimensions_part_op_id_code");
+                        .HasDatabaseName("ix_dimensions_part_op_id_balloon_number");
 
                     b.ToTable("dimensions", (string)null);
                 });
@@ -215,30 +220,14 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("is_gcode");
 
-                    b.Property<bool>("IsSegment")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_segment");
-
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("name");
 
-                    b.Property<bool>("RequiresJobNumber")
-                        .HasColumnType("boolean")
-                        .HasColumnName("requires_job_number");
-
                     b.Property<bool>("RequiresOpNumber")
                         .HasColumnType("boolean")
                         .HasColumnName("requires_op_number");
-
-                    b.Property<bool>("RequiresPartNumber")
-                        .HasColumnType("boolean")
-                        .HasColumnName("requires_part_number");
-
-                    b.Property<bool>("RequiresRevision")
-                        .HasColumnType("boolean")
-                        .HasColumnName("requires_revision");
 
                     b.Property<int>("SortOrder")
                         .HasColumnType("integer")
@@ -256,12 +245,8 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                             Code = "DRAWING",
                             Folder = "drawings",
                             IsGcode = false,
-                            IsSegment = false,
                             Name = "Drawing",
-                            RequiresJobNumber = true,
                             RequiresOpNumber = false,
-                            RequiresPartNumber = true,
-                            RequiresRevision = false,
                             SortOrder = 1
                         },
                         new
@@ -270,12 +255,8 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                             Code = "GCODE",
                             Folder = "gcodes",
                             IsGcode = true,
-                            IsSegment = false,
                             Name = "G-code Program",
-                            RequiresJobNumber = true,
                             RequiresOpNumber = true,
-                            RequiresPartNumber = true,
-                            RequiresRevision = false,
                             SortOrder = 2
                         },
                         new
@@ -284,12 +265,8 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                             Code = "ROUTECARD",
                             Folder = "routecards",
                             IsGcode = false,
-                            IsSegment = false,
                             Name = "Route Card",
-                            RequiresJobNumber = true,
                             RequiresOpNumber = true,
-                            RequiresPartNumber = true,
-                            RequiresRevision = false,
                             SortOrder = 3
                         },
                         new
@@ -298,12 +275,8 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                             Code = "FIXTURE",
                             Folder = "fixtures",
                             IsGcode = false,
-                            IsSegment = false,
                             Name = "Fixture Drawing",
-                            RequiresJobNumber = true,
                             RequiresOpNumber = true,
-                            RequiresPartNumber = true,
-                            RequiresRevision = false,
                             SortOrder = 4
                         },
                         new
@@ -312,12 +285,8 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                             Code = "SETUP",
                             Folder = "setups",
                             IsGcode = false,
-                            IsSegment = false,
                             Name = "Setup Sheet",
-                            RequiresJobNumber = true,
                             RequiresOpNumber = true,
-                            RequiresPartNumber = true,
-                            RequiresRevision = false,
                             SortOrder = 5
                         });
                 });
@@ -335,19 +304,31 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("integer")
+                        .HasColumnName("created_by");
+
+                    b.Property<bool>("IsComplete")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_complete");
+
                     b.Property<string>("JobNumber")
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")
                         .HasColumnName("job_number");
 
-                    b.Property<int>("PartId")
+                    b.Property<int>("PartRevId")
                         .HasColumnType("integer")
-                        .HasColumnName("part_id");
+                        .HasColumnName("part_rev_id");
 
                     b.Property<int?>("PoLineId")
                         .HasColumnType("integer")
                         .HasColumnName("po_line_id");
+
+                    b.Property<int>("RoutingRevId")
+                        .HasColumnType("integer")
+                        .HasColumnName("routing_rev_id");
 
                     b.Property<int?>("RunQty")
                         .HasColumnType("integer")
@@ -364,11 +345,14 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_jobs_job_number");
 
-                    b.HasIndex("PartId")
-                        .HasDatabaseName("ix_jobs_part_id");
+                    b.HasIndex("PartRevId")
+                        .HasDatabaseName("ix_jobs_part_rev_id");
 
                     b.HasIndex("PoLineId")
                         .HasDatabaseName("ix_jobs_po_line_id");
+
+                    b.HasIndex("RoutingRevId")
+                        .HasDatabaseName("ix_jobs_routing_rev_id");
 
                     b.ToTable("jobs", (string)null);
                 });
@@ -399,6 +383,10 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                         .HasColumnType("character varying(500)")
                         .HasColumnName("note");
 
+                    b.Property<int>("PartOpId")
+                        .HasColumnType("integer")
+                        .HasColumnName("part_op_id");
+
                     b.Property<int>("ProductId")
                         .HasColumnType("integer")
                         .HasColumnName("product_id");
@@ -417,6 +405,9 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
 
                     b.HasIndex("MeasuredBy")
                         .HasDatabaseName("ix_measure_values_measured_by");
+
+                    b.HasIndex("PartOpId")
+                        .HasDatabaseName("ix_measure_values_part_op_id");
 
                     b.HasIndex("ProductId")
                         .HasDatabaseName("ix_measure_values_product_id");
@@ -490,10 +481,6 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                     b.Property<int?>("ClosedBy")
                         .HasColumnType("integer")
                         .HasColumnName("closed_by");
-
-                    b.Property<int?>("DepartmentId")
-                        .HasColumnType("integer")
-                        .HasColumnName("department_id");
 
                     b.Property<string>("Description")
                         .IsRequired()
@@ -678,18 +665,6 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<int?>("CompletedBy")
-                        .HasColumnType("integer")
-                        .HasColumnName("completed_by");
-
-                    b.Property<DateTimeOffset?>("ConfirmedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("confirmed_at");
-
-                    b.Property<int?>("ConfirmedBy")
-                        .HasColumnType("integer")
-                        .HasColumnName("confirmed_by");
-
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
@@ -698,23 +673,11 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("created_by");
 
-                    b.Property<DateTimeOffset?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("deleted_at");
-
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasMaxLength(300)
                         .HasColumnType("character varying(300)")
                         .HasColumnName("description");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_active");
-
-                    b.Property<bool>("IsComplete")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_complete");
 
                     b.Property<string>("PartNumber")
                         .IsRequired()
@@ -722,34 +685,12 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                         .HasColumnType("character varying(20)")
                         .HasColumnName("part_number");
 
-                    b.Property<string>("Revision")
-                        .HasMaxLength(10)
-                        .HasColumnType("character varying(10)")
-                        .HasColumnName("revision");
-
-                    b.Property<string>("RoutingRevision")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("routing_revision");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer")
-                        .HasColumnName("status");
-
-                    b.Property<DateTimeOffset>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.Property<int?>("UpdatedBy")
-                        .HasColumnType("integer")
-                        .HasColumnName("updated_by");
-
                     b.HasKey("Id")
                         .HasName("pk_parts");
 
-                    b.HasIndex("PartNumber", "Revision")
+                    b.HasIndex("PartNumber")
                         .IsUnique()
-                        .HasDatabaseName("ix_parts_part_number_revision");
+                        .HasDatabaseName("ix_parts_part_number");
 
                     b.ToTable("parts", (string)null);
                 });
@@ -762,6 +703,10 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                         .HasColumnName("id");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("completed_at");
 
                     b.Property<int?>("CompletedBy")
                         .HasColumnType("integer")
@@ -779,13 +724,13 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                         .HasColumnType("text")
                         .HasColumnName("description");
 
+                    b.Property<bool>("ForJobOnly")
+                        .HasColumnType("boolean")
+                        .HasColumnName("for_job_only");
+
                     b.Property<bool>("IsComplete")
                         .HasColumnType("boolean")
                         .HasColumnName("is_complete");
-
-                    b.Property<bool>("IsForJobOnly")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_for_job_only");
 
                     b.Property<bool>("IsVisible")
                         .HasColumnType("boolean")
@@ -814,14 +759,14 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("op_type_id");
 
-                    b.Property<int?>("PartId")
-                        .HasColumnType("integer")
-                        .HasColumnName("part_id");
-
                     b.Property<decimal?>("ProdTime")
                         .HasPrecision(8, 2)
                         .HasColumnType("numeric(8,2)")
                         .HasColumnName("prod_time");
+
+                    b.Property<int?>("RoutingRevId")
+                        .HasColumnType("integer")
+                        .HasColumnName("routing_rev_id");
 
                     b.Property<decimal?>("SetupTime")
                         .HasPrecision(8, 2)
@@ -837,10 +782,68 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                     b.HasIndex("OpTypeId")
                         .HasDatabaseName("ix_part_ops_op_type_id");
 
-                    b.HasIndex("PartId")
-                        .HasDatabaseName("ix_part_ops_part_id");
+                    b.HasIndex("RoutingRevId")
+                        .HasDatabaseName("ix_part_ops_routing_rev_id");
 
                     b.ToTable("part_ops", (string)null);
+                });
+
+            modelBuilder.Entity("ShopfloorManager.Domain.Entities.PartRev", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("integer")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("description");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<bool>("IsReleased")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_released");
+
+                    b.Property<int>("PartId")
+                        .HasColumnType("integer")
+                        .HasColumnName("part_id");
+
+                    b.Property<DateTimeOffset?>("ReleasedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("released_at");
+
+                    b.Property<int?>("ReleasedBy")
+                        .HasColumnType("integer")
+                        .HasColumnName("released_by");
+
+                    b.Property<string>("RevCode")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("rev_code");
+
+                    b.HasKey("Id")
+                        .HasName("pk_part_revs");
+
+                    b.HasIndex("PartId", "RevCode")
+                        .IsUnique()
+                        .HasDatabaseName("ix_part_revs_part_id_rev_code");
+
+                    b.ToTable("part_revs", (string)null);
                 });
 
             modelBuilder.Entity("ShopfloorManager.Domain.Entities.PoLine", b =>
@@ -932,12 +935,9 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                     b.HasKey("Id")
                         .HasName("pk_products");
 
-                    b.HasIndex("JobId")
-                        .HasDatabaseName("ix_products_job_id");
-
-                    b.HasIndex("SerialNumber", "JobId")
+                    b.HasIndex("JobId", "SerialNumber")
                         .IsUnique()
-                        .HasDatabaseName("ix_products_serial_number_job_id");
+                        .HasDatabaseName("ix_products_job_id_serial_number");
 
                     b.ToTable("products", (string)null);
                 });
@@ -1024,6 +1024,109 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                     b.ToTable("role_menus", (string)null);
                 });
 
+            modelBuilder.Entity("ShopfloorManager.Domain.Entities.Routing", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("integer")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("description");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.Property<int>("PartRevId")
+                        .HasColumnType("integer")
+                        .HasColumnName("part_rev_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_routings");
+
+                    b.HasIndex("PartRevId")
+                        .HasDatabaseName("ix_routings_part_rev_id");
+
+                    b.ToTable("routings", (string)null);
+                });
+
+            modelBuilder.Entity("ShopfloorManager.Domain.Entities.RoutingRev", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ChangeNote")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("change_note");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("integer")
+                        .HasColumnName("created_by");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<bool>("IsReleased")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_released");
+
+                    b.Property<DateTimeOffset?>("ReleasedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("released_at");
+
+                    b.Property<int?>("ReleasedBy")
+                        .HasColumnType("integer")
+                        .HasColumnName("released_by");
+
+                    b.Property<string>("RevCode")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("rev_code");
+
+                    b.Property<int>("RoutingId")
+                        .HasColumnType("integer")
+                        .HasColumnName("routing_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_routing_revs");
+
+                    b.HasIndex("RoutingId", "RevCode")
+                        .IsUnique()
+                        .HasDatabaseName("ix_routing_revs_routing_id_rev_code");
+
+                    b.ToTable("routing_revs", (string)null);
+                });
+
             modelBuilder.Entity("ShopfloorManager.Domain.Entities.TechDocument", b =>
                 {
                     b.Property<long>("Id")
@@ -1076,11 +1179,7 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("job_id");
 
-                    b.Property<int?>("PartId")
-                        .HasColumnType("integer")
-                        .HasColumnName("part_id");
-
-                    b.Property<int?>("PartOpId")
+                    b.Property<int>("PartOpId")
                         .HasColumnType("integer")
                         .HasColumnName("part_op_id");
 
@@ -1117,15 +1216,10 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                         .HasDatabaseName("ix_tech_documents_inspector_id");
 
                     b.HasIndex("JobId")
-                        .HasDatabaseName("ix_tech_documents_job_id")
-                        .HasFilter("deleted_at IS NULL");
-
-                    b.HasIndex("PartId")
-                        .HasDatabaseName("ix_tech_documents_part_id");
+                        .HasDatabaseName("ix_tech_documents_job_id");
 
                     b.HasIndex("PartOpId")
-                        .HasDatabaseName("ix_tech_documents_part_op_id")
-                        .HasFilter("deleted_at IS NULL");
+                        .HasDatabaseName("ix_tech_documents_part_op_id");
 
                     b.ToTable("tech_documents", (string)null);
                 });
@@ -1320,7 +1414,7 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
             modelBuilder.Entity("ShopfloorManager.Domain.Entities.Dimension", b =>
                 {
                     b.HasOne("ShopfloorManager.Domain.Entities.PartOp", "PartOp")
-                        .WithMany()
+                        .WithMany("Dimensions")
                         .HasForeignKey("PartOpId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
@@ -1331,11 +1425,12 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
 
             modelBuilder.Entity("ShopfloorManager.Domain.Entities.Job", b =>
                 {
-                    b.HasOne("ShopfloorManager.Domain.Entities.Part", "Part")
-                        .WithMany("Jobs")
-                        .HasForeignKey("PartId")
+                    b.HasOne("ShopfloorManager.Domain.Entities.PartRev", "PartRev")
+                        .WithMany()
+                        .HasForeignKey("PartRevId")
                         .OnDelete(DeleteBehavior.Restrict)
-                        .HasConstraintName("fk_jobs_parts_part_id");
+                        .IsRequired()
+                        .HasConstraintName("fk_jobs_part_revs_part_rev_id");
 
                     b.HasOne("ShopfloorManager.Domain.Entities.PoLine", "PoLine")
                         .WithMany("Jobs")
@@ -1343,9 +1438,18 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                         .OnDelete(DeleteBehavior.SetNull)
                         .HasConstraintName("fk_jobs_po_lines_po_line_id");
 
-                    b.Navigation("Part");
+                    b.HasOne("ShopfloorManager.Domain.Entities.RoutingRev", "RoutingRev")
+                        .WithMany()
+                        .HasForeignKey("RoutingRevId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_jobs_routing_revs_routing_rev_id");
+
+                    b.Navigation("PartRev");
 
                     b.Navigation("PoLine");
+
+                    b.Navigation("RoutingRev");
                 });
 
             modelBuilder.Entity("ShopfloorManager.Domain.Entities.MeasureValue", b =>
@@ -1363,8 +1467,15 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                         .OnDelete(DeleteBehavior.SetNull)
                         .HasConstraintName("fk_measure_values_users_measured_by");
 
-                    b.HasOne("ShopfloorManager.Domain.Entities.Product", "Product")
+                    b.HasOne("ShopfloorManager.Domain.Entities.PartOp", "PartOp")
                         .WithMany()
+                        .HasForeignKey("PartOpId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_measure_values_part_ops_part_op_id");
+
+                    b.HasOne("ShopfloorManager.Domain.Entities.Product", "Product")
+                        .WithMany("MeasureValues")
                         .HasForeignKey("ProductId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
@@ -1373,6 +1484,8 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                     b.Navigation("Dimension");
 
                     b.Navigation("Inspector");
+
+                    b.Navigation("PartOp");
 
                     b.Navigation("Product");
                 });
@@ -1457,7 +1570,7 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
             modelBuilder.Entity("ShopfloorManager.Domain.Entities.PartOp", b =>
                 {
                     b.HasOne("ShopfloorManager.Domain.Entities.Job", "Job")
-                        .WithMany("PartOps")
+                        .WithMany("ForJobOnlyOps")
                         .HasForeignKey("JobId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .HasConstraintName("fk_part_ops_jobs_job_id");
@@ -1468,15 +1581,27 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                         .OnDelete(DeleteBehavior.SetNull)
                         .HasConstraintName("fk_part_ops_op_types_op_type_id");
 
-                    b.HasOne("ShopfloorManager.Domain.Entities.Part", "Part")
+                    b.HasOne("ShopfloorManager.Domain.Entities.RoutingRev", "RoutingRev")
                         .WithMany("PartOps")
-                        .HasForeignKey("PartId")
+                        .HasForeignKey("RoutingRevId")
                         .OnDelete(DeleteBehavior.Restrict)
-                        .HasConstraintName("fk_part_ops_parts_part_id");
+                        .HasConstraintName("fk_part_ops_routing_revs_routing_rev_id");
 
                     b.Navigation("Job");
 
                     b.Navigation("OpType");
+
+                    b.Navigation("RoutingRev");
+                });
+
+            modelBuilder.Entity("ShopfloorManager.Domain.Entities.PartRev", b =>
+                {
+                    b.HasOne("ShopfloorManager.Domain.Entities.Part", "Part")
+                        .WithMany("Revisions")
+                        .HasForeignKey("PartId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_part_revs_parts_part_id");
 
                     b.Navigation("Part");
                 });
@@ -1514,6 +1639,30 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                     b.Navigation("Role");
                 });
 
+            modelBuilder.Entity("ShopfloorManager.Domain.Entities.Routing", b =>
+                {
+                    b.HasOne("ShopfloorManager.Domain.Entities.PartRev", "PartRev")
+                        .WithMany("Routings")
+                        .HasForeignKey("PartRevId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_routings_part_revs_part_rev_id");
+
+                    b.Navigation("PartRev");
+                });
+
+            modelBuilder.Entity("ShopfloorManager.Domain.Entities.RoutingRev", b =>
+                {
+                    b.HasOne("ShopfloorManager.Domain.Entities.Routing", "Routing")
+                        .WithMany("Revisions")
+                        .HasForeignKey("RoutingId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_routing_revs_routings_routing_id");
+
+                    b.Navigation("Routing");
+                });
+
             modelBuilder.Entity("ShopfloorManager.Domain.Entities.TechDocument", b =>
                 {
                     b.HasOne("ShopfloorManager.Domain.Entities.User", "Creator")
@@ -1542,16 +1691,11 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                         .OnDelete(DeleteBehavior.SetNull)
                         .HasConstraintName("fk_tech_documents_jobs_job_id");
 
-                    b.HasOne("ShopfloorManager.Domain.Entities.Part", "Part")
-                        .WithMany()
-                        .HasForeignKey("PartId")
-                        .OnDelete(DeleteBehavior.SetNull)
-                        .HasConstraintName("fk_tech_documents_parts_part_id");
-
                     b.HasOne("ShopfloorManager.Domain.Entities.PartOp", "PartOp")
-                        .WithMany()
+                        .WithMany("TechDocuments")
                         .HasForeignKey("PartOpId")
-                        .OnDelete(DeleteBehavior.SetNull)
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
                         .HasConstraintName("fk_tech_documents_part_ops_part_op_id");
 
                     b.Navigation("Creator");
@@ -1561,8 +1705,6 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                     b.Navigation("Inspector");
 
                     b.Navigation("Job");
-
-                    b.Navigation("Part");
 
                     b.Navigation("PartOp");
                 });
@@ -1614,7 +1756,7 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
 
             modelBuilder.Entity("ShopfloorManager.Domain.Entities.Job", b =>
                 {
-                    b.Navigation("PartOps");
+                    b.Navigation("ForJobOnlyOps");
 
                     b.Navigation("Products");
                 });
@@ -1638,9 +1780,19 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
 
             modelBuilder.Entity("ShopfloorManager.Domain.Entities.Part", b =>
                 {
-                    b.Navigation("Jobs");
+                    b.Navigation("Revisions");
+                });
 
-                    b.Navigation("PartOps");
+            modelBuilder.Entity("ShopfloorManager.Domain.Entities.PartOp", b =>
+                {
+                    b.Navigation("Dimensions");
+
+                    b.Navigation("TechDocuments");
+                });
+
+            modelBuilder.Entity("ShopfloorManager.Domain.Entities.PartRev", b =>
+                {
+                    b.Navigation("Routings");
                 });
 
             modelBuilder.Entity("ShopfloorManager.Domain.Entities.PoLine", b =>
@@ -1653,11 +1805,26 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                     b.Navigation("Users");
                 });
 
+            modelBuilder.Entity("ShopfloorManager.Domain.Entities.Product", b =>
+                {
+                    b.Navigation("MeasureValues");
+                });
+
             modelBuilder.Entity("ShopfloorManager.Domain.Entities.Role", b =>
                 {
                     b.Navigation("RoleMenus");
 
                     b.Navigation("Users");
+                });
+
+            modelBuilder.Entity("ShopfloorManager.Domain.Entities.Routing", b =>
+                {
+                    b.Navigation("Revisions");
+                });
+
+            modelBuilder.Entity("ShopfloorManager.Domain.Entities.RoutingRev", b =>
+                {
+                    b.Navigation("PartOps");
                 });
 
             modelBuilder.Entity("ShopfloorManager.Domain.Entities.User", b =>

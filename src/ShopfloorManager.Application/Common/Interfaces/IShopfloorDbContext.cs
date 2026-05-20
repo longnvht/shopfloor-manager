@@ -17,11 +17,14 @@ public interface IShopfloorDbContext
     DbSet<AuditLog> AuditLogs { get; }
 
     // Phase 2 — Production Core
-    DbSet<OpType> OpTypes { get; }
-    DbSet<PoLine> PoLines { get; }
     DbSet<Part> Parts { get; }
-    DbSet<Job> Jobs { get; }
+    DbSet<PartRev> PartRevs { get; }
+    DbSet<Routing> Routings { get; }
+    DbSet<RoutingRev> RoutingRevs { get; }
+    DbSet<OpType> OpTypes { get; }
     DbSet<PartOp> PartOps { get; }
+    DbSet<PoLine> PoLines { get; }
+    DbSet<Job> Jobs { get; }
     DbSet<Product> Products { get; }
     DbSet<FileType> FileTypes { get; }
     DbSet<TechDocument> TechDocuments { get; }
