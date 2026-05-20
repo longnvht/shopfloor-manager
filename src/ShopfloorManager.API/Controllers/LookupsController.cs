@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using ShopfloorManager.API.Common;
 using ShopfloorManager.Application.Lookups;
 
@@ -63,5 +64,18 @@ public class LookupsController(IMediator mediator) : ControllerBase
     {
         var result = await mediator.Send(new GetWorkStatusesQuery());
         return Ok(ApiResponse<List<WorkStatusDto>>.Ok(result.Value));
+    }
+
+    // ── OpTypes ───────────────────────────────────────────────
+
+    [HttpGet("api/v1/op-types")]
+    public async Task<IActionResult> GetOpTypes(
+        [Microsoft.AspNetCore.Mvc.FromServices] ShopfloorManager.Application.Common.Interfaces.IShopfloorDbContext db)
+    {
+        var items = await db.OpTypes
+            .OrderBy(t => t.Code)
+            .Select(t => new { t.Id, t.Code, t.Name })
+            .ToListAsync();
+        return Ok(ApiResponse<object>.Ok(items));
     }
 }

@@ -14,6 +14,14 @@ public class OperationsController(IMediator mediator) : ControllerBase
 {
     private int UserId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0");
 
+    /// <summary>Danh sách PartOps theo RoutingRevId (template).</summary>
+    [HttpGet]
+    public async Task<IActionResult> GetOps([FromQuery] int? routingRevId)
+    {
+        var result = await mediator.Send(new GetRoutingRevOpsQuery(routingRevId ?? 0));
+        return Ok(ApiResponse<List<PartOpDto>>.Ok(result.Value));
+    }
+
     /// <summary>Tạo PartOp (template cho RoutingRev hoặc ForJobOnly).</summary>
     [HttpPost]
     [Authorize(Roles = "Administrator,Manager,Engineer")]
@@ -48,6 +56,16 @@ public class OperationsController(IMediator mediator) : ControllerBase
         return result.IsSuccess
             ? StatusCode(201, ApiResponse<DimensionDto>.Ok(result.Value))
             : BadRequest(ApiResponse<DimensionDto>.Fail(result.Errors));
+    }
+
+    /// <summary>Tính SPC (Cp, Cpk, mean, σ) cho một Dimension.</summary>
+    [HttpGet("{opId:int}/dimensions/{dimId:long}/spc")]
+    public async Task<IActionResult> GetSpc(long dimId)
+    {
+        var result = await mediator.Send(new GetSpcQuery(dimId));
+        return result.IsSuccess
+            ? Ok(ApiResponse<SpcDto>.Ok(result.Value))
+            : BadRequest(ApiResponse<SpcDto>.Fail(result.Errors));
     }
 }
 

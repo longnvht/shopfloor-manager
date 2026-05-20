@@ -273,8 +273,8 @@ CalibRequestStatus:Pending=0, Approved=1, Completed=2, Cancelled=3
 |---|---|
 | Phase 0 — Foundation (infrastructure, DB schema, .NET scaffold) | ✅ Done |
 | Phase 1 — Auth & HR (JWT, users, roles, SignalR) | ✅ Done |
-| Phase 2 — Production Core (Jobs, Parts, OPs, Documents) | 🔄 Refactoring |
-| Phase 3 — Quality (Dimensions, FAI, NCR, SPC) | 🔄 Refactoring |
+| Phase 2 — Production Core (Jobs, Parts, OPs, Documents) | ✅ Done |
+| Phase 3 — Quality (Dimensions, FAI, NCR, SPC) | ✅ Done |
 | Phase 4 — Desktop MES (WPF/MAUI, offline, FAI at machine) | ⏳ |
 | Phase 5 — Advanced (Gage, Planning, MQTT pipeline, Dashboard) | ⏳ |
 

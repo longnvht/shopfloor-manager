@@ -83,10 +83,22 @@ export type FaiSheetDto = {
 }
 
 export type NcrDto = {
-  id: number; ncrNumber: string; jobId: number; jobNumber: string
+  id: number; ncrNumber: string
+  jobId: number; jobNumber: string
+  productId: number | null; serialNumber: string | null
+  partOpId: number | null; opNumber: string | null
   description: string; status: string
   raisedBy: string; raisedAt: string
   closedBy: string | null; closedAt: string | null
+}
+
+export type NcrLogDto = {
+  id: number; action: string; note: string | null
+  actionBy: string; actionAt: string
+}
+
+export type NcrDetailDto = {
+  ncr: NcrDto; logs: NcrLogDto[]
 }
 
 export type SpcDto = {
@@ -118,16 +130,6 @@ export const api = {
         method: 'POST', body: JSON.stringify({ currentPassword, newPassword }),
       }),
   },
-  parts: {
-    list: (page = 1, search?: string) =>
-      request<PartDto[]>(`/api/v1/parts?page=${page}&pageSize=20${search ? `&search=${encodeURIComponent(search)}` : ''}`),
-    create: (body: { partNumber: string; description: string; revCode?: string }) =>
-      request<PartRevDto>('/api/v1/parts', { method: 'POST', body: JSON.stringify(body) }),
-    revisions: (partId: number) =>
-      request<PartRevDto[]>(`/api/v1/parts/${partId}/revisions`),
-    routingRevs: (partRevId: number, routingId: number) =>
-      request<RoutingRevDto[]>(`/api/v1/parts/revisions/${partRevId}/routing-revs?routingId=${routingId}`),
-  },
   jobs: {
     list: (page = 1, search?: string) =>
       request<JobDto[]>(`/api/v1/jobs?page=${page}&pageSize=20${search ? `&search=${encodeURIComponent(search)}` : ''}`),
@@ -157,10 +159,37 @@ export const api = {
   ncrs: {
     list: (page = 1, status?: string) =>
       request<NcrDto[]>(`/api/v1/ncrs?page=${page}&pageSize=20${status ? `&status=${status}` : ''}`),
-    get: (id: number) => request<{ ncr: NcrDto; logs: unknown[] }>(`/api/v1/ncrs/${id}`),
+    get: (id: number) => request<NcrDetailDto>(`/api/v1/ncrs/${id}`),
     create: (body: { jobId: number; productId?: number; partOpId?: number; description: string }) =>
       request<NcrDto>('/api/v1/ncrs', { method: 'POST', body: JSON.stringify(body) }),
     addAction: (id: number, action: string, note?: string) =>
-      request<unknown>(`/api/v1/ncrs/${id}/actions`, { method: 'POST', body: JSON.stringify({ action, note }) }),
+      request<NcrLogDto>(`/api/v1/ncrs/${id}/actions`, { method: 'POST', body: JSON.stringify({ action, note }) }),
+  },
+  parts: {
+    list: (page = 1, search?: string) =>
+      request<PartDto[]>(`/api/v1/parts?page=${page}&pageSize=20${search ? `&search=${encodeURIComponent(search)}` : ''}`),
+    create: (body: { partNumber: string; description: string; revCode?: string }) =>
+      request<PartRevDto>('/api/v1/parts', { method: 'POST', body: JSON.stringify(body) }),
+    revisions: (partId: number) =>
+      request<PartRevDto[]>(`/api/v1/parts/${partId}/revisions`),
+    addRevision: (partId: number, body: { revCode: string; description?: string }) =>
+      request<PartRevDto>(`/api/v1/parts/${partId}/revisions`, { method: 'POST', body: JSON.stringify(body) }),
+    routingRevs: (partRevId: number, routingId: number) =>
+      request<RoutingRevDto[]>(`/api/v1/parts/revisions/${partRevId}/routing-revs?routingId=${routingId}`),
+    addRoutingRev: (body: { routingId: number; revCode: string; changeNote?: string }) =>
+      request<RoutingRevDto>('/api/v1/parts/routing-revs', { method: 'POST', body: JSON.stringify(body) }),
+  },
+  operations: {
+    create: (body: { routingRevId?: number; jobId?: number; opNumber: string; opTypeId?: number; description?: string; note?: string; setupTime?: number; prodTime?: number }) =>
+      request<PartOpDto>('/api/v1/operations', { method: 'POST', body: JSON.stringify(body) }),
+    listForRoutingRev: (routingRevId: number) =>
+      request<PartOpDto[]>(`/api/v1/operations?routingRevId=${routingRevId}`),
+    createDimension: (opId: number, body: { balloonNumber: string; code?: string; description?: string; nominal: number; upperTol: number; lowerTol: number; unit: string; isCritical: boolean; sortOrder: number }) =>
+      request<DimensionDto>(`/api/v1/operations/${opId}/dimensions`, { method: 'POST', body: JSON.stringify(body) }),
+    spc: (opId: number, dimId: number) =>
+      request<SpcDto>(`/api/v1/operations/${opId}/dimensions/${dimId}/spc`),
+  },
+  opTypes: {
+    list: () => request<{ id: number; code: string; name: string | null }[]>('/api/v1/op-types'),
   },
 }

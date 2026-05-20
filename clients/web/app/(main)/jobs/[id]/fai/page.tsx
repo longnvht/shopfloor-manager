@@ -67,8 +67,14 @@ export default function FaiPage() {
               <tr>
                 <th className="sticky left-0 bg-muted/50 px-3 py-3 text-left font-medium min-w-[80px]">Serial</th>
                 {dims.map(d => (
-                  <th key={d.id} className="px-3 py-2 text-center font-medium min-w-[110px]">
-                    <div className={`font-semibold ${d.isCritical ? 'text-red-600' : ''}`}>{d.code}</div>
+                  <th key={d.id} className="px-3 py-2 text-center font-medium min-w-[120px]">
+                    {/* BalloonNumber là số bóng trên bản vẽ (Ø1, L2...) */}
+                    <div className={`font-semibold ${d.isCritical ? 'text-red-600' : ''}`}>
+                      {d.balloonNumber}
+                      {d.code && d.code !== d.balloonNumber && (
+                        <span className="ml-1 text-xs font-normal text-muted-foreground">({d.code})</span>
+                      )}
+                    </div>
                     <div className="text-xs font-normal text-muted-foreground">
                       {d.nominal} {d.upperTol >= 0 ? '+' : ''}{d.upperTol} / {d.lowerTol}
                     </div>
