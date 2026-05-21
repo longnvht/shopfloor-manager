@@ -30,10 +30,10 @@ public static class DependencyInjection
         // MinIO client
         services.AddSingleton<IMinioClient>(_ =>
             new MinioClient()
-                .WithEndpoint(config["Minio:Endpoint"] ?? "localhost:9000")
+                .WithEndpoint(string.IsNullOrEmpty(config["Minio:Endpoint"]) ? "localhost:9000" : config["Minio:Endpoint"])
                 .WithCredentials(
-                    config["Minio:AccessKey"] ?? "minioadmin",
-                    config["Minio:SecretKey"] ?? "minioadmin123")
+                    string.IsNullOrEmpty(config["Minio:AccessKey"]) ? "minioadmin" : config["Minio:AccessKey"],
+                    string.IsNullOrEmpty(config["Minio:SecretKey"]) ? "minioadmin123" : config["Minio:SecretKey"])
                 .WithSSL(bool.TryParse(config["Minio:UseSsl"], out var ssl) && ssl)
                 .Build());
 
