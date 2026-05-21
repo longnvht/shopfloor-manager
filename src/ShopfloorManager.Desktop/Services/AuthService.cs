@@ -32,7 +32,7 @@ public class AuthService : IAuthService
 
             Token = response.Data.Token;
             UserId = response.Data.UserId;
-            UserName = response.Data.FullName;
+            UserName = response.Data.Name;
             Role = response.Data.Role;
             FirstLogin = response.Data.FirstLogin;
 
@@ -60,6 +60,6 @@ public class AuthService : IAuthService
     }
 }
 
-file record LoginRequest(string Username, string Password);
+file record LoginRequest(string UserLogin, string Password);
 
-file record LoginResponse(string Token, int UserId, string FullName, string Role, bool FirstLogin);
+file record LoginResponse(string Token, int UserId, string Name, string Role, bool FirstLogin);

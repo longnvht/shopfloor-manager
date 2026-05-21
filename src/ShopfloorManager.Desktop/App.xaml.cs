@@ -42,12 +42,13 @@ public partial class App : Application
         // Config
         services.AddSingleton(settings);
 
-        // HTTP
-        services.AddHttpClient<IApiClient, ApiClient>(client =>
+        // HTTP — singleton để token được share giữa tất cả services
+        services.AddSingleton<System.Net.Http.HttpClient>(_ => new System.Net.Http.HttpClient
         {
-            client.BaseAddress = new Uri(settings.ApiBaseUrl);
-            client.Timeout = TimeSpan.FromSeconds(30);
+            BaseAddress = new Uri(settings.ApiBaseUrl),
+            Timeout = TimeSpan.FromSeconds(30)
         });
+        services.AddSingleton<IApiClient, ApiClient>();
 
         // Services (singleton so token persists across navigations)
         services.AddSingleton<IAuthService, AuthService>();

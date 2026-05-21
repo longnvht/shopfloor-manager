@@ -37,7 +37,9 @@ public partial class MainViewModel : ViewModelBase
     private void NavigateToJobs()
     {
         PageTitle = "Danh sách Job";
-        CurrentPage = _sp.GetRequiredService<JobListViewModel>();
+        var vm = _sp.GetRequiredService<JobListViewModel>();
+        CurrentPage = vm;
+        _ = vm.InitializeAsync();
     }
 
     [RelayCommand]

@@ -3,8 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:md="http://materialdesigninxaml.net/winfx/xaml/themes"
              xmlns:conv="clr-namespace:ShopfloorManager.Desktop.Converters"
-             xmlns:models="clr-namespace:ShopfloorManager.Desktop.Models"
-             Loaded="OnLoaded">
+             xmlns:models="clr-namespace:ShopfloorManager.Desktop.Models">
 
     <UserControl.Resources>
         <conv:BoolToRedBrushConverter x:Key="BoolToRedBrushConverter"/>
