@@ -108,11 +108,12 @@ public abstract class SoftDeletableEntity : BaseEntity
 ```
 PartNumber (loại sản phẩm)
   └── PartRev (phiên bản thiết kế: Rev A, B, C...)
+        ├── TechDocument  (DRW, CAD — Part-level, gắn partRevId)
         └── Routing (quy trình cho PartRev đó)
               └── RoutingRev (phiên bản quy trình: R1, R2...)
                     └── PartOp (công đoạn: 10, 20, 30...)
-                          ├── TechDocument  (RouteCard, FixtureDrawing, ToolList)
-                          ├── CNCProgram    (G-code file)
+                          ├── TechDocument  (GCD, TLS, CAM, THD — Standard OP docs)
+                          ├── [ForJobOnly OP chỉ tồn tại trong 1 Job — RTC, FXT]
                           └── Dimension     (kích thước cần kiểm tra)
                                 └── MeasureValue  (kết quả đo thực tế)
 
@@ -189,43 +190,52 @@ Job (lệnh SX)
    → Auto-calculate Pass/Fail vs LowerLimit/UpperLimit
 
 7. Upload TechDocument:
-   → Check 3 upload rules (xem bên dưới) trước khi accept
-   → MinIO object key = {PartNumber}/{RevCode}/{RoutingRevCode}/{OpNumber}/{Folder}/{filename}
-      hoặc {JobNumber}/{OpNumber}/{Folder}/{filename} (nếu IsJobNumber)
+   → Xác định loại tài liệu (Part-level / Standard OP / ForJobOnly OP)
+   → Check 3 upload rules trước khi accept
+   → MinIO path theo loại (xem bên dưới)
    → Sau upload thành công → Status = Pending, chờ Inspector duyệt
 ```
 
-### TechDocument — FileType flags và Upload rules
-
-`FileType` có các flags điều khiển naming convention và path:
+### TechDocument — 3 loại theo chủ sở hữu
 
 ```
-IsSegment    — G-code có thể chia thành nhiều segment (upload cùng lúc, đủ N files)
-IsJobNumber  — tên file/path bắt đầu bằng JobNumber
-IsPartNumber — tên file/path bắt đầu bằng PartNumber
-IsRevision   — path include RevCode
-IsOpNumber   — path/tên file include OpNumber
+1. Part-level  (partRevId set, partOpId null)
+   → DRW (bản vẽ 2D), CAD (file 3D)
+   → Thuộc Part/Rev, tái dùng qua mọi Job
+   → Quản lý từ: Parts → [Part] → "Bản vẽ/CAD"
+
+2. Standard OP (partOpId set → OP có routingRevId, jobId null)
+   → GCD, TLS, CAM, THD — thuộc công nghệ routing
+   → Tái dùng qua mọi Job cùng routing
+   → Quản lý từ: Parts → [Part] → OP → "Tài liệu →"
+
+3. ForJobOnly OP (partOpId set → OP có jobId, forJobOnly=true)
+   → Mọi loại tài liệu trên OP bất thường chỉ tồn tại 1 Job
+   → Quản lý từ: Jobs → [Job] → Custom OPs → "Quản lý →"
+   → RTC, FXT thường thuộc loại này (job-specific execution docs)
 ```
 
-**Naming convention:**
-- PartNumber-based: `{PartNumber}-{RevCode}-{OpNumber}-{FileCode}.pdf`
-- JobNumber-based: `{JobNumber}-{OpNumber}-{FileCode}.nc`
-- Segmented G-code: `{...}-{FileCode}-{index}_{total}.nc` (ví dụ: `O0020-GC-1_3.nc`)
-
-**MinIO object key structure:**
+**FileType flags và MinIO path:**
 ```
-PartNumber-based: {PartNumber}/{RevCode}/{RoutingRevCode}/{OpNumber}/{Folder}/{filename}
-JobNumber-based:  {JobNumber}/{OpNumber}/{Folder}/{filename}
+FileType  isPartNumber  isOpNumber  isJobNumber  MinIO path
+─────────────────────────────────────────────────────────────────────────────
+DRW       true          false       false        drawings/{part}/{rev}/{file}
+GCD       true          true        false        gcodes/{part}/{op}/{rev}/{file}
+RTC       false         true        true         routecards/{job}/{op}/{file}
+FXT       false         true        true         fixtures/{job}/{op}/{file}
+THD       true          true        false        threads/{part}/{op}/{rev}/{file}
+TLS       true          true        false        tools/{part}/{op}/{rev}/{file}
+CAM       true          true        false        cam/{part}/{op}/{rev}/{file}
+CAD       true          false       false        cad/{part}/{rev}/{file}
 ```
-→ RoutingRevCode nằm trong path — khi đổi RoutingRev phải upload lại file mới
 
 **3 upload rules bắt buộc:**
 ```
 Rule 1: BLOCK nếu Status=Approved → "File đã được approve"
-        (kể cả creator cũng không sửa được — phải tạo RoutingRev mới)
+        (kể cả creator cũng không sửa được)
 
 Rule 2: BLOCK nếu Status=Pending + CreatedBy ≠ current user
-        → "File đã được cập nhật bởi người khác"
+        → "File đang chờ duyệt bởi người khác"
 
 Rule 3: ALLOW nếu Status=Rejected → rename file cũ thành "Rejected_{filename}"
         trên MinIO, upload file mới, reset Status=Pending
