@@ -38,12 +38,14 @@ public class NcrsController(IMediator mediator) : ControllerBase
             : NotFound(ApiResponse<NcrDetailDto>.Fail(result.Errors));
     }
 
-    /// <summary>Tạo NCR mới.</summary>
+    /// <summary>Tạo NCR mới (format NCR-{YY}-{NNNN}).</summary>
     [HttpPost]
     public async Task<IActionResult> CreateNcr([FromBody] CreateNcrRequest req)
     {
-        var result = await mediator.Send(
-            new CreateNcrCommand(req.JobId, req.ProductId, req.PartOpId, req.Description, UserId));
+        var result = await mediator.Send(new CreateNcrCommand(
+            req.JobId, req.ProductId, req.PartOpId,
+            req.ReasonId, req.DepartmentId, req.MachineCode,
+            req.Description, UserId));
         return result.IsSuccess
             ? StatusCode(201, ApiResponse<NcrDto>.Ok(result.Value))
             : BadRequest(ApiResponse<NcrDto>.Fail(result.Errors));
@@ -61,5 +63,8 @@ public class NcrsController(IMediator mediator) : ControllerBase
     }
 }
 
-public record CreateNcrRequest(int JobId, int? ProductId, int? PartOpId, string Description);
+public record CreateNcrRequest(
+    int JobId, int? ProductId, int? PartOpId,
+    int? ReasonId, int? DepartmentId, string? MachineCode,
+    string Description);
 public record NcrActionRequest(string Action, string? Note);

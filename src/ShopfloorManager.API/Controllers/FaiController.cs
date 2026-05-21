@@ -24,17 +24,26 @@ public class FaiController(IMediator mediator) : ControllerBase
             : BadRequest(ApiResponse<FaiSheetDto>.Fail(result.Errors));
     }
 
-    /// <summary>Lưu giá trị đo (upsert — tự động tính Pass/Fail).</summary>
+    /// <summary>
+    /// Nhập giá trị đo — tạo record mới mỗi lần (giữ lịch sử).
+    /// Số: auto Pass/Fail vs MaxValue/MinValue.
+    /// Text: operator truyền ManualResult=true(Pass)/false(Fail).
+    /// </summary>
     [HttpPost("measure")]
     [Authorize(Roles = "Administrator,Manager,Engineer,QC Inspector,Operator")]
     public async Task<IActionResult> SaveMeasure([FromBody] SaveMeasureRequest req)
     {
         var result = await mediator.Send(new SaveMeasureCommand(
-            req.DimensionId, req.ProductId, req.Value, req.Note, UserId));
+            req.DimensionId, req.ProductId, req.Value,
+            req.ManualResult, req.Note, UserId));
         return result.IsSuccess
             ? Ok(ApiResponse<MeasureValueDto>.Ok(result.Value))
             : BadRequest(ApiResponse<MeasureValueDto>.Fail(result.Errors));
     }
 }
 
-public record SaveMeasureRequest(long DimensionId, int ProductId, decimal Value, string? Note);
+public record SaveMeasureRequest(
+    long DimensionId, int ProductId,
+    decimal? Value,
+    bool? ManualResult,   // Dùng cho text dimension
+    string? Note);

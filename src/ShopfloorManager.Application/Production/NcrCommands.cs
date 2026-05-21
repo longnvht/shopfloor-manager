@@ -107,6 +107,7 @@ public class GetNcrByIdQueryHandler(IShopfloorDbContext db)
 
 public record CreateNcrCommand(
     int JobId, int? ProductId, int? PartOpId,
+    int? ReasonId, int? DepartmentId, string? MachineCode,
     string Description, int RequesterId)
     : IRequest<Result<NcrDto>>;
 
@@ -127,14 +128,17 @@ public class CreateNcrCommandHandler(IShopfloorDbContext db)
         var job = await db.Jobs.FindAsync([req.JobId], ct);
         if (job is null) return Result.Fail($"Không tìm thấy Job ID {req.JobId}.");
 
-        var year = DateTimeOffset.UtcNow.Year;
-        var count = await db.Ncrs.CountAsync(ct) + 1;
-        var number = $"NCR-{year}-{count:D4}";
+        // NCR-{YY}-{NNNN} — 2 chữ số năm, reset mỗi năm (theo 07_ncr.md)
+        var now = DateTimeOffset.UtcNow;
+        var yearCode = now.Year % 100;
+        var sequence = await db.Ncrs.CountAsync(n => n.YearCode == yearCode, ct) + 1;
+        var number = $"NCR-{yearCode:D2}-{sequence:D4}";
 
         var ncr = new Ncr
         {
-            NcrNumber = number, JobId = req.JobId,
-            ProductId = req.ProductId, PartOpId = req.PartOpId,
+            NcrNumber = number, YearCode = yearCode, Sequence = sequence,
+            JobId = req.JobId, ProductId = req.ProductId, PartOpId = req.PartOpId,
+            ReasonId = req.ReasonId, DepartmentId = req.DepartmentId, MachineCode = req.MachineCode,
             Description = req.Description, RaisedBy = req.RequesterId
         };
         db.Ncrs.Add(ncr);

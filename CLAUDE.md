@@ -290,15 +290,20 @@ CalibRequestStatus:Pending=0, Approved=1, Completed=2, Cancelled=3
 - SignalR hub tại `/hub/shopfloor` (auto-join group theo role)
 - `ValidationBehavior` MediatR pipeline, `ExceptionMiddleware`, Swagger + JWT
 
-**Phase 2+3 — Refactoring** (data model đúng hơn sau phân tích legacy)
+**Phase 2 — ✅ Hoàn tất** (2026-05-20)
+- Entities: Part, PartRev, Routing, RoutingRev, PartOp, Job (snapshot PartRevId+RoutingRevId), Product
+- `CreateJob` tự động tạo Products theo RunQty
+- API: `/api/v1/parts`, `/api/v1/jobs`, `/api/v1/operations`
+- MinIO: TechDocument upload với pre-signed URL + 3 upload rules
+- FileTypes: DRW, GCD, RTC, FXT, THD, TLS, CAM, CAD (theo tài liệu 05)
 
-Các vấn đề cần sửa:
-- [ ] Tách `PartOp` ra khỏi `Part` — thêm `Routing` + `RoutingRev` entities
-- [ ] `Part` model: `(PartNumber, Revision)` là identity, `IsActive` per PartNumber
-- [ ] `Job` lưu snapshot `PartRevId` + `RoutingRevId`
-- [ ] `GetJobOps` query: `RoutingRev.PartOps` UNION `Job.ForJobOnly.PartOps`
-- [ ] `Dimension`: thêm `BalloonNumber` field (số bóng bản vẽ)
-- [ ] `MeasureValue`: thêm `PartOpId` trực tiếp
+**Phase 3 — ✅ Hoàn tất** (2026-05-20)
+- Dimension: BalloonNumber + BalloonSort, TolerancePlus/Minus (cả 2 dương), MaxValue/MinValue, IsTextType, CategoryId, IsFinal
+- DimensionCategory: LIN, ANG, THD, GEO, SFC (seed)
+- MeasureValue: KHÔNG upsert — tạo record mới mỗi lần đo (giữ lịch sử)
+- NCR: format `NCR-{YY}-{NNNN}`, thêm ReasonId, DepartmentId, MachineCode
+- NcrReason: seed 7 lý do (Tool wear, Setup error, Drawing error...)
+- SPC: ISpcService + MathNet dùng MaxValue/MinValue
 
 ---
 
@@ -309,13 +314,40 @@ Các vấn đề cần sửa:
 - Adding a NuGet package (must be MIT/Apache 2.0, must have a clear reason)
 - Restructuring directories
 
-**When adding a new feature:**
-1. Define entity in `Domain` extending `BaseEntity` or `SoftDeletableEntity`
-2. Define command/query + handler in `Application` (MediatR)
-3. Define repository interface in `Application`, implement in `Infrastructure`
-4. Add thin controller in `API` — only `_mediator.Send(request)`
-5. Add EF migration: `dotnet ef migrations add {Name} ...`
-6. Add OpenAPI/Swagger annotation to all new endpoints
+---
+
+### Triển khai tính năng — quy trình bắt buộc
+
+**Bước 0 — ĐỌC TÀI LIỆU TRƯỚC KHI CODE:**
+
+Mỗi module có file tài liệu trong `Project_Documents/`. Trước khi implement bất kỳ tính năng nào, **phải đọc file tương ứng** để nắm đúng business logic:
+
+| Module | Tài liệu |
+|---|---|
+| Auth, Login, Permissions | [`Project_Documents/01_auth.md`](Project_Documents/01_auth.md) |
+| Users, HR, Departments | [`Project_Documents/02_hr.md`](Project_Documents/02_hr.md) |
+| Job, Part, Product serial | [`Project_Documents/03_job_management.md`](Project_Documents/03_job_management.md) |
+| OP, Routing, Technology | [`Project_Documents/04_routing_operations.md`](Project_Documents/04_routing_operations.md) |
+| Tech Documents, Upload, Approval | [`Project_Documents/05_technical_documents.md`](Project_Documents/05_technical_documents.md) |
+| Dimensions, FAI, Measure values | [`Project_Documents/06_dimensions_fai.md`](Project_Documents/06_dimensions_fai.md) |
+| NCR, CPAR, Rework | [`Project_Documents/07_ncr.md`](Project_Documents/07_ncr.md) |
+| Gage, Borrow/Return | [`Project_Documents/08_gage_management.md`](Project_Documents/08_gage_management.md) |
+| Calibration, Vendors, Procedures | [`Project_Documents/09_calibration.md`](Project_Documents/09_calibration.md) |
+| Planning, Gantt, Shifts | [`Project_Documents/10_planning.md`](Project_Documents/10_planning.md) |
+| Dashboard, Reports, PDF/Excel | [`Project_Documents/11_dashboard_reports.md`](Project_Documents/11_dashboard_reports.md) |
+| CNC Data, MQTT, SignalR | [`Project_Documents/12_cnc_mqtt.md`](Project_Documents/12_cnc_mqtt.md) |
+| Master data (Machine, Factory...) | [`Project_Documents/13_master_data.md`](Project_Documents/13_master_data.md) |
+
+**Tài liệu là nguồn sự thật duy nhất về business logic.** Nếu code cũ (ManageData, Vinam-MES) và tài liệu mâu thuẫn → ưu tiên tài liệu.
+
+**Bước 1–6 — Implement theo Clean Architecture:**
+1. Đọc tài liệu module → xác định Entity, Business Rules, Workflow, Edge Cases
+2. Define entity trong `Domain` extending `BaseEntity` hoặc `SoftDeletableEntity`
+3. Define command/query + handler trong `Application` (MediatR) — toàn bộ business logic ở đây
+4. Define repository interface trong `Application`, implement trong `Infrastructure`
+5. Add thin controller trong `API` — chỉ gọi `_mediator.Send(request)`
+6. Add EF migration: `dotnet ef migrations add {Name} ...`
+7. Add OpenAPI/Swagger annotation cho tất cả endpoint mới
 
 **Production Core pattern (CRITICAL — phải theo đúng):**
 - `PartOp` thuộc `RoutingRev`, KHÔNG thuộc `Part` trực tiếp

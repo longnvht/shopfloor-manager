@@ -33,8 +33,10 @@ public class ShopfloorDbContext(DbContextOptions<ShopfloorDbContext> options)
     public DbSet<TechDocument> TechDocuments => Set<TechDocument>();
 
     // ── Phase 3: Quality ──────────────────────────────────────
+    public DbSet<DimensionCategory> DimensionCategories => Set<DimensionCategory>();
     public DbSet<Dimension> Dimensions => Set<Dimension>();
     public DbSet<MeasureValue> MeasureValues => Set<MeasureValue>();
+    public DbSet<NcrReason> NcrReasons => Set<NcrReason>();
     public DbSet<Ncr> Ncrs => Set<Ncr>();
     public DbSet<NcrLog> NcrLogs => Set<NcrLog>();
 
@@ -59,8 +61,10 @@ public class ShopfloorDbContext(DbContextOptions<ShopfloorDbContext> options)
         modelBuilder.ApplyConfiguration(new TechDocumentConfiguration());
 
         // Phase 3
+        modelBuilder.ApplyConfiguration(new DimensionCategoryConfiguration());
         modelBuilder.ApplyConfiguration(new DimensionConfiguration());
         modelBuilder.ApplyConfiguration(new MeasureValueConfiguration());
+        modelBuilder.ApplyConfiguration(new NcrReasonConfiguration());
         modelBuilder.ApplyConfiguration(new NcrConfiguration());
         modelBuilder.ApplyConfiguration(new NcrLogConfiguration());
 
@@ -100,36 +104,45 @@ public class ShopfloorDbContext(DbContextOptions<ShopfloorDbContext> options)
             new OpType { Id = 6, Code = "TURN",  Name = "Turning",        Description = "Manual turning"              }
         );
 
-        // FileType seed — flags phân tích từ bảng filestype legacy (FormUpdateTechnology.cs)
-        // IsPartNumber/IsRevision/IsOpNumber/IsJobNumber điều khiển MinIO path và naming convention
+        // FileType seed — codes theo tài liệu 05_technical_documents.md
         modelBuilder.Entity<FileType>().HasData(
-            // Drawing — gắn PartRev, không cần OPNumber
-            new FileType { Id = 1, Code = "DRW",       Name = "Drawing",         Folder = "drawings",
+            new FileType { Id = 1, Code = "DRW", Name = "Drawing",         Folder = "drawings",
                 IsPartNumber = true, IsRevision = true,  IsOpNumber = false, IsJobNumber = false, SortOrder = 1 },
-            // Route Card — gắn PartOp (cần OPNumber)
-            new FileType { Id = 2, Code = "RC",        Name = "Route Card",      Folder = "routecards",
-                IsPartNumber = true, IsRevision = true,  IsOpNumber = true,  IsJobNumber = false, SortOrder = 2 },
-            // Fixture Drawing — gắn PartOp
-            new FileType { Id = 3, Code = "FD",        Name = "Fixture Drawing", Folder = "fixtures",
-                IsPartNumber = true, IsRevision = true,  IsOpNumber = true,  IsJobNumber = false, SortOrder = 3 },
-            // G-code Fanuc — có segment, gắn PartOp
-            new FileType { Id = 4, Code = "GC",        Name = "G-code (Fanuc)",  Folder = "gcodes",
+            new FileType { Id = 2, Code = "GCD", Name = "G-Code",          Folder = "gcodes",
                 IsGcode = true, IsSegment = true,
+                IsPartNumber = true, IsRevision = true,  IsOpNumber = true,  IsJobNumber = true,  SortOrder = 2 },
+            new FileType { Id = 3, Code = "RTC", Name = "Route Card",      Folder = "routecards",
+                IsPartNumber = true, IsRevision = true,  IsOpNumber = true,  IsJobNumber = true,  SortOrder = 3 },
+            new FileType { Id = 4, Code = "FXT", Name = "Fixture Drawing", Folder = "fixtures",
                 IsPartNumber = true, IsRevision = true,  IsOpNumber = true,  IsJobNumber = true,  SortOrder = 4 },
-            // G-code MAZAK
-            new FileType { Id = 5, Code = "MAZAK",     Name = "G-code (MAZAK)",  Folder = "gcodes",
-                IsGcode = true, IsSegment = true,
-                IsPartNumber = true, IsRevision = true,  IsOpNumber = true,  IsJobNumber = true,  SortOrder = 5 },
-            // G-code Wire EDM
-            new FileType { Id = 6, Code = "WC",        Name = "G-code (Wire EDM)", Folder = "gcodes",
-                IsGcode = true, IsSegment = true,
-                IsPartNumber = true, IsRevision = true,  IsOpNumber = true,  IsJobNumber = true,  SortOrder = 6 },
-            // Setup Sheet — gắn PartOp
-            new FileType { Id = 7, Code = "SETUP",     Name = "Setup Sheet",     Folder = "setups",
+            new FileType { Id = 5, Code = "THD", Name = "Thread Drawing",  Folder = "threads",
+                IsPartNumber = true, IsRevision = true,  IsOpNumber = true,  IsJobNumber = false, SortOrder = 5 },
+            new FileType { Id = 6, Code = "TLS", Name = "Tool List",       Folder = "tools",
+                IsPartNumber = true, IsRevision = true,  IsOpNumber = true,  IsJobNumber = false, SortOrder = 6 },
+            new FileType { Id = 7, Code = "CAM", Name = "CAM File",        Folder = "cam",
                 IsPartNumber = true, IsRevision = true,  IsOpNumber = true,  IsJobNumber = false, SortOrder = 7 },
-            // CAM file
-            new FileType { Id = 8, Code = "CAM",       Name = "CAM File",        Folder = "cam",
-                IsPartNumber = true, IsRevision = true,  IsOpNumber = true,  IsJobNumber = false, SortOrder = 8 }
+            new FileType { Id = 8, Code = "CAD", Name = "CAD Drawing",     Folder = "cad",
+                IsPartNumber = true, IsRevision = true,  IsOpNumber = false, IsJobNumber = false, SortOrder = 8 }
+        );
+
+        // DimensionCategory seed (từ 06_dimensions_fai.md)
+        modelBuilder.Entity<DimensionCategory>().HasData(
+            new DimensionCategory { Id = 1, Code = "LIN", Name = "Linear",    Description = "Thước cặp, panme" },
+            new DimensionCategory { Id = 2, Code = "ANG", Name = "Angular",   Description = "Thước góc" },
+            new DimensionCategory { Id = 3, Code = "THD", Name = "Thread",    Description = "Dưỡng ren, ring gauge" },
+            new DimensionCategory { Id = 4, Code = "GEO", Name = "Geometric", Description = "CMM, dial indicator" },
+            new DimensionCategory { Id = 5, Code = "SFC", Name = "Surface",   Description = "Surface tester" }
+        );
+
+        // NcrReason seed (từ 07_ncr.md)
+        modelBuilder.Entity<NcrReason>().HasData(
+            new NcrReason { Id = 1, Name = "Tool wear",      Tag = "TOOL",  SortOrder = 1 },
+            new NcrReason { Id = 2, Name = "Setup error",    Tag = "SETUP", SortOrder = 2 },
+            new NcrReason { Id = 3, Name = "Drawing error",  Tag = "DRW",   SortOrder = 3 },
+            new NcrReason { Id = 4, Name = "Wrong material", Tag = "MAT",   SortOrder = 4 },
+            new NcrReason { Id = 5, Name = "Machine error",  Tag = "MACH",  SortOrder = 5 },
+            new NcrReason { Id = 6, Name = "CMM error",      Tag = "CMM",   SortOrder = 6 },
+            new NcrReason { Id = 7, Name = "Other",          Tag = "OTHER", SortOrder = 99 }
         );
     }
 }

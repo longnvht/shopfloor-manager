@@ -147,6 +147,19 @@ public class CreateJobCommandHandler(IShopfloorDbContext db)
             CreatedBy = req.RequesterId
         };
         db.Jobs.Add(job);
+
+        // Auto-create Products theo RunQty (theo 03_job_management.md rule 3.2)
+        if (req.RunQty.HasValue && req.RunQty.Value > 0)
+        {
+            var products = Enumerable.Range(1, req.RunQty.Value).Select(i => new Product
+            {
+                Job = job,
+                SerialNumber = i.ToString("D2"),
+                SortOrder = i
+            });
+            db.Products.AddRange(products);
+        }
+
         await db.SaveChangesAsync(ct);
 
         return Result.Ok(new JobDto(job.Id, job.JobNumber,

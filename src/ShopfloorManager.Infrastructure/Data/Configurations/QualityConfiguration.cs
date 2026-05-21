@@ -4,24 +4,44 @@ using ShopfloorManager.Domain.Entities;
 
 namespace ShopfloorManager.Infrastructure.Data.Configurations;
 
+public class DimensionCategoryConfiguration : IEntityTypeConfiguration<DimensionCategory>
+{
+    public void Configure(EntityTypeBuilder<DimensionCategory> builder)
+    {
+        builder.HasIndex(c => c.Code).IsUnique();
+        builder.Property(c => c.Code).HasMaxLength(10).IsRequired();
+        builder.Property(c => c.Name).HasMaxLength(100).IsRequired();
+        builder.Property(c => c.Description).HasMaxLength(300);
+    }
+}
+
 public class DimensionConfiguration : IEntityTypeConfiguration<Dimension>
 {
     public void Configure(EntityTypeBuilder<Dimension> builder)
     {
         builder.Property(d => d.Id).UseIdentityByDefaultColumn();
         builder.HasIndex(d => new { d.PartOpId, d.BalloonNumber }).IsUnique();
+        builder.HasQueryFilter(d => d.DeletedAt == null);
+
         builder.Property(d => d.BalloonNumber).HasMaxLength(20).IsRequired();
         builder.Property(d => d.Code).HasMaxLength(20);
         builder.Property(d => d.Description).HasMaxLength(200);
         builder.Property(d => d.Unit).HasMaxLength(20).HasDefaultValue("mm");
-        builder.Property(d => d.Nominal).HasPrecision(14, 4);
-        builder.Property(d => d.UpperTol).HasPrecision(14, 4);
-        builder.Property(d => d.LowerTol).HasPrecision(14, 4);
-        builder.Ignore(d => d.UpperLimit);
-        builder.Ignore(d => d.LowerLimit);
+        builder.Property(d => d.NominalText).HasMaxLength(100);
+        builder.Property(d => d.BalloonSort).HasPrecision(8, 2);
+
+        // Numeric tolerance fields — all DECIMAL(14,4)
+        builder.Property(d => d.NominalValue).HasPrecision(14, 4);
+        builder.Property(d => d.TolerancePlus).HasPrecision(14, 4);
+        builder.Property(d => d.ToleranceMinus).HasPrecision(14, 4);
+        builder.Property(d => d.MaxValue).HasPrecision(14, 4);
+        builder.Property(d => d.MinValue).HasPrecision(14, 4);
 
         builder.HasOne(d => d.PartOp).WithMany(o => o.Dimensions)
-            .HasForeignKey(d => d.PartOpId).OnDelete(DeleteBehavior.Cascade);
+            .HasForeignKey(d => d.PartOpId).OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(d => d.Category).WithMany(c => c.Dimensions)
+            .HasForeignKey(d => d.CategoryId).OnDelete(DeleteBehavior.SetNull);
     }
 }
 
@@ -30,9 +50,12 @@ public class MeasureValueConfiguration : IEntityTypeConfiguration<MeasureValue>
     public void Configure(EntityTypeBuilder<MeasureValue> builder)
     {
         builder.Property(m => m.Id).UseIdentityByDefaultColumn();
-        builder.HasIndex(m => new { m.DimensionId, m.ProductId }).IsUnique();
+        // NO unique constraint — mỗi lần đo tạo record mới (giữ lịch sử)
         builder.Property(m => m.Value).HasPrecision(14, 4);
         builder.Property(m => m.Note).HasMaxLength(500);
+        builder.Property(m => m.NcrCode).HasMaxLength(20);
+
+        builder.HasIndex(m => new { m.DimensionId, m.ProductId, m.MeasuredAt });
 
         builder.HasOne(m => m.Dimension).WithMany(d => d.MeasureValues)
             .HasForeignKey(m => m.DimensionId).OnDelete(DeleteBehavior.Cascade);
@@ -48,6 +71,15 @@ public class MeasureValueConfiguration : IEntityTypeConfiguration<MeasureValue>
     }
 }
 
+public class NcrReasonConfiguration : IEntityTypeConfiguration<NcrReason>
+{
+    public void Configure(EntityTypeBuilder<NcrReason> builder)
+    {
+        builder.Property(r => r.Name).HasMaxLength(200).IsRequired();
+        builder.Property(r => r.Tag).HasMaxLength(50);
+    }
+}
+
 public class NcrConfiguration : IEntityTypeConfiguration<Ncr>
 {
     public void Configure(EntityTypeBuilder<Ncr> builder)
@@ -56,6 +88,7 @@ public class NcrConfiguration : IEntityTypeConfiguration<Ncr>
         builder.HasIndex(n => n.NcrNumber).IsUnique();
         builder.Property(n => n.NcrNumber).HasMaxLength(20).IsRequired();
         builder.Property(n => n.Description).HasColumnType("text");
+        builder.Property(n => n.MachineCode).HasMaxLength(50);
 
         builder.HasOne(n => n.Job).WithMany()
             .HasForeignKey(n => n.JobId).OnDelete(DeleteBehavior.Restrict);
@@ -63,6 +96,8 @@ public class NcrConfiguration : IEntityTypeConfiguration<Ncr>
             .HasForeignKey(n => n.ProductId).OnDelete(DeleteBehavior.SetNull);
         builder.HasOne(n => n.PartOp).WithMany()
             .HasForeignKey(n => n.PartOpId).OnDelete(DeleteBehavior.SetNull);
+        builder.HasOne(n => n.Reason).WithMany(r => r.Ncrs)
+            .HasForeignKey(n => n.ReasonId).OnDelete(DeleteBehavior.SetNull);
         builder.HasOne(n => n.Raiser).WithMany()
             .HasForeignKey(n => n.RaisedBy).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne(n => n.Closer).WithMany()
@@ -92,8 +127,8 @@ public class TechDocumentConfiguration : IEntityTypeConfiguration<TechDocument>
         builder.Property(t => t.Description).HasMaxLength(500);
         builder.Property(t => t.Revision).HasMaxLength(50);
         builder.Property(t => t.Code).HasMaxLength(100);
-        builder.Property(t => t.Segment).HasMaxLength(20);      // "1_3" format
-        builder.Property(t => t.MachineType).HasMaxLength(20);  // "Fanuc", "MAZAK", "WC"
+        builder.Property(t => t.Segment).HasMaxLength(20);
+        builder.Property(t => t.MachineType).HasMaxLength(20);
         builder.Property(t => t.InspectNote).HasMaxLength(500);
 
         builder.HasOne(t => t.FileType).WithMany(f => f.TechDocuments)

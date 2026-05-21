@@ -12,7 +12,7 @@ using ShopfloorManager.Infrastructure.Data;
 namespace ShopfloorManager.Infrastructure.Data.Migrations
 {
     [DbContext(typeof(ShopfloorDbContext))]
-    [Migration("20260520153725_InitialSchema")]
+    [Migration("20260521025556_InitialSchema")]
     partial class InitialSchema
     {
         /// <inheritdoc />
@@ -138,6 +138,15 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                         .HasColumnType("character varying(20)")
                         .HasColumnName("balloon_number");
 
+                    b.Property<decimal?>("BalloonSort")
+                        .HasPrecision(8, 2)
+                        .HasColumnType("numeric(8,2)")
+                        .HasColumnName("balloon_sort");
+
+                    b.Property<int?>("CategoryId")
+                        .HasColumnType("integer")
+                        .HasColumnName("category_id");
+
                     b.Property<string>("Code")
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")
@@ -151,6 +160,10 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("created_by");
 
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
                     b.Property<string>("Description")
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)")
@@ -160,15 +173,33 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("is_critical");
 
-                    b.Property<decimal>("LowerTol")
-                        .HasPrecision(14, 4)
-                        .HasColumnType("numeric(14,4)")
-                        .HasColumnName("lower_tol");
+                    b.Property<bool>("IsFinal")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_final");
 
-                    b.Property<decimal>("Nominal")
+                    b.Property<bool>("IsTextType")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_text_type");
+
+                    b.Property<decimal?>("MaxValue")
                         .HasPrecision(14, 4)
                         .HasColumnType("numeric(14,4)")
-                        .HasColumnName("nominal");
+                        .HasColumnName("max_value");
+
+                    b.Property<decimal?>("MinValue")
+                        .HasPrecision(14, 4)
+                        .HasColumnType("numeric(14,4)")
+                        .HasColumnName("min_value");
+
+                    b.Property<string>("NominalText")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("nominal_text");
+
+                    b.Property<decimal?>("NominalValue")
+                        .HasPrecision(14, 4)
+                        .HasColumnType("numeric(14,4)")
+                        .HasColumnName("nominal_value");
 
                     b.Property<int>("PartOpId")
                         .HasColumnType("integer")
@@ -178,6 +209,16 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("sort_order");
 
+                    b.Property<decimal?>("ToleranceMinus")
+                        .HasPrecision(14, 4)
+                        .HasColumnType("numeric(14,4)")
+                        .HasColumnName("tolerance_minus");
+
+                    b.Property<decimal?>("TolerancePlus")
+                        .HasPrecision(14, 4)
+                        .HasColumnType("numeric(14,4)")
+                        .HasColumnName("tolerance_plus");
+
                     b.Property<string>("Unit")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -186,19 +227,98 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                         .HasDefaultValue("mm")
                         .HasColumnName("unit");
 
-                    b.Property<decimal>("UpperTol")
-                        .HasPrecision(14, 4)
-                        .HasColumnType("numeric(14,4)")
-                        .HasColumnName("upper_tol");
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<int?>("UpdatedBy")
+                        .HasColumnType("integer")
+                        .HasColumnName("updated_by");
 
                     b.HasKey("Id")
                         .HasName("pk_dimensions");
+
+                    b.HasIndex("CategoryId")
+                        .HasDatabaseName("ix_dimensions_category_id");
 
                     b.HasIndex("PartOpId", "BalloonNumber")
                         .IsUnique()
                         .HasDatabaseName("ix_dimensions_part_op_id_balloon_number");
 
                     b.ToTable("dimensions", (string)null);
+                });
+
+            modelBuilder.Entity("ShopfloorManager.Domain.Entities.DimensionCategory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("code");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("description");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.HasKey("Id")
+                        .HasName("pk_dimension_categories");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasDatabaseName("ix_dimension_categories_code");
+
+                    b.ToTable("dimension_categories", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            Code = "LIN",
+                            Description = "Thước cặp, panme",
+                            Name = "Linear"
+                        },
+                        new
+                        {
+                            Id = 2,
+                            Code = "ANG",
+                            Description = "Thước góc",
+                            Name = "Angular"
+                        },
+                        new
+                        {
+                            Id = 3,
+                            Code = "THD",
+                            Description = "Dưỡng ren, ring gauge",
+                            Name = "Thread"
+                        },
+                        new
+                        {
+                            Id = 4,
+                            Code = "GEO",
+                            Description = "CMM, dial indicator",
+                            Name = "Geometric"
+                        },
+                        new
+                        {
+                            Id = 5,
+                            Code = "SFC",
+                            Description = "Surface tester",
+                            Name = "Surface"
+                        });
                 });
 
             modelBuilder.Entity("ShopfloorManager.Domain.Entities.FileType", b =>
@@ -275,90 +395,76 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                         new
                         {
                             Id = 2,
-                            Code = "RC",
-                            Folder = "routecards",
-                            IsGcode = false,
-                            IsJobNumber = false,
+                            Code = "GCD",
+                            Folder = "gcodes",
+                            IsGcode = true,
+                            IsJobNumber = true,
                             IsOpNumber = true,
                             IsPartNumber = true,
                             IsRevision = true,
-                            IsSegment = false,
-                            Name = "Route Card",
+                            IsSegment = true,
+                            Name = "G-Code",
                             SortOrder = 2
                         },
                         new
                         {
                             Id = 3,
-                            Code = "FD",
-                            Folder = "fixtures",
+                            Code = "RTC",
+                            Folder = "routecards",
                             IsGcode = false,
-                            IsJobNumber = false,
+                            IsJobNumber = true,
                             IsOpNumber = true,
                             IsPartNumber = true,
                             IsRevision = true,
                             IsSegment = false,
-                            Name = "Fixture Drawing",
+                            Name = "Route Card",
                             SortOrder = 3
                         },
                         new
                         {
                             Id = 4,
-                            Code = "GC",
-                            Folder = "gcodes",
-                            IsGcode = true,
+                            Code = "FXT",
+                            Folder = "fixtures",
+                            IsGcode = false,
                             IsJobNumber = true,
                             IsOpNumber = true,
                             IsPartNumber = true,
                             IsRevision = true,
-                            IsSegment = true,
-                            Name = "G-code (Fanuc)",
+                            IsSegment = false,
+                            Name = "Fixture Drawing",
                             SortOrder = 4
                         },
                         new
                         {
                             Id = 5,
-                            Code = "MAZAK",
-                            Folder = "gcodes",
-                            IsGcode = true,
-                            IsJobNumber = true,
-                            IsOpNumber = true,
-                            IsPartNumber = true,
-                            IsRevision = true,
-                            IsSegment = true,
-                            Name = "G-code (MAZAK)",
-                            SortOrder = 5
-                        },
-                        new
-                        {
-                            Id = 6,
-                            Code = "WC",
-                            Folder = "gcodes",
-                            IsGcode = true,
-                            IsJobNumber = true,
-                            IsOpNumber = true,
-                            IsPartNumber = true,
-                            IsRevision = true,
-                            IsSegment = true,
-                            Name = "G-code (Wire EDM)",
-                            SortOrder = 6
-                        },
-                        new
-                        {
-                            Id = 7,
-                            Code = "SETUP",
-                            Folder = "setups",
+                            Code = "THD",
+                            Folder = "threads",
                             IsGcode = false,
                             IsJobNumber = false,
                             IsOpNumber = true,
                             IsPartNumber = true,
                             IsRevision = true,
                             IsSegment = false,
-                            Name = "Setup Sheet",
-                            SortOrder = 7
+                            Name = "Thread Drawing",
+                            SortOrder = 5
                         },
                         new
                         {
-                            Id = 8,
+                            Id = 6,
+                            Code = "TLS",
+                            Folder = "tools",
+                            IsGcode = false,
+                            IsJobNumber = false,
+                            IsOpNumber = true,
+                            IsPartNumber = true,
+                            IsRevision = true,
+                            IsSegment = false,
+                            Name = "Tool List",
+                            SortOrder = 6
+                        },
+                        new
+                        {
+                            Id = 7,
                             Code = "CAM",
                             Folder = "cam",
                             IsGcode = false,
@@ -368,6 +474,20 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                             IsRevision = true,
                             IsSegment = false,
                             Name = "CAM File",
+                            SortOrder = 7
+                        },
+                        new
+                        {
+                            Id = 8,
+                            Code = "CAD",
+                            Folder = "cad",
+                            IsGcode = false,
+                            IsJobNumber = false,
+                            IsOpNumber = false,
+                            IsPartNumber = true,
+                            IsRevision = true,
+                            IsSegment = false,
+                            Name = "CAD Drawing",
                             SortOrder = 8
                         });
                 });
@@ -451,6 +571,26 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("dimension_id");
 
+                    b.Property<int?>("FinalOpId")
+                        .HasColumnType("integer")
+                        .HasColumnName("final_op_id");
+
+                    b.Property<int?>("GageId")
+                        .HasColumnType("integer")
+                        .HasColumnName("gage_id");
+
+                    b.Property<bool>("HasNcr")
+                        .HasColumnType("boolean")
+                        .HasColumnName("has_ncr");
+
+                    b.Property<bool>("IsFinal")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_final");
+
+                    b.Property<int?>("MachineId")
+                        .HasColumnType("integer")
+                        .HasColumnName("machine_id");
+
                     b.Property<DateTimeOffset>("MeasuredAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("measured_at");
@@ -458,6 +598,11 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                     b.Property<int?>("MeasuredBy")
                         .HasColumnType("integer")
                         .HasColumnName("measured_by");
+
+                    b.Property<string>("NcrCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("ncr_code");
 
                     b.Property<string>("Note")
                         .HasMaxLength(500)
@@ -476,7 +621,15 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("result");
 
-                    b.Property<decimal>("Value")
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<int?>("UpdatedBy")
+                        .HasColumnType("integer")
+                        .HasColumnName("updated_by");
+
+                    b.Property<decimal?>("Value")
                         .HasPrecision(14, 4)
                         .HasColumnType("numeric(14,4)")
                         .HasColumnName("value");
@@ -493,9 +646,8 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                     b.HasIndex("ProductId")
                         .HasDatabaseName("ix_measure_values_product_id");
 
-                    b.HasIndex("DimensionId", "ProductId")
-                        .IsUnique()
-                        .HasDatabaseName("ix_measure_values_dimension_id_product_id");
+                    b.HasIndex("DimensionId", "ProductId", "MeasuredAt")
+                        .HasDatabaseName("ix_measure_values_dimension_id_product_id_measured_at");
 
                     b.ToTable("measure_values", (string)null);
                 });
@@ -563,6 +715,10 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("closed_by");
 
+                    b.Property<int?>("DepartmentId")
+                        .HasColumnType("integer")
+                        .HasColumnName("department_id");
+
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasColumnType("text")
@@ -571,6 +727,15 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                     b.Property<int>("JobId")
                         .HasColumnType("integer")
                         .HasColumnName("job_id");
+
+                    b.Property<string>("MachineCode")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("machine_code");
+
+                    b.Property<long?>("MeasureValueId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("measure_value_id");
 
                     b.Property<string>("NcrNumber")
                         .IsRequired()
@@ -594,9 +759,21 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("raised_by");
 
+                    b.Property<int?>("ReasonId")
+                        .HasColumnType("integer")
+                        .HasColumnName("reason_id");
+
+                    b.Property<int>("Sequence")
+                        .HasColumnType("integer")
+                        .HasColumnName("sequence");
+
                     b.Property<int>("Status")
                         .HasColumnType("integer")
                         .HasColumnName("status");
+
+                    b.Property<int>("YearCode")
+                        .HasColumnType("integer")
+                        .HasColumnName("year_code");
 
                     b.HasKey("Id")
                         .HasName("pk_ncrs");
@@ -619,6 +796,9 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
 
                     b.HasIndex("RaisedBy")
                         .HasDatabaseName("ix_ncrs_raised_by");
+
+                    b.HasIndex("ReasonId")
+                        .HasDatabaseName("ix_ncrs_reason_id");
 
                     b.ToTable("ncrs", (string)null);
                 });
@@ -663,6 +843,113 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                         .HasDatabaseName("ix_ncr_logs_ncr_id");
 
                     b.ToTable("ncr_logs", (string)null);
+                });
+
+            modelBuilder.Entity("ShopfloorManager.Domain.Entities.NcrReason", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<int?>("DepartmentId")
+                        .HasColumnType("integer")
+                        .HasColumnName("department_id");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("name");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("sort_order");
+
+                    b.Property<string>("Tag")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("tag");
+
+                    b.HasKey("Id")
+                        .HasName("pk_ncr_reasons");
+
+                    b.ToTable("ncr_reasons", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 21, 2, 55, 55, 353, DateTimeKind.Unspecified).AddTicks(7029), new TimeSpan(0, 0, 0, 0, 0)),
+                            IsActive = true,
+                            Name = "Tool wear",
+                            SortOrder = 1,
+                            Tag = "TOOL"
+                        },
+                        new
+                        {
+                            Id = 2,
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 21, 2, 55, 55, 353, DateTimeKind.Unspecified).AddTicks(8088), new TimeSpan(0, 0, 0, 0, 0)),
+                            IsActive = true,
+                            Name = "Setup error",
+                            SortOrder = 2,
+                            Tag = "SETUP"
+                        },
+                        new
+                        {
+                            Id = 3,
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 21, 2, 55, 55, 353, DateTimeKind.Unspecified).AddTicks(8092), new TimeSpan(0, 0, 0, 0, 0)),
+                            IsActive = true,
+                            Name = "Drawing error",
+                            SortOrder = 3,
+                            Tag = "DRW"
+                        },
+                        new
+                        {
+                            Id = 4,
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 21, 2, 55, 55, 353, DateTimeKind.Unspecified).AddTicks(8094), new TimeSpan(0, 0, 0, 0, 0)),
+                            IsActive = true,
+                            Name = "Wrong material",
+                            SortOrder = 4,
+                            Tag = "MAT"
+                        },
+                        new
+                        {
+                            Id = 5,
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 21, 2, 55, 55, 353, DateTimeKind.Unspecified).AddTicks(8096), new TimeSpan(0, 0, 0, 0, 0)),
+                            IsActive = true,
+                            Name = "Machine error",
+                            SortOrder = 5,
+                            Tag = "MACH"
+                        },
+                        new
+                        {
+                            Id = 6,
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 21, 2, 55, 55, 353, DateTimeKind.Unspecified).AddTicks(8097), new TimeSpan(0, 0, 0, 0, 0)),
+                            IsActive = true,
+                            Name = "CMM error",
+                            SortOrder = 6,
+                            Tag = "CMM"
+                        },
+                        new
+                        {
+                            Id = 7,
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 21, 2, 55, 55, 353, DateTimeKind.Unspecified).AddTicks(8098), new TimeSpan(0, 0, 0, 0, 0)),
+                            IsActive = true,
+                            Name = "Other",
+                            SortOrder = 99,
+                            Tag = "OTHER"
+                        });
                 });
 
             modelBuilder.Entity("ShopfloorManager.Domain.Entities.OpType", b =>
@@ -1499,12 +1786,20 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
 
             modelBuilder.Entity("ShopfloorManager.Domain.Entities.Dimension", b =>
                 {
+                    b.HasOne("ShopfloorManager.Domain.Entities.DimensionCategory", "Category")
+                        .WithMany("Dimensions")
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_dimensions_dimension_categories_category_id");
+
                     b.HasOne("ShopfloorManager.Domain.Entities.PartOp", "PartOp")
                         .WithMany("Dimensions")
                         .HasForeignKey("PartOpId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_dimensions_part_ops_part_op_id");
+
+                    b.Navigation("Category");
 
                     b.Navigation("PartOp");
                 });
@@ -1621,6 +1916,12 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_ncrs_users_raised_by");
 
+                    b.HasOne("ShopfloorManager.Domain.Entities.NcrReason", "Reason")
+                        .WithMany("Ncrs")
+                        .HasForeignKey("ReasonId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_ncrs_ncr_reasons_reason_id");
+
                     b.Navigation("Closer");
 
                     b.Navigation("Job");
@@ -1630,6 +1931,8 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                     b.Navigation("Product");
 
                     b.Navigation("Raiser");
+
+                    b.Navigation("Reason");
                 });
 
             modelBuilder.Entity("ShopfloorManager.Domain.Entities.NcrLog", b =>
@@ -1835,6 +2138,11 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                     b.Navigation("MeasureValues");
                 });
 
+            modelBuilder.Entity("ShopfloorManager.Domain.Entities.DimensionCategory", b =>
+                {
+                    b.Navigation("Dimensions");
+                });
+
             modelBuilder.Entity("ShopfloorManager.Domain.Entities.FileType", b =>
                 {
                     b.Navigation("TechDocuments");
@@ -1857,6 +2165,11 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
             modelBuilder.Entity("ShopfloorManager.Domain.Entities.Ncr", b =>
                 {
                     b.Navigation("Logs");
+                });
+
+            modelBuilder.Entity("ShopfloorManager.Domain.Entities.NcrReason", b =>
+                {
+                    b.Navigation("Ncrs");
                 });
 
             modelBuilder.Entity("ShopfloorManager.Domain.Entities.OpType", b =>

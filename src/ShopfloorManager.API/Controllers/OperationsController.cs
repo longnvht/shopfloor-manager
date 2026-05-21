@@ -44,15 +44,16 @@ public class OperationsController(IMediator mediator) : ControllerBase
         return Ok(ApiResponse<IReadOnlyList<DimensionDto>>.Ok(result.Value.Dimensions));
     }
 
-    /// <summary>Thêm dimension vào OP.</summary>
+    /// <summary>Thêm dimension vào OP (theo 06_dimensions_fai.md).</summary>
     [HttpPost("{opId:int}/dimensions")]
     [Authorize(Roles = "Administrator,Manager,Engineer,QC Inspector")]
     public async Task<IActionResult> CreateDimension(int opId, [FromBody] CreateDimensionRequest req)
     {
         var result = await mediator.Send(new CreateDimensionCommand(
             opId, req.BalloonNumber, req.Code, req.Description,
-            req.Nominal, req.UpperTol, req.LowerTol,
-            req.Unit, req.IsCritical, req.SortOrder, UserId));
+            req.NominalValue, req.TolerancePlus, req.ToleranceMinus,
+            req.Unit, req.IsTextType, req.NominalText, req.CategoryId,
+            req.IsCritical, req.IsFinal, req.SortOrder, UserId));
         return result.IsSuccess
             ? StatusCode(201, ApiResponse<DimensionDto>.Ok(result.Value))
             : BadRequest(ApiResponse<DimensionDto>.Fail(result.Errors));
@@ -75,5 +76,7 @@ public record CreateOpRequest(
 
 public record CreateDimensionRequest(
     string BalloonNumber, string? Code, string? Description,
-    decimal Nominal, decimal UpperTol, decimal LowerTol,
-    string Unit, bool IsCritical, int SortOrder);
+    decimal? NominalValue, decimal? TolerancePlus, decimal? ToleranceMinus,
+    string Unit,
+    bool IsTextType = false, string? NominalText = null, int? CategoryId = null,
+    bool IsCritical = false, bool IsFinal = false, int SortOrder = 0);

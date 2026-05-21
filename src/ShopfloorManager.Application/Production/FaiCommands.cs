@@ -8,10 +8,15 @@ using ShopfloorManager.Domain.Enums;
 
 namespace ShopfloorManager.Application.Production;
 
+// ── DTOs ─────────────────────────────────────────────────────
+
 public record DimensionDto(
-    long Id, int PartOpId, string BalloonNumber, string? Code, string? Description,
-    decimal Nominal, decimal UpperTol, decimal LowerTol,
-    decimal UpperLimit, decimal LowerLimit, string Unit, bool IsCritical, int SortOrder);
+    long Id, int PartOpId,
+    string BalloonNumber, decimal? BalloonSort, string? Code, string? Description,
+    decimal? NominalValue, decimal? TolerancePlus, decimal? ToleranceMinus,
+    decimal? MaxValue, decimal? MinValue, string Unit,
+    bool IsTextType, string? NominalText,
+    string? CategoryCode, bool IsCritical, bool IsFinal, int SortOrder);
 
 // ── FAI Sheet ─────────────────────────────────────────────────
 
@@ -39,8 +44,9 @@ public class GetFaiSheetQueryHandler(IShopfloorDbContext db)
         if (op is null) return Result.Fail("PartOp không tồn tại.");
 
         var dims = await db.Dimensions
+            .Include(d => d.Category)
             .Where(d => d.PartOpId == req.PartOpId)
-            .OrderBy(d => d.SortOrder).ThenBy(d => d.BalloonNumber)
+            .OrderBy(d => d.BalloonSort ?? 9999).ThenBy(d => d.BalloonNumber)
             .ToListAsync(ct);
 
         var products = await db.Products
@@ -50,15 +56,18 @@ public class GetFaiSheetQueryHandler(IShopfloorDbContext db)
         var dimIds = dims.Select(d => d.Id).ToList();
         var productIds = products.Select(p => p.Id).ToList();
 
+        // Lấy MeasureValue mới nhất per (DimensionId, ProductId)
         var measures = await db.MeasureValues
             .Where(m => dimIds.Contains(m.DimensionId) && productIds.Contains(m.ProductId))
+            .GroupBy(m => new { m.DimensionId, m.ProductId })
+            .Select(g => g.OrderByDescending(m => m.MeasuredAt).First())
             .ToListAsync(ct);
 
-        var dimDtos = dims.Select(d => new DimensionDto(d.Id, d.PartOpId,
-            d.BalloonNumber, d.Code, d.Description,
-            d.Nominal, d.UpperTol, d.LowerTol,
-            d.Nominal + d.UpperTol, d.Nominal + d.LowerTol,
-            d.Unit, d.IsCritical, d.SortOrder)).ToList();
+        var dimDtos = dims.Select(d => new DimensionDto(
+            d.Id, d.PartOpId, d.BalloonNumber, d.BalloonSort, d.Code, d.Description,
+            d.NominalValue, d.TolerancePlus, d.ToleranceMinus, d.MaxValue, d.MinValue, d.Unit,
+            d.IsTextType, d.NominalText, d.Category?.Code, d.IsCritical, d.IsFinal, d.SortOrder))
+            .ToList();
 
         var rows = products.Select(p =>
         {
@@ -78,9 +87,15 @@ public class GetFaiSheetQueryHandler(IShopfloorDbContext db)
 // ── Dimensions ────────────────────────────────────────────────
 
 public record CreateDimensionCommand(
-    int PartOpId, string BalloonNumber, string? Code, string? Description,
-    decimal Nominal, decimal UpperTol, decimal LowerTol,
-    string Unit, bool IsCritical, int SortOrder, int? RequesterId)
+    int PartOpId,
+    string BalloonNumber,
+    string? Code, string? Description,
+    decimal? NominalValue, decimal? TolerancePlus, decimal? ToleranceMinus,
+    string Unit,
+    bool IsTextType, string? NominalText,
+    int? CategoryId,
+    bool IsCritical, bool IsFinal, int SortOrder,
+    int? RequesterId)
     : IRequest<Result<DimensionDto>>;
 
 public class CreateDimensionCommandValidator : AbstractValidator<CreateDimensionCommand>
@@ -89,9 +104,13 @@ public class CreateDimensionCommandValidator : AbstractValidator<CreateDimension
     {
         RuleFor(x => x.PartOpId).GreaterThan(0);
         RuleFor(x => x.BalloonNumber).NotEmpty().MaximumLength(20);
-        RuleFor(x => x.UpperTol).GreaterThanOrEqualTo(0);
-        RuleFor(x => x.LowerTol).LessThanOrEqualTo(0);
         RuleFor(x => x.Unit).NotEmpty().MaximumLength(20);
+        RuleFor(x => x.TolerancePlus).GreaterThanOrEqualTo(0).When(x => x.TolerancePlus.HasValue);
+        RuleFor(x => x.ToleranceMinus).GreaterThanOrEqualTo(0).When(x => x.ToleranceMinus.HasValue);
+        RuleFor(x => x).Must(x => x.IsTextType || x.NominalValue.HasValue)
+            .WithMessage("Kích thước số phải có NominalValue.");
+        RuleFor(x => x).Must(x => !x.IsTextType || !string.IsNullOrWhiteSpace(x.NominalText))
+            .WithMessage("Kích thước text phải có NominalText.");
     }
 }
 
@@ -101,77 +120,96 @@ public class CreateDimensionCommandHandler(IShopfloorDbContext db)
     public async Task<Result<DimensionDto>> Handle(CreateDimensionCommand req, CancellationToken ct)
     {
         if (await db.Dimensions.AnyAsync(d => d.PartOpId == req.PartOpId && d.BalloonNumber == req.BalloonNumber, ct))
-            return Result.Fail($"Dimension '{req.BalloonNumber}' đã tồn tại trong OP này.");
+            return Result.Fail($"Balloon '{req.BalloonNumber}' đã tồn tại trong OP này.");
+
+        // Parse BalloonSort từ BalloonNumber ("1"→1.0, "2A"→2.0, "10"→10.0)
+        decimal? balloonSort = null;
+        var numPart = new string(req.BalloonNumber.TakeWhile(char.IsDigit).ToArray());
+        if (decimal.TryParse(numPart, out var bs)) balloonSort = bs;
+
+        // Compute MaxValue / MinValue từ Nominal ± Tolerance
+        decimal? maxValue = req.NominalValue.HasValue && req.TolerancePlus.HasValue
+            ? req.NominalValue + req.TolerancePlus : null;
+        decimal? minValue = req.NominalValue.HasValue && req.ToleranceMinus.HasValue
+            ? req.NominalValue - req.ToleranceMinus : null;
 
         var dim = new Dimension
         {
-            PartOpId = req.PartOpId, BalloonNumber = req.BalloonNumber, Code = req.Code,
-            Description = req.Description, Nominal = req.Nominal,
-            UpperTol = req.UpperTol, LowerTol = req.LowerTol,
-            Unit = req.Unit, IsCritical = req.IsCritical, SortOrder = req.SortOrder,
-            CreatedBy = req.RequesterId
+            PartOpId = req.PartOpId,
+            BalloonNumber = req.BalloonNumber, BalloonSort = balloonSort,
+            Code = req.Code, Description = req.Description,
+            NominalValue = req.NominalValue, TolerancePlus = req.TolerancePlus, ToleranceMinus = req.ToleranceMinus,
+            MaxValue = maxValue, MinValue = minValue, Unit = req.Unit,
+            IsTextType = req.IsTextType, NominalText = req.NominalText,
+            CategoryId = req.CategoryId, IsCritical = req.IsCritical, IsFinal = req.IsFinal,
+            SortOrder = req.SortOrder, CreatedBy = req.RequesterId
         };
         db.Dimensions.Add(dim);
         await db.SaveChangesAsync(ct);
 
-        return Result.Ok(new DimensionDto(dim.Id, dim.PartOpId, dim.BalloonNumber, dim.Code,
-            dim.Description, dim.Nominal, dim.UpperTol, dim.LowerTol,
-            dim.Nominal + dim.UpperTol, dim.Nominal + dim.LowerTol,
-            dim.Unit, dim.IsCritical, dim.SortOrder));
+        var cat = req.CategoryId.HasValue
+            ? await db.DimensionCategories.FindAsync([req.CategoryId.Value], ct) : null;
+
+        return Result.Ok(new DimensionDto(dim.Id, dim.PartOpId,
+            dim.BalloonNumber, dim.BalloonSort, dim.Code, dim.Description,
+            dim.NominalValue, dim.TolerancePlus, dim.ToleranceMinus, dim.MaxValue, dim.MinValue, dim.Unit,
+            dim.IsTextType, dim.NominalText, cat?.Code, dim.IsCritical, dim.IsFinal, dim.SortOrder));
     }
 }
 
 // ── MeasureValues ─────────────────────────────────────────────
 
-public record SaveMeasureCommand(long DimensionId, int ProductId, decimal Value, string? Note, int RequesterId)
+public record SaveMeasureCommand(
+    long DimensionId, int ProductId, decimal? Value,
+    bool? ManualResult,   // Dùng cho text dimension — true=Pass, false=Fail
+    string? Note, int RequesterId)
     : IRequest<Result<MeasureValueDto>>;
 
 public record MeasureValueDto(
     long Id, long DimensionId, string BalloonNumber,
     int ProductId, string SerialNumber, int PartOpId,
-    decimal Value, string Result, string? Note, DateTimeOffset MeasuredAt);
+    decimal? Value, string Result, string? Note, DateTimeOffset MeasuredAt);
 
 public class SaveMeasureCommandHandler(IShopfloorDbContext db)
     : IRequestHandler<SaveMeasureCommand, Result<MeasureValueDto>>
 {
     public async Task<Result<MeasureValueDto>> Handle(SaveMeasureCommand req, CancellationToken ct)
     {
-        var dim = await db.Dimensions.FindAsync([req.DimensionId], ct);
+        var dim = await db.Dimensions.Include(d => d.Category)
+            .FirstOrDefaultAsync(d => d.Id == req.DimensionId, ct);
         if (dim is null) return Result.Fail("Dimension không tồn tại.");
 
         var product = await db.Products.FindAsync([req.ProductId], ct);
         if (product is null) return Result.Fail("Product không tồn tại.");
 
-        var upper = dim.Nominal + dim.UpperTol;
-        var lower = dim.Nominal + dim.LowerTol;
-        var result = req.Value >= lower && req.Value <= upper ? MeasureResult.Pass : MeasureResult.Fail;
-
-        var existing = await db.MeasureValues
-            .FirstOrDefaultAsync(m => m.DimensionId == req.DimensionId && m.ProductId == req.ProductId, ct);
-
-        if (existing is not null)
+        MeasureResult result;
+        if (dim.IsTextType)
         {
-            existing.Value = req.Value;
-            existing.Result = result;
-            existing.Note = req.Note;
-            existing.MeasuredBy = req.RequesterId;
-            existing.MeasuredAt = DateTimeOffset.UtcNow;
+            // Text dimension: operator chọn Pass/Fail thủ công
+            result = req.ManualResult == true ? MeasureResult.Pass : MeasureResult.Fail;
         }
         else
         {
-            existing = new MeasureValue
-            {
-                DimensionId = req.DimensionId, ProductId = req.ProductId,
-                PartOpId = dim.PartOpId,
-                Value = req.Value, Result = result, Note = req.Note,
-                MeasuredBy = req.RequesterId
-            };
-            db.MeasureValues.Add(existing);
+            if (!req.Value.HasValue) return Result.Fail("Cần nhập giá trị đo cho kích thước số.");
+            if (!dim.MaxValue.HasValue || !dim.MinValue.HasValue)
+                return Result.Fail("Dimension chưa có MaxValue/MinValue — cần cập nhật dung sai.");
+            result = req.Value >= dim.MinValue && req.Value <= dim.MaxValue
+                ? MeasureResult.Pass : MeasureResult.Fail;
         }
+
+        // KHÔNG upsert — tạo record mới mỗi lần đo (giữ lịch sử)
+        var mv = new MeasureValue
+        {
+            DimensionId = req.DimensionId, ProductId = req.ProductId,
+            PartOpId = dim.PartOpId,
+            Value = req.Value, Result = result, Note = req.Note,
+            MeasuredBy = req.RequesterId
+        };
+        db.MeasureValues.Add(mv);
         await db.SaveChangesAsync(ct);
 
-        return Result.Ok(new MeasureValueDto(existing.Id, dim.Id, dim.BalloonNumber,
+        return Result.Ok(new MeasureValueDto(mv.Id, dim.Id, dim.BalloonNumber,
             req.ProductId, product.SerialNumber, dim.PartOpId,
-            req.Value, result.ToString(), req.Note, existing.MeasuredAt));
+            req.Value, result.ToString(), req.Note, mv.MeasuredAt));
     }
 }

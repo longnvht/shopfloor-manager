@@ -30,8 +30,10 @@ public interface IShopfloorDbContext
     DbSet<TechDocument> TechDocuments { get; }
 
     // Phase 3 — Quality
+    DbSet<DimensionCategory> DimensionCategories { get; }
     DbSet<Dimension> Dimensions { get; }
     DbSet<MeasureValue> MeasureValues { get; }
+    DbSet<NcrReason> NcrReasons { get; }
     DbSet<Ncr> Ncrs { get; }
     DbSet<NcrLog> NcrLogs { get; }
 
