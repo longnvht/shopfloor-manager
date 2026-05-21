@@ -329,6 +329,9 @@ CalibRequestStatus:Pending=0, Approved=1, Completed=2, Cancelled=3
 - JWT token lưu in-memory (không persist ra disk)
 - Window orchestration trong `App.xaml.cs` (NavigationService.Navigated event)
 - `local.json` chứa: ApiBaseUrl, MachineCode, MachineName — khác nhau giữa các máy tại xưởng
+- `HttpClient` + `IApiClient` phải là **singleton** — nếu transient, mỗi ViewModel nhận instance riêng và không có token
+- Trigger data load từ ViewModel (NavigateTo command), KHÔNG dùng `Loaded` event của View — tránh race condition DataContext timing
+- Khi implement API call mới: luôn kiểm tra field name của request/response khớp đúng với API contract (dùng Swagger hoặc curl để verify trước)
 
 ---
 
@@ -338,6 +341,14 @@ CalibRequestStatus:Pending=0, Approved=1, Completed=2, Cancelled=3
 - Changing DB schema (EF Core migrations are hard to rollback cleanly)
 - Adding a NuGet package (must be MIT/Apache 2.0, must have a clear reason)
 - Restructuring directories
+
+**Quy trình mỗi tính năng (Desktop MES):**
+1. Viết code
+2. Build (`dotnet build`) — phải 0 error trước khi báo xong
+3. Chạy app thực tế, kiểm tra bằng tay
+4. Fix bug nếu có
+5. Update CLAUDE.md (progress + bài học)
+6. Commit + push GitHub
 
 ---
 
