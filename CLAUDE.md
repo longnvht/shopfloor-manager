@@ -323,6 +323,8 @@ CalibRequestStatus:Pending=0, Approved=1, Completed=2, Cancelled=3
 - Per-machine config: `local.json` (gitignored) override `appsettings.json`
 - ✅ JobListPage: search, ShowCompleted toggle, pagination 20/trang, overdue highlight, status badge
 - ✅ OperationPage: danh sách OP dạng card, badge ForJobOnly/Complete, SetupTime/ProdTime, nút "Bắt đầu FAI", back về JobList
+- ✅ Virtual Keyboard: NumPadWindow (số, floating no-focus), QwertyWindow (QWERTY + 123 panel, CapsLock toggle)
+- ✅ Touch-optimized: Button 56px, TextBox 52px, DataGridRow 52px, KeyboardBehavior attached property
 - **Chưa implement:** FAIPage, DocumentViewer, NCR dialog
 
 **Desktop MES — kiến trúc quan trọng:**
@@ -335,6 +337,8 @@ CalibRequestStatus:Pending=0, Approved=1, Completed=2, Cancelled=3
 - Khi implement API call mới: luôn kiểm tra field name của request/response khớp đúng với API contract (dùng Swagger hoặc curl để verify trước)
 - **`Run.Text` binding trong WPF mặc định TwoWay** — computed/read-only properties trên record phải dùng `Mode=OneWay`: `{Binding PropName, Mode=OneWay}`
 - Khi thêm child element vào XAML tag đang có attributes (như DataGrid.InputBindings), các attributes còn lại phải nằm trong tag mở `<Tag attr1="" attr2="">`, không được để lơ lửng sau closing `>`
+- Virtual keyboard dùng `WS_EX_NOACTIVATE` để không steal focus — TextBox vẫn giữ focus khi gõ phím
+- Keyboard label và output phải nhất quán từ đầu: gọi `UpdateLetterKeys(panel, caps: false)` trong `Loaded` để sync label với trạng thái mặc định
 
 ---
 

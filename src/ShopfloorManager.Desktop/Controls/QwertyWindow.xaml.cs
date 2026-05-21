@@ -24,7 +24,12 @@ public partial class QwertyWindow : Window
     {
         InitializeComponent();
         _keyboard = keyboard;
-        Loaded += (_, _) => PositionBottom();
+        Loaded += (_, _) =>
+        {
+            PositionBottom();
+            // Sync label về thường (Caps OFF là default)
+            UpdateLetterKeys(QwertyPanel, caps: false);
+        };
     }
 
     protected override void OnSourceInitialized(EventArgs e)
