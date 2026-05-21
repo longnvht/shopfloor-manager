@@ -106,4 +106,20 @@ public class LookupsController(IMediator mediator) : ControllerBase
             .ToListAsync();
         return Ok(ApiResponse<object>.Ok(items));
     }
+
+    // ── FileTypes ─────────────────────────────────────────────
+
+    [HttpGet("api/v1/tech-documents/file-types")]
+    public async Task<IActionResult> GetFileTypes(
+        [Microsoft.AspNetCore.Mvc.FromServices] ShopfloorManager.Application.Common.Interfaces.IShopfloorDbContext db)
+    {
+        var items = await db.FileTypes
+            .OrderBy(f => f.SortOrder)
+            .Select(f => new {
+                f.Id, f.Code, f.Name, f.Folder,
+                f.IsPartNumber, f.IsRevision, f.IsOpNumber, f.IsJobNumber,
+                f.IsGcode, f.IsSegment, f.SortOrder })
+            .ToListAsync();
+        return Ok(ApiResponse<object>.Ok(items));
+    }
 }

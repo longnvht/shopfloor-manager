@@ -19,43 +19,38 @@ public interface IMinioService
 }
 
 /// <summary>
-/// Build MinIO object key theo path convention từ FileType flags.
-/// Path convention (phân tích từ FormUpdateTechnology.cs):
-///   IsPartNumber: {PartNumber}/{RevCode}/{RoutingRevCode}/{OpNumber}/{Folder}/{filename}
-///   IsJobNumber:  {JobNumber}/{OpNumber}/{Folder}/{filename}
+/// Build MinIO object key theo path convention — spec 05_technical_documents.md:
+///   Part-level  (DRW, CAD):       {folder}/{part_number}/{revision}/{filename}
+///   Standard OP (GCD, TLS...):    {folder}/{part_number}/{op_number}/{revision}/{filename}
+///   Job+OP      (RTC, FXT):       {folder}/{job_number}/{op_number}/{filename}
 /// </summary>
 public static class MinioPathBuilder
 {
     public static string BuildObjectKey(
         string folder, string fileName,
-        string? partNumber = null, string? revCode = null, string? routingRevCode = null,
+        string? partNumber = null, string? revCode = null,
         string? opNumber = null, string? jobNumber = null,
-        bool isPartNumber = true, bool isRevision = true,
+        bool isPartNumber = false, bool isRevision = false,
         bool isOpNumber = false, bool isJobNumber = false)
     {
-        var segments = new List<string>();
+        var segments = new List<string> { folder };
 
-        if (isPartNumber && !string.IsNullOrWhiteSpace(partNumber))
+        if (isJobNumber && !string.IsNullOrWhiteSpace(jobNumber))
         {
-            segments.Add(partNumber);
-            if (isRevision && !string.IsNullOrWhiteSpace(revCode))
-            {
-                segments.Add(revCode);
-                if (!string.IsNullOrWhiteSpace(routingRevCode))
-                    segments.Add(routingRevCode);
-            }
-            if (isOpNumber && !string.IsNullOrWhiteSpace(opNumber))
-                segments.Add(opNumber);
-        }
-        else if (isJobNumber && !string.IsNullOrWhiteSpace(jobNumber))
-        {
+            // Job+OP path: {folder}/{job_number}/{op_number}/{filename}
             segments.Add(jobNumber);
             if (isOpNumber && !string.IsNullOrWhiteSpace(opNumber))
                 segments.Add(opNumber);
         }
-
-        if (!string.IsNullOrWhiteSpace(folder))
-            segments.Add(folder);
+        else if (isPartNumber && !string.IsNullOrWhiteSpace(partNumber))
+        {
+            // Part or Part+OP path
+            segments.Add(partNumber);
+            if (isOpNumber && !string.IsNullOrWhiteSpace(opNumber))
+                segments.Add(opNumber);
+            if (isRevision && !string.IsNullOrWhiteSpace(revCode))
+                segments.Add(revCode);
+        }
 
         segments.Add(fileName);
         return string.Join("/", segments);

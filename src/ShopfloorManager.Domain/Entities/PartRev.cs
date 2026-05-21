@@ -19,4 +19,5 @@ public class PartRev
 
     public Part Part { get; set; } = null!;
     public ICollection<Routing> Routings { get; set; } = [];
+    public ICollection<TechDocument> TechDocuments { get; set; } = [];
 }

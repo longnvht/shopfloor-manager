@@ -104,25 +104,35 @@ public class ShopfloorDbContext(DbContextOptions<ShopfloorDbContext> options)
             new OpType { Id = 6, Code = "TURN",  Name = "Turning",        Description = "Manual turning"              }
         );
 
-        // FileType seed — codes theo tài liệu 05_technical_documents.md
+        // FileType seed — path theo spec 05_technical_documents.md
+        // IsPartNumber/IsRevision/IsOpNumber/IsJobNumber điều khiển MinIO path:
+        //   Part-level  : {folder}/{part_number}/{revision}/{filename}
+        //   Standard OP : {folder}/{part_number}/{op_number}/{revision}/{filename}
+        //   Job+OP      : {folder}/{job_number}/{op_number}/{filename}
         modelBuilder.Entity<FileType>().HasData(
+            // Part-level: drawings/{part_number}/{revision}/...
             new FileType { Id = 1, Code = "DRW", Name = "Drawing",         Folder = "drawings",
-                IsPartNumber = true, IsRevision = true,  IsOpNumber = false, IsJobNumber = false, SortOrder = 1 },
+                IsPartNumber = true,  IsRevision = true,  IsOpNumber = false, IsJobNumber = false, SortOrder = 1 },
+            // Standard OP (Part+OP): gcodes/{part_number}/{op_number}/{revision}/...
             new FileType { Id = 2, Code = "GCD", Name = "G-Code",          Folder = "gcodes",
                 IsGcode = true, IsSegment = true,
-                IsPartNumber = true, IsRevision = true,  IsOpNumber = true,  IsJobNumber = true,  SortOrder = 2 },
+                IsPartNumber = true,  IsRevision = true,  IsOpNumber = true,  IsJobNumber = false, SortOrder = 2 },
+            // Job+OP: routecards/{job_number}/{op_number}/...
             new FileType { Id = 3, Code = "RTC", Name = "Route Card",      Folder = "routecards",
-                IsPartNumber = true, IsRevision = true,  IsOpNumber = true,  IsJobNumber = true,  SortOrder = 3 },
+                IsPartNumber = false, IsRevision = false, IsOpNumber = true,  IsJobNumber = true,  SortOrder = 3 },
+            // Job+OP: fixtures/{job_number}/{op_number}/...
             new FileType { Id = 4, Code = "FXT", Name = "Fixture Drawing", Folder = "fixtures",
-                IsPartNumber = true, IsRevision = true,  IsOpNumber = true,  IsJobNumber = true,  SortOrder = 4 },
+                IsPartNumber = false, IsRevision = false, IsOpNumber = true,  IsJobNumber = true,  SortOrder = 4 },
+            // Standard OP (Part+OP): threads/{part_number}/{op_number}/{revision}/...
             new FileType { Id = 5, Code = "THD", Name = "Thread Drawing",  Folder = "threads",
-                IsPartNumber = true, IsRevision = true,  IsOpNumber = true,  IsJobNumber = false, SortOrder = 5 },
+                IsPartNumber = true,  IsRevision = true,  IsOpNumber = true,  IsJobNumber = false, SortOrder = 5 },
             new FileType { Id = 6, Code = "TLS", Name = "Tool List",       Folder = "tools",
-                IsPartNumber = true, IsRevision = true,  IsOpNumber = true,  IsJobNumber = false, SortOrder = 6 },
+                IsPartNumber = true,  IsRevision = true,  IsOpNumber = true,  IsJobNumber = false, SortOrder = 6 },
             new FileType { Id = 7, Code = "CAM", Name = "CAM File",        Folder = "cam",
-                IsPartNumber = true, IsRevision = true,  IsOpNumber = true,  IsJobNumber = false, SortOrder = 7 },
+                IsPartNumber = true,  IsRevision = true,  IsOpNumber = true,  IsJobNumber = false, SortOrder = 7 },
+            // Part-level: cad/{part_number}/{revision}/...
             new FileType { Id = 8, Code = "CAD", Name = "CAD Drawing",     Folder = "cad",
-                IsPartNumber = true, IsRevision = true,  IsOpNumber = false, IsJobNumber = false, SortOrder = 8 }
+                IsPartNumber = true,  IsRevision = true,  IsOpNumber = false, IsJobNumber = false, SortOrder = 8 }
         );
 
         // DimensionCategory seed (từ 06_dimensions_fai.md)

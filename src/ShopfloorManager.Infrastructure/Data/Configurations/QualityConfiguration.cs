@@ -133,6 +133,10 @@ public class TechDocumentConfiguration : IEntityTypeConfiguration<TechDocument>
 
         builder.HasOne(t => t.FileType).WithMany(f => f.TechDocuments)
             .HasForeignKey(t => t.FileTypeId).OnDelete(DeleteBehavior.Restrict);
+        // PartRevId nullable — Part-level docs (DRW, CAD)
+        builder.HasOne(t => t.PartRev).WithMany(r => r.TechDocuments)
+            .HasForeignKey(t => t.PartRevId).OnDelete(DeleteBehavior.Restrict);
+        // PartOpId nullable — OP-level docs (GCD, RTC, FXT...); set for standard and ForJobOnly OPs
         builder.HasOne(t => t.PartOp).WithMany(o => o.TechDocuments)
             .HasForeignKey(t => t.PartOpId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne(t => t.Job).WithMany()

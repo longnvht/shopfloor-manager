@@ -11,12 +11,12 @@ export default function PartDetailPage() {
   const { id } = useParams<{ id: string }>()
   const partId = Number(id)
 
-  const [revs, setRevs] = useState<PartRevDto[]>([])
+  const [revs, setRevs]               = useState<PartRevDto[]>([])
   const [selectedRev, setSelectedRev] = useState<PartRevDto | null>(null)
   const [routingRevs, setRoutingRevs] = useState<RoutingRevDto[]>([])
-  const [selectedRR, setSelectedRR] = useState<RoutingRevDto | null>(null)
-  const [ops, setOps] = useState<PartOpDto[]>([])
-  const [loading, setLoading] = useState(true)
+  const [selectedRR, setSelectedRR]   = useState<RoutingRevDto | null>(null)
+  const [ops, setOps]                 = useState<PartOpDto[]>([])
+  const [loading, setLoading]         = useState(true)
 
   useEffect(() => {
     api.parts.revisions(partId).then(res => {
@@ -31,8 +31,6 @@ export default function PartDetailPage() {
 
   useEffect(() => {
     if (!selectedRev) return
-    // Routing ID = 1 by convention (each PartRev gets one Routing auto)
-    // In practice need to get routingId from API
     api.parts.routingRevs(selectedRev.id, 1).then(res => {
       if (res.success && res.data) {
         setRoutingRevs(res.data)
@@ -52,6 +50,10 @@ export default function PartDetailPage() {
   if (loading) return <p className="text-muted-foreground">Đang tải...</p>
 
   const partNumber = revs[0]?.partNumber ?? `Part #${partId}`
+
+  // Build URL params for documents page
+  const docBaseParams = (extra: Record<string, string>) =>
+    new URLSearchParams({ partNumber, ...extra }).toString()
 
   return (
     <div className="space-y-6">
@@ -81,6 +83,17 @@ export default function PartDetailPage() {
           </div>
           {selectedRev?.description && (
             <p className="mt-2 text-sm text-muted-foreground">{selectedRev.description}</p>
+          )}
+
+          {/* Part-level documents (DRW, CAD) */}
+          {selectedRev && (
+            <div className="mt-3 flex gap-2">
+              <Link href={`/parts/${id}/documents?partRevId=${selectedRev.id}&${docBaseParams({ revCode: selectedRev.revCode })}`}>
+                <Button size="sm" variant="outline">
+                  Bản vẽ / CAD (Rev {selectedRev.revCode})
+                </Button>
+              </Link>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -114,7 +127,7 @@ export default function PartDetailPage() {
 
       {/* Operations list */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader>
           <CardTitle>
             Operations
             {selectedRR && <span className="ml-2 text-sm font-normal text-muted-foreground">(Routing {selectedRR.revCode})</span>}
@@ -132,6 +145,7 @@ export default function PartDetailPage() {
                 <th className="pb-2 text-right font-medium">Setup (h)</th>
                 <th className="pb-2 text-right font-medium">Prod (h)</th>
                 <th className="pb-2 text-center font-medium">Trạng thái</th>
+                <th className="pb-2 text-center font-medium">Tài liệu</th>
               </tr></thead>
               <tbody className="divide-y">
                 {ops.map(op => (
@@ -145,8 +159,15 @@ export default function PartDetailPage() {
                       <span className={`rounded-full px-2 py-0.5 text-xs ${
                         op.isComplete ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
                       }`}>
-                        {op.isComplete ? 'Done' : 'Pending'}
+                        {op.isComplete ? 'Done' : 'Active'}
                       </span>
+                    </td>
+                    <td className="py-2 text-center">
+                      <Link href={`/parts/${id}/documents?opId=${op.id}&opNumber=${op.opNumber}&${docBaseParams({ revCode: selectedRev?.revCode ?? '' })}`}>
+                        <Button size="sm" variant="ghost" className="h-7 text-xs">
+                          Tài liệu →
+                        </Button>
+                      </Link>
                     </td>
                   </tr>
                 ))}
