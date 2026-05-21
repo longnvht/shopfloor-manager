@@ -2,7 +2,9 @@ using System.Security.Claims;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using ShopfloorManager.API.Common;
+using ShopfloorManager.Application.Common.Interfaces;
 using ShopfloorManager.Application.Production;
 using ShopfloorManager.Shared.Pagination;
 
@@ -11,7 +13,7 @@ namespace ShopfloorManager.API.Controllers;
 [ApiController]
 [Route("api/v1/jobs")]
 [Authorize]
-public class JobsController(IMediator mediator) : ControllerBase
+public class JobsController(IMediator mediator, IShopfloorDbContext db) : ControllerBase
 {
     private int UserId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0");
 
@@ -63,8 +65,12 @@ public class JobsController(IMediator mediator) : ControllerBase
     [HttpGet("{id:int}/products")]
     public async Task<IActionResult> GetProducts(int id)
     {
-        var products = await mediator.Send(new GetJobsQuery());  // TODO: GetProductsQuery
-        return Ok();
+        var products = await db.Products
+            .Where(p => p.JobId == id)
+            .OrderBy(p => p.SortOrder ?? p.Id)
+            .Select(p => new ProductDto(p.Id, p.SerialNumber, p.JobId, p.IsComplete, p.SortOrder))
+            .ToListAsync();
+        return Ok(ApiResponse<List<ProductDto>>.Ok(products));
     }
 
     [HttpPost("{id:int}/products/generate")]

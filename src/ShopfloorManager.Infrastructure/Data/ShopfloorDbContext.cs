@@ -135,14 +135,15 @@ public class ShopfloorDbContext(DbContextOptions<ShopfloorDbContext> options)
         );
 
         // NcrReason seed (từ 07_ncr.md)
+        var seedDate = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
         modelBuilder.Entity<NcrReason>().HasData(
-            new NcrReason { Id = 1, Name = "Tool wear",      Tag = "TOOL",  SortOrder = 1 },
-            new NcrReason { Id = 2, Name = "Setup error",    Tag = "SETUP", SortOrder = 2 },
-            new NcrReason { Id = 3, Name = "Drawing error",  Tag = "DRW",   SortOrder = 3 },
-            new NcrReason { Id = 4, Name = "Wrong material", Tag = "MAT",   SortOrder = 4 },
-            new NcrReason { Id = 5, Name = "Machine error",  Tag = "MACH",  SortOrder = 5 },
-            new NcrReason { Id = 6, Name = "CMM error",      Tag = "CMM",   SortOrder = 6 },
-            new NcrReason { Id = 7, Name = "Other",          Tag = "OTHER", SortOrder = 99 }
+            new NcrReason { Id = 1, Name = "Tool wear",      Tag = "TOOL",  SortOrder = 1,  CreatedAt = seedDate },
+            new NcrReason { Id = 2, Name = "Setup error",    Tag = "SETUP", SortOrder = 2,  CreatedAt = seedDate },
+            new NcrReason { Id = 3, Name = "Drawing error",  Tag = "DRW",   SortOrder = 3,  CreatedAt = seedDate },
+            new NcrReason { Id = 4, Name = "Wrong material", Tag = "MAT",   SortOrder = 4,  CreatedAt = seedDate },
+            new NcrReason { Id = 5, Name = "Machine error",  Tag = "MACH",  SortOrder = 5,  CreatedAt = seedDate },
+            new NcrReason { Id = 6, Name = "CMM error",      Tag = "CMM",   SortOrder = 6,  CreatedAt = seedDate },
+            new NcrReason { Id = 7, Name = "Other",          Tag = "OTHER", SortOrder = 99, CreatedAt = seedDate }
         );
     }
 }

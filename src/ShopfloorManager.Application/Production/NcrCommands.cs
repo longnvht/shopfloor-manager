@@ -16,6 +16,8 @@ public record NcrDto(
     int JobId, string JobNumber,
     int? ProductId, string? SerialNumber,
     int? PartOpId, string? OpNumber,
+    int? ReasonId, string? ReasonName,
+    int? DepartmentId, string? MachineCode,
     string Description, string Status,
     string RaisedBy, DateTimeOffset RaisedAt,
     string? ClosedBy, DateTimeOffset? ClosedAt);
@@ -40,6 +42,7 @@ public class GetNcrsQueryHandler(IShopfloorDbContext db)
             .Include(n => n.Job)
             .Include(n => n.Product)
             .Include(n => n.PartOp)
+            .Include(n => n.Reason)
             .Include(n => n.Raiser)
             .Include(n => n.Closer)
             .AsQueryable();
@@ -58,6 +61,8 @@ public class GetNcrsQueryHandler(IShopfloorDbContext db)
                 n.JobId, n.Job.JobNumber,
                 n.ProductId, n.Product != null ? n.Product.SerialNumber : null,
                 n.PartOpId, n.PartOp != null ? n.PartOp.OpNumber : null,
+                n.ReasonId, n.Reason != null ? n.Reason.Name : null,
+                n.DepartmentId, n.MachineCode,
                 n.Description, n.Status.ToString(),
                 n.Raiser.Name, n.RaisedAt,
                 n.Closer != null ? n.Closer.Name : null, n.ClosedAt))
@@ -78,6 +83,7 @@ public class GetNcrByIdQueryHandler(IShopfloorDbContext db)
             .Include(n => n.Job)
             .Include(n => n.Product)
             .Include(n => n.PartOp)
+            .Include(n => n.Reason)
             .Include(n => n.Raiser)
             .Include(n => n.Closer)
             .Include(n => n.Logs).ThenInclude(l => l.Actor)
@@ -90,6 +96,8 @@ public class GetNcrByIdQueryHandler(IShopfloorDbContext db)
             ncr.JobId, ncr.Job.JobNumber,
             ncr.ProductId, ncr.Product?.SerialNumber,
             ncr.PartOpId, ncr.PartOp?.OpNumber,
+            ncr.ReasonId, ncr.Reason?.Name,
+            ncr.DepartmentId, ncr.MachineCode,
             ncr.Description, ncr.Status.ToString(),
             ncr.Raiser.Name, ncr.RaisedAt,
             ncr.Closer?.Name, ncr.ClosedAt);
@@ -152,10 +160,14 @@ public class CreateNcrCommandHandler(IShopfloorDbContext db)
         await db.SaveChangesAsync(ct);
 
         var raiser = await db.Users.FindAsync([req.RequesterId], ct);
+        var reason = ncr.ReasonId.HasValue
+            ? await db.NcrReasons.FindAsync([ncr.ReasonId.Value], ct) : null;
         return Result.Ok(new NcrDto(
             ncr.Id, ncr.NcrNumber,
             ncr.JobId, job.JobNumber,
             ncr.ProductId, null, ncr.PartOpId, null,
+            ncr.ReasonId, reason?.Name,
+            ncr.DepartmentId, ncr.MachineCode,
             ncr.Description, ncr.Status.ToString(),
             raiser?.Name ?? "", ncr.RaisedAt, null, null));
     }

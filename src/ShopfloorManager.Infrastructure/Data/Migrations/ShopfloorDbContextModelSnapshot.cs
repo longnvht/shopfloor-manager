@@ -887,7 +887,7 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                         new
                         {
                             Id = 1,
-                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 21, 2, 55, 55, 353, DateTimeKind.Unspecified).AddTicks(7029), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             IsActive = true,
                             Name = "Tool wear",
                             SortOrder = 1,
@@ -896,7 +896,7 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                         new
                         {
                             Id = 2,
-                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 21, 2, 55, 55, 353, DateTimeKind.Unspecified).AddTicks(8088), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             IsActive = true,
                             Name = "Setup error",
                             SortOrder = 2,
@@ -905,7 +905,7 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                         new
                         {
                             Id = 3,
-                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 21, 2, 55, 55, 353, DateTimeKind.Unspecified).AddTicks(8092), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             IsActive = true,
                             Name = "Drawing error",
                             SortOrder = 3,
@@ -914,7 +914,7 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                         new
                         {
                             Id = 4,
-                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 21, 2, 55, 55, 353, DateTimeKind.Unspecified).AddTicks(8094), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             IsActive = true,
                             Name = "Wrong material",
                             SortOrder = 4,
@@ -923,7 +923,7 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                         new
                         {
                             Id = 5,
-                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 21, 2, 55, 55, 353, DateTimeKind.Unspecified).AddTicks(8096), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             IsActive = true,
                             Name = "Machine error",
                             SortOrder = 5,
@@ -932,7 +932,7 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                         new
                         {
                             Id = 6,
-                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 21, 2, 55, 55, 353, DateTimeKind.Unspecified).AddTicks(8097), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             IsActive = true,
                             Name = "CMM error",
                             SortOrder = 6,
@@ -941,7 +941,7 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                         new
                         {
                             Id = 7,
-                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 21, 2, 55, 55, 353, DateTimeKind.Unspecified).AddTicks(8098), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             IsActive = true,
                             Name = "Other",
                             SortOrder = 99,

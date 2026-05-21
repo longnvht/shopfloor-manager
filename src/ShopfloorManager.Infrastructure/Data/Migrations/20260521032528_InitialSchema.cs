@@ -789,13 +789,13 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                 columns: new[] { "id", "created_at", "department_id", "is_active", "name", "sort_order", "tag" },
                 values: new object[,]
                 {
-                    { 1, new DateTimeOffset(new DateTime(2026, 5, 21, 2, 55, 55, 353, DateTimeKind.Unspecified).AddTicks(7029), new TimeSpan(0, 0, 0, 0, 0)), null, true, "Tool wear", 1, "TOOL" },
-                    { 2, new DateTimeOffset(new DateTime(2026, 5, 21, 2, 55, 55, 353, DateTimeKind.Unspecified).AddTicks(8088), new TimeSpan(0, 0, 0, 0, 0)), null, true, "Setup error", 2, "SETUP" },
-                    { 3, new DateTimeOffset(new DateTime(2026, 5, 21, 2, 55, 55, 353, DateTimeKind.Unspecified).AddTicks(8092), new TimeSpan(0, 0, 0, 0, 0)), null, true, "Drawing error", 3, "DRW" },
-                    { 4, new DateTimeOffset(new DateTime(2026, 5, 21, 2, 55, 55, 353, DateTimeKind.Unspecified).AddTicks(8094), new TimeSpan(0, 0, 0, 0, 0)), null, true, "Wrong material", 4, "MAT" },
-                    { 5, new DateTimeOffset(new DateTime(2026, 5, 21, 2, 55, 55, 353, DateTimeKind.Unspecified).AddTicks(8096), new TimeSpan(0, 0, 0, 0, 0)), null, true, "Machine error", 5, "MACH" },
-                    { 6, new DateTimeOffset(new DateTime(2026, 5, 21, 2, 55, 55, 353, DateTimeKind.Unspecified).AddTicks(8097), new TimeSpan(0, 0, 0, 0, 0)), null, true, "CMM error", 6, "CMM" },
-                    { 7, new DateTimeOffset(new DateTime(2026, 5, 21, 2, 55, 55, 353, DateTimeKind.Unspecified).AddTicks(8098), new TimeSpan(0, 0, 0, 0, 0)), null, true, "Other", 99, "OTHER" }
+                    { 1, new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)), null, true, "Tool wear", 1, "TOOL" },
+                    { 2, new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)), null, true, "Setup error", 2, "SETUP" },
+                    { 3, new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)), null, true, "Drawing error", 3, "DRW" },
+                    { 4, new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)), null, true, "Wrong material", 4, "MAT" },
+                    { 5, new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)), null, true, "Machine error", 5, "MACH" },
+                    { 6, new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)), null, true, "CMM error", 6, "CMM" },
+                    { 7, new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)), null, true, "Other", 99, "OTHER" }
                 });
 
             migrationBuilder.InsertData(

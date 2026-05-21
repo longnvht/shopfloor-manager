@@ -78,4 +78,32 @@ public class LookupsController(IMediator mediator) : ControllerBase
             .ToListAsync();
         return Ok(ApiResponse<object>.Ok(items));
     }
+
+    // ── NcrReasons ────────────────────────────────────────────
+
+    [HttpGet("api/v1/ncr-reasons")]
+    public async Task<IActionResult> GetNcrReasons(
+        [Microsoft.AspNetCore.Mvc.FromServices] ShopfloorManager.Application.Common.Interfaces.IShopfloorDbContext db,
+        [FromQuery] int? departmentId = null)
+    {
+        var q = db.NcrReasons.Where(r => r.IsActive).AsQueryable();
+        if (departmentId.HasValue) q = q.Where(r => r.DepartmentId == departmentId.Value);
+        var items = await q.OrderBy(r => r.SortOrder)
+            .Select(r => new { r.Id, r.Name, r.Tag, r.DepartmentId, r.SortOrder })
+            .ToListAsync();
+        return Ok(ApiResponse<object>.Ok(items));
+    }
+
+    // ── DimensionCategories ───────────────────────────────────
+
+    [HttpGet("api/v1/dimension-categories")]
+    public async Task<IActionResult> GetDimensionCategories(
+        [Microsoft.AspNetCore.Mvc.FromServices] ShopfloorManager.Application.Common.Interfaces.IShopfloorDbContext db)
+    {
+        var items = await db.DimensionCategories
+            .OrderBy(c => c.Code)
+            .Select(c => new { c.Id, c.Code, c.Name, c.Description })
+            .ToListAsync();
+        return Ok(ApiResponse<object>.Ok(items));
+    }
 }
