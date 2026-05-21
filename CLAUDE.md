@@ -321,7 +321,8 @@ CalibRequestStatus:Pending=0, Approved=1, Completed=2, Cancelled=3
 - Stack: WPF + CommunityToolkit.Mvvm + MaterialDesignThemes + SignalR.Client
 - Skeleton đã có: DI (Microsoft.Extensions.DI), IApiClient (HttpClient+JWT), IAuthService, NavigationService, LoginWindow, MainWindow shell
 - Per-machine config: `local.json` (gitignored) override `appsettings.json`
-- **Chưa implement:** JobListPage, OperationPage, FAIPage, DocumentViewer, NCR dialog
+- ✅ JobListPage: search, ShowCompleted toggle, pagination 20/trang, overdue highlight, status badge
+- **Chưa implement:** OperationPage, FAIPage, DocumentViewer, NCR dialog
 
 **Desktop MES — kiến trúc quan trọng:**
 - KHÔNG kết nối DB trực tiếp — chỉ qua REST API
