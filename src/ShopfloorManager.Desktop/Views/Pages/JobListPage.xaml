@@ -3,7 +3,8 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:md="http://materialdesigninxaml.net/winfx/xaml/themes"
              xmlns:conv="clr-namespace:ShopfloorManager.Desktop.Converters"
-             xmlns:models="clr-namespace:ShopfloorManager.Desktop.Models">
+             xmlns:models="clr-namespace:ShopfloorManager.Desktop.Models"
+             xmlns:kb="clr-namespace:ShopfloorManager.Desktop.Behaviors">
 
     <UserControl.Resources>
         <conv:BoolToRedBrushConverter x:Key="BoolToRedBrushConverter"/>
@@ -35,6 +36,7 @@
                 <!-- Search box -->
                 <TextBox Grid.Column="0"
                          Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                         kb:KeyboardBehavior.Mode="Qwerty"
                          md:HintAssist.Hint="Tìm theo số Job hoặc mã Part..."
                          md:HintAssist.IsFloating="False"
                          Style="{StaticResource MaterialDesignOutlinedTextBox}"

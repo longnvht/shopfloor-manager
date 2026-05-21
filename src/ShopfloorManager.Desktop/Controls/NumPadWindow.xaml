@@ -1,0 +1,151 @@
+<Window x:Class="ShopfloorManager.Desktop.Controls.NumPadWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="NumPad"
+        Width="320" Height="440"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Topmost="True"
+        ShowInTaskbar="False"
+        ShowActivated="False"
+        ResizeMode="NoResize">
+
+    <Window.Resources>
+        <Style x:Key="NumKey" TargetType="Button">
+            <Setter Property="Width" Value="82"/>
+            <Setter Property="Height" Value="72"/>
+            <Setter Property="FontSize" Value="22"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Margin" Value="3"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd"
+                                Background="#FF2D1A5E"
+                                CornerRadius="10"
+                                BorderBrush="#FF4A2D9E"
+                                BorderThickness="1.5">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#FF4A2D9E"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#FF3D2470"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ActionKey" TargetType="Button" BasedOn="{StaticResource NumKey}">
+            <Setter Property="Background" Value="#FF1A3A6E"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd"
+                                Background="#FF1A3A6E"
+                                CornerRadius="10"
+                                BorderBrush="#FF2D5AA0"
+                                BorderThickness="1.5">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#FF2D5AA0"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ConfirmKey" TargetType="Button" BasedOn="{StaticResource NumKey}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd"
+                                Background="#FF1B5E20"
+                                CornerRadius="10"
+                                BorderBrush="#FF2E7D32"
+                                BorderThickness="1.5">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#FF2E7D32"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Border CornerRadius="16"
+            Background="#EE1A1030"
+            BorderBrush="#FF4A2D9E"
+            BorderThickness="1.5">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="20" Opacity="0.6" ShadowDepth="4"/>
+        </Border.Effect>
+
+        <StackPanel Margin="12">
+            <!-- Display -->
+            <Border Background="#CC000000" CornerRadius="8" Margin="0,0,0,10" Padding="12,8">
+                <TextBlock x:Name="DisplayText"
+                           Text="0"
+                           FontSize="28"
+                           FontWeight="Bold"
+                           Foreground="#FF00E5FF"
+                           HorizontalAlignment="Right"
+                           FontFamily="Consolas"/>
+            </Border>
+
+            <!-- Row 1: 7 8 9 -->
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <Button Content="7" Style="{StaticResource NumKey}" Click="OnKey" Tag="7"/>
+                <Button Content="8" Style="{StaticResource NumKey}" Click="OnKey" Tag="8"/>
+                <Button Content="9" Style="{StaticResource NumKey}" Click="OnKey" Tag="9"/>
+            </StackPanel>
+
+            <!-- Row 2: 4 5 6 -->
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <Button Content="4" Style="{StaticResource NumKey}" Click="OnKey" Tag="4"/>
+                <Button Content="5" Style="{StaticResource NumKey}" Click="OnKey" Tag="5"/>
+                <Button Content="6" Style="{StaticResource NumKey}" Click="OnKey" Tag="6"/>
+            </StackPanel>
+
+            <!-- Row 3: 1 2 3 -->
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <Button Content="1" Style="{StaticResource NumKey}" Click="OnKey" Tag="1"/>
+                <Button Content="2" Style="{StaticResource NumKey}" Click="OnKey" Tag="2"/>
+                <Button Content="3" Style="{StaticResource NumKey}" Click="OnKey" Tag="3"/>
+            </StackPanel>
+
+            <!-- Row 4: +/- 0 . -->
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <Button Content="±" Style="{StaticResource ActionKey}" Click="OnToggleSign"/>
+                <Button Content="0" Style="{StaticResource NumKey}" Click="OnKey" Tag="0"/>
+                <Button Content="." Style="{StaticResource NumKey}" Click="OnKey" Tag="."/>
+            </StackPanel>
+
+            <!-- Row 5: XOA BACKSPACE NHAP -->
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,4,0,0">
+                <Button Width="82" Height="52" Margin="3" Style="{StaticResource ActionKey}"
+                        FontSize="13" Content="Xóa" Click="OnClear"/>
+                <Button Width="82" Height="52" Margin="3" Style="{StaticResource ActionKey}"
+                        FontSize="20" Click="OnBackspace">
+                    <TextBlock Text="⌫"/>
+                </Button>
+                <Button Width="82" Height="52" Margin="3" Style="{StaticResource ConfirmKey}"
+                        FontSize="13" Content="✓ OK" Click="OnConfirm"/>
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</Window>

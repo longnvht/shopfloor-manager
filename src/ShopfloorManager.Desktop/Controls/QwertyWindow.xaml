@@ -1,0 +1,234 @@
+<Window x:Class="ShopfloorManager.Desktop.Controls.QwertyWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Keyboard"
+        SizeToContent="WidthAndHeight"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Topmost="True"
+        ShowInTaskbar="False"
+        ShowActivated="False"
+        ResizeMode="NoResize">
+
+    <Window.Resources>
+        <!-- Key thường -->
+        <Style x:Key="Key" TargetType="Button">
+            <Setter Property="Width" Value="62"/>
+            <Setter Property="Height" Value="62"/>
+            <Setter Property="FontSize" Value="17"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Margin" Value="2.5"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="#FF2D1A5E" CornerRadius="8"
+                                BorderBrush="#FF4A2D9E" BorderThickness="1">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#FF5A3DBF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Key chức năng (xanh dương đậm) -->
+        <Style x:Key="FnKey" TargetType="Button" BasedOn="{StaticResource Key}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="#FF1A3A6E" CornerRadius="8"
+                                BorderBrush="#FF2D5AA0" BorderThickness="1">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#FF2D5AA0"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ToggleButton cho CAPS — đổi màu khi bật -->
+        <Style x:Key="CapsKey" TargetType="ToggleButton">
+            <Setter Property="Width" Value="90"/>
+            <Setter Property="Height" Value="62"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Margin" Value="2.5"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="bd" Background="#FF1A3A6E" CornerRadius="8"
+                                BorderBrush="#FF2D5AA0" BorderThickness="1">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#FF00695C"/>
+                                <Setter TargetName="bd" Property="BorderBrush" Value="#FF00BFA5"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#FF2D5AA0"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ToggleButton cho 123 -->
+        <Style x:Key="NumToggleKey" TargetType="ToggleButton" BasedOn="{StaticResource CapsKey}">
+            <Setter Property="Width" Value="90"/>
+        </Style>
+    </Window.Resources>
+
+    <Border CornerRadius="14" Background="#EE1A1030"
+            BorderBrush="#FF4A2D9E" BorderThickness="1.5" Padding="12,10">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="20" Opacity="0.6" ShadowDepth="4"/>
+        </Border.Effect>
+
+        <StackPanel>
+            <!-- ===== QWERTY PANEL ===== -->
+            <StackPanel x:Name="QwertyPanel">
+                <!-- Row 1: Q-P + Backspace -->
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                    <Button Content="Q" Style="{StaticResource Key}" Click="OnKey" Tag="q"/>
+                    <Button Content="W" Style="{StaticResource Key}" Click="OnKey" Tag="w"/>
+                    <Button Content="E" Style="{StaticResource Key}" Click="OnKey" Tag="e"/>
+                    <Button Content="R" Style="{StaticResource Key}" Click="OnKey" Tag="r"/>
+                    <Button Content="T" Style="{StaticResource Key}" Click="OnKey" Tag="t"/>
+                    <Button Content="Y" Style="{StaticResource Key}" Click="OnKey" Tag="y"/>
+                    <Button Content="U" Style="{StaticResource Key}" Click="OnKey" Tag="u"/>
+                    <Button Content="I" Style="{StaticResource Key}" Click="OnKey" Tag="i"/>
+                    <Button Content="O" Style="{StaticResource Key}" Click="OnKey" Tag="o"/>
+                    <Button Content="P" Style="{StaticResource Key}" Click="OnKey" Tag="p"/>
+                    <Button Width="90" Height="62" Margin="2.5" Style="{StaticResource FnKey}"
+                            FontSize="22" Click="OnBackspace">
+                        <TextBlock Text="⌫"/>
+                    </Button>
+                </StackPanel>
+
+                <!-- Row 2: A-L + Enter -->
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                    <Button Content="A" Style="{StaticResource Key}" Click="OnKey" Tag="a"/>
+                    <Button Content="S" Style="{StaticResource Key}" Click="OnKey" Tag="s"/>
+                    <Button Content="D" Style="{StaticResource Key}" Click="OnKey" Tag="d"/>
+                    <Button Content="F" Style="{StaticResource Key}" Click="OnKey" Tag="f"/>
+                    <Button Content="G" Style="{StaticResource Key}" Click="OnKey" Tag="g"/>
+                    <Button Content="H" Style="{StaticResource Key}" Click="OnKey" Tag="h"/>
+                    <Button Content="J" Style="{StaticResource Key}" Click="OnKey" Tag="j"/>
+                    <Button Content="K" Style="{StaticResource Key}" Click="OnKey" Tag="k"/>
+                    <Button Content="L" Style="{StaticResource Key}" Click="OnKey" Tag="l"/>
+                    <Button Width="155" Height="62" Margin="2.5" Style="{StaticResource FnKey}"
+                            FontSize="15" Content="Enter ↵" Click="OnConfirm"/>
+                </StackPanel>
+
+                <!-- Row 3: Caps + Z-M + . -->
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                    <ToggleButton x:Name="CapsBtn" Content="⇪ CAPS" Style="{StaticResource CapsKey}"
+                                  Checked="OnCapsChanged" Unchecked="OnCapsChanged"/>
+                    <Button x:Name="BtnZ" Content="Z" Style="{StaticResource Key}" Click="OnKey" Tag="z"/>
+                    <Button x:Name="BtnX" Content="X" Style="{StaticResource Key}" Click="OnKey" Tag="x"/>
+                    <Button x:Name="BtnC" Content="C" Style="{StaticResource Key}" Click="OnKey" Tag="c"/>
+                    <Button x:Name="BtnV" Content="V" Style="{StaticResource Key}" Click="OnKey" Tag="v"/>
+                    <Button x:Name="BtnB" Content="B" Style="{StaticResource Key}" Click="OnKey" Tag="b"/>
+                    <Button x:Name="BtnN" Content="N" Style="{StaticResource Key}" Click="OnKey" Tag="n"/>
+                    <Button x:Name="BtnM" Content="M" Style="{StaticResource Key}" Click="OnKey" Tag="m"/>
+                    <Button Content="-" Style="{StaticResource Key}" Click="OnKey" Tag="-"/>
+                    <Button Content="." Style="{StaticResource Key}" Click="OnKey" Tag="."/>
+                </StackPanel>
+
+                <!-- Row 4: Xóa + Space + 123 + Đóng -->
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                    <Button Width="90" Height="54" Margin="2.5" Style="{StaticResource FnKey}"
+                            FontSize="14" Content="Xóa" Click="OnClear"/>
+                    <Button Width="460" Height="54" Margin="2.5" Style="{StaticResource Key}"
+                            Content="SPACE" FontSize="14" Click="OnKey" Tag=" "/>
+                    <ToggleButton x:Name="NumToggleBtn" Width="90" Height="54" Margin="2.5"
+                                  Style="{StaticResource NumToggleKey}"
+                                  Content="123" FontSize="15"
+                                  Checked="OnShowNumeric" Unchecked="OnShowQwerty"/>
+                    <Button Width="90" Height="54" Margin="2.5" Style="{StaticResource FnKey}"
+                            FontSize="13" Content="✕ Đóng" Click="OnClose"/>
+                </StackPanel>
+            </StackPanel>
+
+            <!-- ===== NUMERIC / SYMBOL PANEL ===== -->
+            <StackPanel x:Name="NumericPanel" Visibility="Collapsed">
+                <!-- Row 1: 1-9 + Backspace -->
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                    <Button Content="1" Style="{StaticResource Key}" Click="OnKey" Tag="1"/>
+                    <Button Content="2" Style="{StaticResource Key}" Click="OnKey" Tag="2"/>
+                    <Button Content="3" Style="{StaticResource Key}" Click="OnKey" Tag="3"/>
+                    <Button Content="4" Style="{StaticResource Key}" Click="OnKey" Tag="4"/>
+                    <Button Content="5" Style="{StaticResource Key}" Click="OnKey" Tag="5"/>
+                    <Button Content="6" Style="{StaticResource Key}" Click="OnKey" Tag="6"/>
+                    <Button Content="7" Style="{StaticResource Key}" Click="OnKey" Tag="7"/>
+                    <Button Content="8" Style="{StaticResource Key}" Click="OnKey" Tag="8"/>
+                    <Button Content="9" Style="{StaticResource Key}" Click="OnKey" Tag="9"/>
+                    <Button Content="0" Style="{StaticResource Key}" Click="OnKey" Tag="0"/>
+                    <Button Width="90" Height="62" Margin="2.5" Style="{StaticResource FnKey}"
+                            FontSize="22" Click="OnBackspace">
+                        <TextBlock Text="⌫"/>
+                    </Button>
+                </StackPanel>
+
+                <!-- Row 2: Ký tự đặc biệt -->
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                    <Button Content="!" Style="{StaticResource Key}" Click="OnKey" Tag="!"/>
+                    <Button Content="@" Style="{StaticResource Key}" Click="OnKey" Tag="@"/>
+                    <Button Content="#" Style="{StaticResource Key}" Click="OnKey" Tag="#"/>
+                    <Button Content="$" Style="{StaticResource Key}" Click="OnKey" Tag="$"/>
+                    <Button Content="%" Style="{StaticResource Key}" Click="OnKey" Tag="%"/>
+                    <Button Content="&amp;" Style="{StaticResource Key}" Click="OnKey" Tag="&amp;"/>
+                    <Button Content="*" Style="{StaticResource Key}" Click="OnKey" Tag="*"/>
+                    <Button Content="(" Style="{StaticResource Key}" Click="OnKey" Tag="("/>
+                    <Button Content=")" Style="{StaticResource Key}" Click="OnKey" Tag=")"/>
+                    <Button Content="_" Style="{StaticResource Key}" Click="OnKey" Tag="_"/>
+                    <Button Width="90" Height="62" Margin="2.5" Style="{StaticResource FnKey}"
+                            FontSize="15" Content="Enter ↵" Click="OnConfirm"/>
+                </StackPanel>
+
+                <!-- Row 3 -->
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                    <Button Content="+" Style="{StaticResource Key}" Click="OnKey" Tag="+"/>
+                    <Button Content="-" Style="{StaticResource Key}" Click="OnKey" Tag="-"/>
+                    <Button Content="=" Style="{StaticResource Key}" Click="OnKey" Tag="="/>
+                    <Button Content="/" Style="{StaticResource Key}" Click="OnKey" Tag="/"/>
+                    <Button Content="\" Style="{StaticResource Key}" Click="OnKey" Tag="\"/>
+                    <Button Content=":" Style="{StaticResource Key}" Click="OnKey" Tag=":"/>
+                    <Button Content=";" Style="{StaticResource Key}" Click="OnKey" Tag=";"/>
+                    <Button Content="'" Style="{StaticResource Key}" Click="OnKey" Tag="'"/>
+                    <Button Content="&quot;" Style="{StaticResource Key}" Click="OnKey" Tag="&quot;"/>
+                    <Button Content="." Style="{StaticResource Key}" Click="OnKey" Tag="."/>
+                </StackPanel>
+
+                <!-- Row 4: Xóa + Space + ABC + Đóng -->
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                    <Button Width="90" Height="54" Margin="2.5" Style="{StaticResource FnKey}"
+                            FontSize="14" Content="Xóa" Click="OnClear"/>
+                    <Button Width="460" Height="54" Margin="2.5" Style="{StaticResource Key}"
+                            Content="SPACE" FontSize="14" Click="OnKey" Tag=" "/>
+                    <ToggleButton x:Name="AbcToggleBtn" Width="90" Height="54" Margin="2.5"
+                                  Style="{StaticResource NumToggleKey}"
+                                  Content="ABC" FontSize="15" IsChecked="True"
+                                  Checked="OnShowQwerty" Unchecked="OnShowNumeric"/>
+                    <Button Width="90" Height="54" Margin="2.5" Style="{StaticResource FnKey}"
+                            FontSize="13" Content="✕ Đóng" Click="OnClose"/>
+                </StackPanel>
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</Window>

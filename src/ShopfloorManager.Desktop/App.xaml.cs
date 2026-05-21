@@ -32,6 +32,9 @@ public partial class App : Application
         var nav = _sp.GetRequiredService<NavigationService>();
         nav.Navigated += OnNavigated;
 
+        // Khởi tạo keyboard service — lắng nghe focus events toàn app
+        _sp.GetRequiredService<IKeyboardService>().Initialize();
+
         var loginWindow = _sp.GetRequiredService<LoginWindow>();
         _currentWindow = loginWindow;
         loginWindow.Show();
@@ -52,6 +55,7 @@ public partial class App : Application
 
         // Services (singleton so token persists across navigations)
         services.AddSingleton<IAuthService, AuthService>();
+        services.AddSingleton<IKeyboardService, KeyboardService>();
         services.AddSingleton<NavigationService>();
         services.AddSingleton<INavigationService>(sp => sp.GetRequiredService<NavigationService>());
 
