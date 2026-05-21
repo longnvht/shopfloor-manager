@@ -4,7 +4,8 @@
              xmlns:md="http://materialdesigninxaml.net/winfx/xaml/themes"
              xmlns:conv="clr-namespace:ShopfloorManager.Desktop.Converters"
              xmlns:vm="clr-namespace:ShopfloorManager.Desktop.ViewModels"
-             xmlns:views="clr-namespace:ShopfloorManager.Desktop.Views">
+             xmlns:views="clr-namespace:ShopfloorManager.Desktop.Views"
+             xmlns:pages="clr-namespace:ShopfloorManager.Desktop.Views.Pages">
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
@@ -15,10 +16,12 @@
             <!-- Converters -->
             <conv:InverseBoolConverter x:Key="InverseBoolConverter"/>
             <conv:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
+            <conv:BoolToRedBrushConverter x:Key="BoolToRedBrushConverter"/>
+            <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
 
-            <!-- DataTemplates: ViewModel → View (dùng trong ContentControl) -->
-            <DataTemplate DataType="{x:Type vm:MainViewModel}">
-                <views:MainShellView/>
+            <!-- DataTemplates: ViewModel → Page View (dùng trong ContentControl) -->
+            <DataTemplate DataType="{x:Type vm:JobListViewModel}">
+                <pages:JobListPage/>
             </DataTemplate>
         </ResourceDictionary>
     </Application.Resources>

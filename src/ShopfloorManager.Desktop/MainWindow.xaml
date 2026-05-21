@@ -8,7 +8,8 @@
         MinWidth="1024" MinHeight="600"
         WindowStartupLocation="CenterScreen"
         WindowState="Maximized"
-        DataContext="{Binding}">
+        DataContext="{Binding}"
+        Loaded="OnLoaded">
 
     <Window.Resources>
         <Style x:Key="NavButtonStyle" TargetType="Button" BasedOn="{StaticResource MaterialDesignFlatButton}">
@@ -77,6 +78,7 @@
             <!-- Navigation menu -->
             <StackPanel DockPanel.Dock="Top" Margin="0,8">
                 <Button Content="Danh sách Job"
+                        Command="{Binding NavigateToJobsCommand}"
                         Style="{StaticResource NavButtonStyle}"
                         x:Name="BtnJobs">
                     <Button.ContentTemplate>
@@ -130,20 +132,15 @@
                     BorderThickness="0,0,0,1"
                     Padding="24,0">
                 <DockPanel Height="56">
-                    <TextBlock x:Name="PageTitleText"
-                               Text="Danh sách Job"
+                    <TextBlock Text="{Binding PageTitle}"
                                VerticalAlignment="Center"
                                Style="{StaticResource MaterialDesignHeadline6TextBlock}"/>
                 </DockPanel>
             </Border>
 
-            <!-- Page content — placeholder, sẽ dùng ContentControl khi có Pages -->
+            <!-- Page content -->
             <Border Grid.Row="1" Padding="24">
-                <TextBlock Text="Chọn mục từ menu bên trái để bắt đầu."
-                           VerticalAlignment="Center"
-                           HorizontalAlignment="Center"
-                           Style="{StaticResource MaterialDesignSubtitle1TextBlock}"
-                           Foreground="{DynamicResource MaterialDesign.Brush.ForegroundLight}"/>
+                <ContentControl Content="{Binding CurrentPage}"/>
             </Border>
         </Grid>
     </Grid>

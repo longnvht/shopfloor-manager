@@ -58,10 +58,14 @@ public partial class App : Application
         services.AddTransient<LoginViewModel>();
         services.AddTransient<MainViewModel>();
         services.AddTransient<ChangePasswordViewModel>();
+        services.AddTransient<JobListViewModel>();
 
         // Views
         services.AddTransient<LoginWindow>();
         services.AddTransient<MainWindow>();
+
+        // ServiceProvider self-registration (cho MainViewModel dùng)
+        services.AddSingleton<IServiceProvider>(sp => sp);
     }
 
     private void OnNavigated(ViewModelBase vm)
