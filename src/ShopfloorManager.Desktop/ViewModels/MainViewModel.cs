@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.DependencyInjection;
+using ShopfloorManager.Desktop.Models;
 using ShopfloorManager.Desktop.Services;
 using ShopfloorManager.Desktop.ViewModels.Base;
 
@@ -38,8 +39,18 @@ public partial class MainViewModel : ViewModelBase
     {
         PageTitle = "Danh sách Job";
         var vm = _sp.GetRequiredService<JobListViewModel>();
+        vm.OnJobOpened = NavigateToOperations;
         CurrentPage = vm;
         _ = vm.InitializeAsync();
+    }
+
+    private void NavigateToOperations(JobSummaryDto job)
+    {
+        PageTitle = $"Operations — {job.JobNumber}";
+        var vm = _sp.GetRequiredService<OperationViewModel>();
+        vm.OnBack = NavigateToJobs;
+        CurrentPage = vm;
+        _ = vm.InitializeAsync(job);
     }
 
     [RelayCommand]

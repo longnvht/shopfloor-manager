@@ -29,6 +29,7 @@
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
                 <!-- Search box -->
@@ -55,15 +56,22 @@
                                Margin="8,0,0,0"/>
                 </StackPanel>
 
-                <!-- Search button -->
+                <!-- Open Operations button -->
                 <Button Grid.Column="2"
-                        Command="{Binding SearchCommand}"
+                        Command="{Binding OpenSelectedJobCommand}"
                         Style="{StaticResource MaterialDesignRaisedButton}"
+                        Content="Xem Operations"
+                        Margin="0,0,8,0"/>
+
+                <!-- Search button -->
+                <Button Grid.Column="3"
+                        Command="{Binding SearchCommand}"
+                        Style="{StaticResource MaterialDesignOutlinedButton}"
                         Content="Tìm kiếm"
                         Margin="0,0,8,0"/>
 
                 <!-- Refresh button -->
-                <Button Grid.Column="3"
+                <Button Grid.Column="4"
                         Command="{Binding RefreshCommand}"
                         Style="{StaticResource MaterialDesignOutlinedButton}"
                         ToolTip="Làm mới">
@@ -87,6 +95,10 @@
                       GridLinesVisibility="Horizontal"
                       HeadersVisibility="Column"
                       md:DataGridAssist.ColumnHeaderPadding="16 8 16 8">
+                <DataGrid.InputBindings>
+                    <MouseBinding MouseAction="LeftDoubleClick"
+                                  Command="{Binding OpenSelectedJobCommand}"/>
+                </DataGrid.InputBindings>
 
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="Số Job"

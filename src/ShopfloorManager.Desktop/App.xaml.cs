@@ -60,6 +60,7 @@ public partial class App : Application
         services.AddTransient<MainViewModel>();
         services.AddTransient<ChangePasswordViewModel>();
         services.AddTransient<JobListViewModel>();
+        services.AddTransient<OperationViewModel>();
 
         // Views
         services.AddTransient<LoginWindow>();

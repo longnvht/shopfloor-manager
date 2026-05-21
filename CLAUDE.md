@@ -322,7 +322,8 @@ CalibRequestStatus:Pending=0, Approved=1, Completed=2, Cancelled=3
 - Skeleton đã có: DI (Microsoft.Extensions.DI), IApiClient (HttpClient+JWT), IAuthService, NavigationService, LoginWindow, MainWindow shell
 - Per-machine config: `local.json` (gitignored) override `appsettings.json`
 - ✅ JobListPage: search, ShowCompleted toggle, pagination 20/trang, overdue highlight, status badge
-- **Chưa implement:** OperationPage, FAIPage, DocumentViewer, NCR dialog
+- ✅ OperationPage: danh sách OP dạng card, badge ForJobOnly/Complete, SetupTime/ProdTime, nút "Bắt đầu FAI", back về JobList
+- **Chưa implement:** FAIPage, DocumentViewer, NCR dialog
 
 **Desktop MES — kiến trúc quan trọng:**
 - KHÔNG kết nối DB trực tiếp — chỉ qua REST API
@@ -332,6 +333,8 @@ CalibRequestStatus:Pending=0, Approved=1, Completed=2, Cancelled=3
 - `HttpClient` + `IApiClient` phải là **singleton** — nếu transient, mỗi ViewModel nhận instance riêng và không có token
 - Trigger data load từ ViewModel (NavigateTo command), KHÔNG dùng `Loaded` event của View — tránh race condition DataContext timing
 - Khi implement API call mới: luôn kiểm tra field name của request/response khớp đúng với API contract (dùng Swagger hoặc curl để verify trước)
+- **`Run.Text` binding trong WPF mặc định TwoWay** — computed/read-only properties trên record phải dùng `Mode=OneWay`: `{Binding PropName, Mode=OneWay}`
+- Khi thêm child element vào XAML tag đang có attributes (như DataGrid.InputBindings), các attributes còn lại phải nằm trong tag mở `<Tag attr1="" attr2="">`, không được để lơ lửng sau closing `>`
 
 ---
 

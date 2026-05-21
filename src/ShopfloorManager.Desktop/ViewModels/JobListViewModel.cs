@@ -23,7 +23,10 @@ public partial class JobListViewModel : Base.ViewModelBase
     private int _totalCount;
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(OpenSelectedJobCommand))]
     private JobSummaryDto? _selectedJob;
+
+    public Action<JobSummaryDto>? OnJobOpened { get; set; }
 
     public ObservableCollection<JobSummaryDto> Jobs { get; } = [];
 
@@ -41,6 +44,15 @@ public partial class JobListViewModel : Base.ViewModelBase
     {
         await LoadAsync();
     }
+
+    [RelayCommand(CanExecute = nameof(CanOpenJob))]
+    private void OpenSelectedJob()
+    {
+        if (SelectedJob is not null)
+            OnJobOpened?.Invoke(SelectedJob);
+    }
+
+    private bool CanOpenJob() => SelectedJob is not null;
 
     [RelayCommand]
     private async Task SearchAsync()
