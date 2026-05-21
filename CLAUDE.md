@@ -285,7 +285,7 @@ CalibRequestStatus:Pending=0, Approved=1, Completed=2, Cancelled=3
 | Phase 1 — Auth & HR (JWT, users, roles, SignalR) | ✅ Done |
 | Phase 2 — Production Core (Jobs, Parts, OPs, Documents) | ✅ Done |
 | Phase 3 — Quality (Dimensions, FAI, NCR, SPC) | ✅ Done |
-| Phase 4 — Desktop MES (WPF/MAUI, offline, FAI at machine) | ⏳ |
+| Phase 4 — Desktop MES (WPF, FAI at machine, SignalR) | 🔄 In progress |
 | Phase 5 — Advanced (Gage, Planning, MQTT pipeline, Dashboard) | ⏳ |
 
 **Phase 1 — ✅ Hoàn tất** (2026-05-20)
@@ -314,6 +314,20 @@ CalibRequestStatus:Pending=0, Approved=1, Completed=2, Cancelled=3
 - NCR: format `NCR-{YY}-{NNNN}`, thêm ReasonId, DepartmentId, MachineCode
 - NcrReason: seed 7 lý do (Tool wear, Setup error, Drawing error...)
 - SPC: ISpcService + MathNet dùng MaxValue/MinValue
+
+**Phase 4 — 🔄 In progress** (bắt đầu 2026-05-21)
+- Project: `ShopfloorManager.Desktop` (WPF .NET 9, trong cùng solution)
+- Spec: [`Project_Documents/14_desktop_mes.md`](Project_Documents/14_desktop_mes.md) — dựa trên phân tích Vinam-MES WinForms cũ
+- Stack: WPF + CommunityToolkit.Mvvm + MaterialDesignThemes + SignalR.Client
+- Skeleton đã có: DI (Microsoft.Extensions.DI), IApiClient (HttpClient+JWT), IAuthService, NavigationService, LoginWindow, MainWindow shell
+- Per-machine config: `local.json` (gitignored) override `appsettings.json`
+- **Chưa implement:** JobListPage, OperationPage, FAIPage, DocumentViewer, NCR dialog
+
+**Desktop MES — kiến trúc quan trọng:**
+- KHÔNG kết nối DB trực tiếp — chỉ qua REST API
+- JWT token lưu in-memory (không persist ra disk)
+- Window orchestration trong `App.xaml.cs` (NavigationService.Navigated event)
+- `local.json` chứa: ApiBaseUrl, MachineCode, MachineName — khác nhau giữa các máy tại xưởng
 
 ---
 
@@ -347,6 +361,7 @@ Mỗi module có file tài liệu trong `Project_Documents/`. Trước khi imple
 | Dashboard, Reports, PDF/Excel | [`Project_Documents/11_dashboard_reports.md`](Project_Documents/11_dashboard_reports.md) |
 | CNC Data, MQTT, SignalR | [`Project_Documents/12_cnc_mqtt.md`](Project_Documents/12_cnc_mqtt.md) |
 | Master data (Machine, Factory...) | [`Project_Documents/13_master_data.md`](Project_Documents/13_master_data.md) |
+| Desktop MES (WPF, FAI at machine) | [`Project_Documents/14_desktop_mes.md`](Project_Documents/14_desktop_mes.md) |
 
 **Tài liệu là nguồn sự thật duy nhất về business logic.** Nếu code cũ (ManageData, Vinam-MES) và tài liệu mâu thuẫn → ưu tiên tài liệu.
 

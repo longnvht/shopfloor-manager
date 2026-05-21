@@ -1,0 +1,25 @@
+<Application x:Class="ShopfloorManager.Desktop.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:md="http://materialdesigninxaml.net/winfx/xaml/themes"
+             xmlns:conv="clr-namespace:ShopfloorManager.Desktop.Converters"
+             xmlns:vm="clr-namespace:ShopfloorManager.Desktop.ViewModels"
+             xmlns:views="clr-namespace:ShopfloorManager.Desktop.Views">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <md:BundledTheme BaseTheme="Light" PrimaryColor="BlueGrey" SecondaryColor="Cyan"/>
+                <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesign2.Defaults.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+
+            <!-- Converters -->
+            <conv:InverseBoolConverter x:Key="InverseBoolConverter"/>
+            <conv:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
+
+            <!-- DataTemplates: ViewModel → View (dùng trong ContentControl) -->
+            <DataTemplate DataType="{x:Type vm:MainViewModel}">
+                <views:MainShellView/>
+            </DataTemplate>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

@@ -14,6 +14,9 @@ TestResults/
 appsettings.Development.json
 appsettings.Local.json
 
+# Desktop MES — per-machine config (không commit)
+src/ShopfloorManager.Desktop/local.json
+
 # Next.js
 clients/web/.next/
 clients/web/node_modules/

@@ -1,0 +1,6 @@
+<UserControl x:Class="ShopfloorManager.Desktop.Views.MainShellView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- Placeholder — nội dung sẽ được thêm khi implement từng Page -->
+    <Grid/>
+</UserControl>
