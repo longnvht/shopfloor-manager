@@ -321,7 +321,7 @@
 
                     <!-- Tap để điều hướng (has work, no session) -->
                     <Button Command="{Binding TapWorkInfoCommand}"
-                            Visibility="{Binding HasSession, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}"
+                            Visibility="{Binding CanNavigate, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}"
                             Style="{StaticResource MaterialDesignOutlinedButton}"
                             Height="48" Padding="14,0" FontSize="13"
                             Margin="0,0,8,0">
@@ -360,48 +360,59 @@
         </Border>
 
         <!-- ══════════════ DANH SÁCH TIỆN ÍCH ══════════════ -->
-        <Border Grid.Row="3" Style="{StaticResource Card}" Margin="12,4,12,8"
-                VerticalAlignment="Top">
-            <StackPanel>
-                <TextBlock Text="TIỆN ÍCH" Style="{StaticResource CardLabel}"/>
+        <Border Grid.Row="3" Style="{StaticResource Card}" Margin="12,4,12,8">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
 
-                <ItemsControl ItemsSource="{Binding Shortcuts}">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <WrapPanel Orientation="Horizontal"/>
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate DataType="{x:Type models:ShortcutItem}">
-                            <Button Command="{Binding Command}"
-                                    IsEnabled="{Binding IsEnabled}"
-                                    Style="{StaticResource UtilBtn}">
-                                <StackPanel HorizontalAlignment="Center">
-                                    <md:PackIcon Kind="{Binding IconKind}"
-                                                 Width="28" Height="28"
-                                                 Foreground="{StaticResource BrandPrimary}"
-                                                 HorizontalAlignment="Center"/>
-                                    <TextBlock Text="{Binding Title}"
-                                               FontSize="11" FontWeight="Medium"
-                                               Foreground="{StaticResource BrandText}"
-                                               TextWrapping="Wrap"
-                                               TextAlignment="Center"
-                                               MaxWidth="108"
-                                               HorizontalAlignment="Center"
-                                               Margin="0,6,0,0"/>
-                                </StackPanel>
-                            </Button>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
+                <TextBlock Grid.Row="0" Text="TIỆN ÍCH" Style="{StaticResource CardLabel}"/>
 
-                <!-- Empty shortcuts -->
-                <TextBlock Text="Chọn Job để xem các tiện ích"
-                           FontSize="12" Foreground="#BCAAA4"
-                           Margin="8,4"
-                           Visibility="{Binding Shortcuts.Count,
-                               Converter={StaticResource ZeroToVisibilityConverter}}"/>
-            </StackPanel>
+                <ScrollViewer Grid.Row="1"
+                              VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled"
+                              PanningMode="VerticalFirst">
+                    <StackPanel>
+                        <ItemsControl ItemsSource="{Binding Shortcuts}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel Orientation="Horizontal"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="{x:Type models:ShortcutItem}">
+                                    <Button Command="{Binding Command}"
+                                            IsEnabled="{Binding IsEnabled}"
+                                            Style="{StaticResource UtilBtn}">
+                                        <StackPanel HorizontalAlignment="Center">
+                                            <md:PackIcon Kind="{Binding IconKind}"
+                                                         Width="28" Height="28"
+                                                         Foreground="{StaticResource BrandPrimary}"
+                                                         HorizontalAlignment="Center"/>
+                                            <TextBlock Text="{Binding Title}"
+                                                       FontSize="11" FontWeight="Medium"
+                                                       Foreground="{StaticResource BrandText}"
+                                                       TextWrapping="Wrap"
+                                                       TextAlignment="Center"
+                                                       MaxWidth="108"
+                                                       HorizontalAlignment="Center"
+                                                       Margin="0,6,0,0"/>
+                                        </StackPanel>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- Empty shortcuts -->
+                        <TextBlock Text="Chọn Job để xem các tiện ích"
+                                   FontSize="12" Foreground="#BCAAA4"
+                                   Margin="8,4"
+                                   Visibility="{Binding Shortcuts.Count,
+                                       Converter={StaticResource ZeroToVisibilityConverter}}"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
         </Border>
     </Grid>
 </UserControl>

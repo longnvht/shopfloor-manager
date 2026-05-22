@@ -68,6 +68,7 @@ public partial class DashboardViewModel : ViewModelBase
     // ── Work Info card ─────────────────────────────────────────────────
     public bool HasWork      => _work.HasJob;
     public bool HasSession   => _work.ActiveSession is not null;
+    public bool CanNavigate  => _work.HasJob && _work.ActiveSession is null;
     public bool IsWip        => _work.IsWip;
     public bool CanStart     => _work.IsWip && !(_work.ActiveSession?.StartedAt.HasValue == true);
     public bool CanStop      => _work.IsWip &&   _work.ActiveSession?.StartedAt.HasValue == true;
@@ -160,6 +161,7 @@ public partial class DashboardViewModel : ViewModelBase
     {
         OnPropertyChanged(nameof(HasWork));
         OnPropertyChanged(nameof(HasSession));
+        OnPropertyChanged(nameof(CanNavigate));
         OnPropertyChanged(nameof(IsWip));
         OnPropertyChanged(nameof(CanStart));
         OnPropertyChanged(nameof(CanStop));
@@ -252,6 +254,7 @@ public partial class DashboardViewModel : ViewModelBase
         var state = _work.WorkState;
 
         Add("Chọn Job",       "ClipboardList",       "jobs",     always: true);
+        Add("Chọn OP",        "PlaylistEdit",        "ops",      when: _work.HasJob);
         Add("Chọn sản phẩm",  "FormatListNumbered",  "products", when: _work.HasOp);
         Add("Xem bản vẽ",     "FileImageOutline",    "drawing",  when: _work.HasOp);
         Add("Hướng dẫn gá",   "Wrench",              "fixture",  when: _work.HasOp);

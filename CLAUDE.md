@@ -332,6 +332,9 @@ CalibRequestStatus:Pending=0, Approved=1, Completed=2, Cancelled=3
 - ✅ Dashboard: layout 4 rows (TitleBar / Machine+Operator / WorkInfo / Utilities) cho 10" 16:9
 - ✅ JobListPage/OperationPage/ProductListPage redesign: TitleBar + Search Bar + Card Grid + BottomBar
 - ✅ Design Language thống nhất: `16_design_language.md` — màu sắc, component, navigation pattern
+- ✅ Dashboard Work Info buttons: CanNavigate / CanStart / CanStop — hiển thị đúng theo trạng thái session
+- ✅ Dashboard Utilities: thêm "Chọn OP", card fill chiều cao còn lại, ScrollViewer cuộn dọc
+- ✅ Virtual keyboard tự đóng khi chuyển màn hình (MainViewModel inject IKeyboardService, gọi Hide() trước mỗi Navigate)
 - **Chưa implement:** FAIPage (gage selection + NumPad + timer), DocumentViewer, NCR dialog
 
 **Ràng buộc ProductionSession (2 constraints):**
@@ -366,6 +369,10 @@ CalibRequestStatus:Pending=0, Approved=1, Completed=2, Cancelled=3
 - Sub-page layout chuẩn: TitleBar(52) / SearchBar(60) / Cards(*) / BottomBar(64)
 - Card selection: `ListBox + ItemContainerStyle` với trigger `IsSelected` → BrandPrimary border 3px + BrandAccentLight bg
 - "Lựa chọn" button ở BottomBar: enabled khi có item selected, disabled khi không
+- **Dashboard Work Info button logic**: `CanNavigate = HasJob && ActiveSession == null` (Tiếp tục); `CanStart = IsWip && !StartedAt`; `CanStop = IsWip && StartedAt` — 3 trạng thái loại trừ nhau
+- **ProductListViewModel claim flow**: sau claim, gọi `_work.SetProduct(product, session)` TRƯỚC khi invoke `OnProductSelected` callback — callback trong MainViewModel chỉ gọi `NavigateToDashboard()`, KHÔNG gọi SetProduct lại (sẽ xóa session)
+- **Keyboard auto-hide**: inject `IKeyboardService` vào MainViewModel, gọi `_keyboard.Hide()` đầu mỗi `NavigateTo*` method
+- **Dashboard Utilities card**: dùng `Grid` 2 rows (Auto + *) bên trong Border để card fill chiều cao; bọc ItemsControl trong `ScrollViewer` với `PanningMode="VerticalFirst"`
 
 ---
 

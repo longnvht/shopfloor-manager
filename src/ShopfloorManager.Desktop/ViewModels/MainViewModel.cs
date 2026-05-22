@@ -11,15 +11,17 @@ public partial class MainViewModel : ViewModelBase
     private readonly IServiceProvider _sp;
     private readonly WorkContext _work;
     private readonly INavigationService _nav;
+    private readonly IKeyboardService _keyboard;
 
     [ObservableProperty]
     private ViewModelBase? _currentPage;
 
-    public MainViewModel(IServiceProvider sp, WorkContext work, INavigationService nav)
+    public MainViewModel(IServiceProvider sp, WorkContext work, INavigationService nav, IKeyboardService keyboard)
     {
-        _sp   = sp;
-        _work = work;
-        _nav  = nav;
+        _sp       = sp;
+        _work     = work;
+        _nav      = nav;
+        _keyboard = keyboard;
     }
 
     public void Initialize() => NavigateToDashboard();
@@ -28,6 +30,7 @@ public partial class MainViewModel : ViewModelBase
 
     public void NavigateToDashboard()
     {
+        _keyboard.Hide();
         var vm = _sp.GetRequiredService<DashboardViewModel>();
         vm.NavigateTo = HandleDashboardNavigation;
         vm.Initialize();
@@ -49,6 +52,7 @@ public partial class MainViewModel : ViewModelBase
 
     public void NavigateToJobs()
     {
+        _keyboard.Hide();
         var vm = _sp.GetRequiredService<JobListViewModel>();
         vm.OnJobOpened = job =>
         {
@@ -64,6 +68,7 @@ public partial class MainViewModel : ViewModelBase
 
     public void NavigateToOps()
     {
+        _keyboard.Hide();
         if (_work.CurrentJob is null) { NavigateToJobs(); return; }
         var vm = _sp.GetRequiredService<OperationViewModel>();
         vm.OnBack = NavigateToDashboard;
@@ -80,14 +85,12 @@ public partial class MainViewModel : ViewModelBase
 
     public void NavigateToProducts()
     {
+        _keyboard.Hide();
         if (_work.CurrentJob is null || _work.CurrentOp is null) { NavigateToDashboard(); return; }
         var vm = _sp.GetRequiredService<ProductListViewModel>();
         vm.OnBack = NavigateToDashboard;
-        vm.OnProductSelected = product =>
-        {
-            _work.SetProduct(product);
-            NavigateToDashboard(); // FAI page sẽ implement sau
-        };
+        // WorkContext already updated by ProductListViewModel (SetProduct with session)
+        vm.OnProductSelected = _ => NavigateToDashboard();
         CurrentPage = vm;
         _ = vm.InitializeAsync(_work.CurrentJob, _work.CurrentOp);
     }
@@ -96,6 +99,7 @@ public partial class MainViewModel : ViewModelBase
 
     public void NavigateToFai()
     {
+        _keyboard.Hide();
         // TODO: implement FAIPage
         NavigateToDashboard();
     }
