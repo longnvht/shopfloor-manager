@@ -330,11 +330,8 @@ CalibRequestStatus:Pending=0, Approved=1, Completed=2, Cancelled=3
 - ✅ ProductionSession backend: entity + migration + API (claim/start/complete/cancel)
 - ✅ WorkContext singleton: chia sẻ Job/OP/Product/Session state giữa tất cả pages
 - ✅ Dashboard: layout 4 rows (TitleBar / Machine+Operator / WorkInfo / Utilities) cho 10" 16:9
-  - Machine Card: uptime, active time, idle time, SP hoàn thành
-  - Operator Card: check-in, work duration, idle, SP tạo ra
-  - Work Info: Job/OP/Serial/Status, nút Bắt đầu🟠 / Kết thúc🔴 inline
-  - Shortcuts grid: dynamic theo WorkState + role
-  - Color scheme: Brown #6D3B1A + Orange #F57C00 + Cream #FFF8F0
+- ✅ JobListPage/OperationPage/ProductListPage redesign: TitleBar + Search Bar + Card Grid + BottomBar
+- ✅ Design Language thống nhất: `16_design_language.md` — màu sắc, component, navigation pattern
 - **Chưa implement:** FAIPage (gage selection + NumPad + timer), DocumentViewer, NCR dialog
 
 **Ràng buộc ProductionSession (2 constraints):**
@@ -365,6 +362,10 @@ CalibRequestStatus:Pending=0, Approved=1, Completed=2, Cancelled=3
 - **`Border` chỉ nhận 1 child** — khi có nhiều state panels, phải wrap trong `<Grid>` bên trong Border
 - **DispatcherTimer** dùng cho clock/elapsed time trong WPF — khởi tạo trong ViewModel, `Stop()` khi cleanup
 - Dashboard là màn hình chính sau login — không dùng sidebar, mọi navigation từ WorkInfo card + shortcuts
+- **Design Language**: xem [`Project_Documents/16_design_language.md`](Project_Documents/16_design_language.md) — màu sắc, component, pattern, checklist khi thêm màn hình mới
+- Sub-page layout chuẩn: TitleBar(52) / SearchBar(60) / Cards(*) / BottomBar(64)
+- Card selection: `ListBox + ItemContainerStyle` với trigger `IsSelected` → BrandPrimary border 3px + BrandAccentLight bg
+- "Lựa chọn" button ở BottomBar: enabled khi có item selected, disabled khi không
 
 ---
 
@@ -408,6 +409,7 @@ Mỗi module có file tài liệu trong `Project_Documents/`. Trước khi imple
 | Master data (Machine, Factory...) | [`Project_Documents/13_master_data.md`](Project_Documents/13_master_data.md) |
 | Desktop MES (WPF, FAI at machine) | [`Project_Documents/14_desktop_mes.md`](Project_Documents/14_desktop_mes.md) |
 | Desktop MES — Dashboard UI | [`Project_Documents/15_dashboard_desktop.md`](Project_Documents/15_dashboard_desktop.md) |
+| Desktop MES — Design Language | [`Project_Documents/16_design_language.md`](Project_Documents/16_design_language.md) |
 
 **Tài liệu là nguồn sự thật duy nhất về business logic.** Nếu code cũ (ManageData, Vinam-MES) và tài liệu mâu thuẫn → ưu tiên tài liệu.
 

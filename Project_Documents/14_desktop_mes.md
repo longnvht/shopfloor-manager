@@ -3,6 +3,8 @@
 > Nguồn tham khảo: Vinam-MES WinForms (FANUC.sln) — rewrite theo kiến trúc mới (WPF + REST API + MinIO + JWT).
 > 
 > **Dashboard UI spec**: xem [`15_dashboard_desktop.md`](15_dashboard_desktop.md) — màu sắc, layout thẻ, shortcut grid, WorkContext state management.
+> 
+> **Design Language**: xem [`16_design_language.md`](16_design_language.md) — hệ thống thiết kế thống nhất toàn bộ Desktop app (màu sắc, component, navigation pattern, checklist màn hình mới).
 
 ---
 
@@ -21,13 +23,15 @@ Desktop MES là ứng dụng chạy tại shop floor — trên máy tính công 
 | Tính năng | Trạng thái |
 |---|---|
 | LoginWindow, MainWindow shell | ✅ Done |
-| JobListPage (search, pagination, overdue) | ✅ Done |
-| OperationPage (card, badges, SetupTime/ProdTime) | ✅ Done |
-| ProductListPage (card grid 4 màu) | ✅ Done |
-| Virtual Keyboard (NumPad + QWERTY, no-focus) | ✅ Done |
+| LoginWindow | ✅ Done |
+| JobListPage (TitleBar + Search + UniformGrid 5 cols + BottomBar) | ✅ Done |
+| OperationPage (TitleBar + Search + full-width cards + BottomBar) | ✅ Done |
+| ProductListPage (TitleBar + Search + UniformGrid 5 cols + BottomBar) | ✅ Done |
+| Virtual Keyboard (NumPad + QWERTY, light theme, no-focus) | ✅ Done |
 | ProductionSession backend + API | ✅ Done |
-| WorkContext singleton (state management) | ✅ Done |
-| Dashboard (4-row layout, Machine/Operator stats) | ✅ Done |
+| WorkContext singleton (Job/OP/Product/Session state) | ✅ Done |
+| Dashboard (4-row layout, Machine/Operator stats, Start/Stop buttons) | ✅ Done |
+| Design Language (16_design_language.md) | ✅ Done |
 | FAIPage (gage selection + NumPad + timer) | ⏳ Next |
 | DocumentViewer (PDF/G-code) | ⏳ |
 | NCR dialog | ⏳ |
