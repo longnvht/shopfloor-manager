@@ -27,6 +27,7 @@ public partial class JobListViewModel : Base.ViewModelBase
     private JobSummaryDto? _selectedJob;
 
     public Action<JobSummaryDto>? OnJobOpened { get; set; }
+    public Action? OnBack { get; set; }
 
     public ObservableCollection<JobSummaryDto> Jobs { get; } = [];
 
@@ -53,6 +54,9 @@ public partial class JobListViewModel : Base.ViewModelBase
     }
 
     private bool CanOpenJob() => SelectedJob is not null;
+
+    [RelayCommand]
+    private void GoBack() => OnBack?.Invoke();
 
     [RelayCommand]
     private async Task SearchAsync()

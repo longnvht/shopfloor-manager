@@ -9,9 +9,26 @@
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <md:BundledTheme BaseTheme="Light" PrimaryColor="BlueGrey" SecondaryColor="Cyan"/>
+                <md:BundledTheme BaseTheme="Light" PrimaryColor="Brown" SecondaryColor="DeepOrange"/>
                 <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesign2.Defaults.xaml"/>
             </ResourceDictionary.MergedDictionaries>
+
+            <!-- ===== BRAND COLORS ===== -->
+            <Color x:Key="BrandBgColor">#FFF8F0</Color>
+            <Color x:Key="BrandPrimaryColor">#6D3B1A</Color>
+            <Color x:Key="BrandPrimaryLightColor">#A0522D</Color>
+            <Color x:Key="BrandAccentColor">#F57C00</Color>
+            <Color x:Key="BrandAccentLightColor">#FFE0B2</Color>
+            <Color x:Key="BrandTextColor">#3E2723</Color>
+            <Color x:Key="BrandTextSecondaryColor">#795548</Color>
+
+            <SolidColorBrush x:Key="BrandBg"           Color="{StaticResource BrandBgColor}"/>
+            <SolidColorBrush x:Key="BrandPrimary"      Color="{StaticResource BrandPrimaryColor}"/>
+            <SolidColorBrush x:Key="BrandPrimaryLight"  Color="{StaticResource BrandPrimaryLightColor}"/>
+            <SolidColorBrush x:Key="BrandAccent"       Color="{StaticResource BrandAccentColor}"/>
+            <SolidColorBrush x:Key="BrandAccentLight"  Color="{StaticResource BrandAccentLightColor}"/>
+            <SolidColorBrush x:Key="BrandText"         Color="{StaticResource BrandTextColor}"/>
+            <SolidColorBrush x:Key="BrandTextSecondary" Color="{StaticResource BrandTextSecondaryColor}"/>
 
             <!-- Converters -->
             <conv:InverseBoolConverter x:Key="InverseBoolConverter"/>
@@ -53,6 +70,9 @@
             </Style>
 
             <!-- DataTemplates: ViewModel → Page View (dùng trong ContentControl) -->
+            <DataTemplate DataType="{x:Type vm:DashboardViewModel}">
+                <pages:DashboardPage/>
+            </DataTemplate>
             <DataTemplate DataType="{x:Type vm:JobListViewModel}">
                 <pages:JobListPage/>
             </DataTemplate>

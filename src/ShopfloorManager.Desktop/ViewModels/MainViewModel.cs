@@ -1,5 +1,4 @@
 using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.DependencyInjection;
 using ShopfloorManager.Desktop.Models;
 using ShopfloorManager.Desktop.Services;
@@ -9,64 +8,103 @@ namespace ShopfloorManager.Desktop.ViewModels;
 
 public partial class MainViewModel : ViewModelBase
 {
-    private readonly IAuthService _auth;
-    private readonly INavigationService _nav;
     private readonly IServiceProvider _sp;
+    private readonly WorkContext _work;
+    private readonly INavigationService _nav;
 
     [ObservableProperty]
     private ViewModelBase? _currentPage;
 
-    [ObservableProperty]
-    private string _pageTitle = "Danh sách Job";
-
-    public string WelcomeText => $"Xin chào, {_auth.UserName}";
-    public string RoleText => _auth.Role ?? string.Empty;
-
-    public MainViewModel(IAuthService auth, INavigationService nav, IServiceProvider sp)
+    public MainViewModel(IServiceProvider sp, WorkContext work, INavigationService nav)
     {
-        _auth = auth;
-        _nav = nav;
-        _sp = sp;
+        _sp   = sp;
+        _work = work;
+        _nav  = nav;
     }
 
-    public void Initialize()
+    public void Initialize() => NavigateToDashboard();
+
+    // ===== Dashboard (home) =====
+
+    public void NavigateToDashboard()
     {
-        NavigateToJobs();
+        var vm = _sp.GetRequiredService<DashboardViewModel>();
+        vm.NavigateTo = HandleDashboardNavigation;
+        vm.Initialize();
+        CurrentPage = vm;
     }
 
-    [RelayCommand]
-    private void NavigateToJobs()
+    private void HandleDashboardNavigation(string target)
     {
-        PageTitle = "Danh sách Job";
+        switch (target)
+        {
+            case "jobs":     NavigateToJobs();      break;
+            case "ops":      NavigateToOps();       break;
+            case "products": NavigateToProducts();  break;
+            case "fai":      NavigateToFai();       break;
+        }
+    }
+
+    // ===== Job List =====
+
+    public void NavigateToJobs()
+    {
         var vm = _sp.GetRequiredService<JobListViewModel>();
-        vm.OnJobOpened = NavigateToOperations;
+        vm.OnJobOpened = job =>
+        {
+            _work.SetJob(job);
+            NavigateToOps();
+        };
+        vm.OnBack = NavigateToDashboard;
         CurrentPage = vm;
         _ = vm.InitializeAsync();
     }
 
-    private void NavigateToOperations(JobSummaryDto job)
+    // ===== Operation List =====
+
+    public void NavigateToOps()
     {
-        PageTitle = $"Operations — {job.JobNumber}";
+        if (_work.CurrentJob is null) { NavigateToJobs(); return; }
         var vm = _sp.GetRequiredService<OperationViewModel>();
-        vm.OnBack = NavigateToJobs;
-        vm.OnOperationSelected = op => NavigateToProducts(job, op);
+        vm.OnBack = NavigateToDashboard;
+        vm.OnOperationSelected = op =>
+        {
+            _work.SetOp(op);
+            NavigateToProducts();
+        };
         CurrentPage = vm;
-        _ = vm.InitializeAsync(job);
+        _ = vm.InitializeAsync(_work.CurrentJob);
     }
 
-    private void NavigateToProducts(JobSummaryDto job, PartOpDto op)
+    // ===== Product List =====
+
+    public void NavigateToProducts()
     {
-        PageTitle = $"Sản phẩm — {job.JobNumber} › OP {op.OpNumber}";
+        if (_work.CurrentJob is null || _work.CurrentOp is null) { NavigateToDashboard(); return; }
         var vm = _sp.GetRequiredService<ProductListViewModel>();
-        vm.OnBack = () => NavigateToOperations(job);
+        vm.OnBack = NavigateToDashboard;
+        vm.OnProductSelected = product =>
+        {
+            _work.SetProduct(product);
+            NavigateToDashboard(); // FAI page sẽ implement sau
+        };
         CurrentPage = vm;
-        _ = vm.InitializeAsync(job, op);
+        _ = vm.InitializeAsync(_work.CurrentJob, _work.CurrentOp);
     }
 
-    [RelayCommand]
-    private void Logout()
+    // ===== FAI (placeholder) =====
+
+    public void NavigateToFai()
     {
-        _auth.Logout();
+        // TODO: implement FAIPage
+        NavigateToDashboard();
+    }
+
+    // ===== Logout (called từ DashboardViewModel) =====
+
+    public void HandleLogout()
+    {
+        _work.Clear();
         _nav.NavigateTo<LoginViewModel>();
     }
 }

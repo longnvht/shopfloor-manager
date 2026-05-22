@@ -9,11 +9,6 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         DataContext = vm;
-    }
-
-    private void OnLoaded(object sender, RoutedEventArgs e)
-    {
-        if (DataContext is MainViewModel vm)
-            vm.Initialize();
+        Loaded += (_, _) => vm.Initialize();
     }
 }
