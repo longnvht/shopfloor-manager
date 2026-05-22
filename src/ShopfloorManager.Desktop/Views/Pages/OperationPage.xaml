@@ -128,6 +128,9 @@
                                             Content="Bắt đầu FAI"
                                             Style="{StaticResource MaterialDesignOutlinedButton}"
                                             md:ButtonAssist.CornerRadius="6"
+                                            Command="{Binding DataContext.SelectOperationCommand,
+                                                      RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            CommandParameter="{Binding}"
                                             IsEnabled="{Binding IsComplete,
                                                         Converter={StaticResource InverseBoolConverter}}"
                                             VerticalAlignment="Center"

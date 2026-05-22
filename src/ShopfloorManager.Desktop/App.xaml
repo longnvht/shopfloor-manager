@@ -15,6 +15,7 @@
 
             <!-- Converters -->
             <conv:InverseBoolConverter x:Key="InverseBoolConverter"/>
+            <conv:NullToVisibilityConverter x:Key="NullToVisibilityConverter"/>
             <conv:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibilityConverter"/>
             <conv:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
             <conv:BoolToRedBrushConverter x:Key="BoolToRedBrushConverter"/>
@@ -57,6 +58,9 @@
             </DataTemplate>
             <DataTemplate DataType="{x:Type vm:OperationViewModel}">
                 <pages:OperationPage/>
+            </DataTemplate>
+            <DataTemplate DataType="{x:Type vm:ProductListViewModel}">
+                <pages:ProductListPage/>
             </DataTemplate>
         </ResourceDictionary>
     </Application.Resources>

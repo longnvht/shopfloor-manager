@@ -32,6 +32,9 @@ public class ShopfloorDbContext(DbContextOptions<ShopfloorDbContext> options)
     public DbSet<FileType> FileTypes => Set<FileType>();
     public DbSet<TechDocument> TechDocuments => Set<TechDocument>();
 
+    // ── Phase 4: Desktop MES ─────────────────────────────────
+    public DbSet<ProductionSession> ProductionSessions => Set<ProductionSession>();
+
     // ── Phase 3: Quality ──────────────────────────────────────
     public DbSet<DimensionCategory> DimensionCategories => Set<DimensionCategory>();
     public DbSet<Dimension> Dimensions => Set<Dimension>();

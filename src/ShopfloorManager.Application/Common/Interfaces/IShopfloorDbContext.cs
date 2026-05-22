@@ -29,6 +29,9 @@ public interface IShopfloorDbContext
     DbSet<FileType> FileTypes { get; }
     DbSet<TechDocument> TechDocuments { get; }
 
+    // Phase 4 — Desktop MES
+    DbSet<ProductionSession> ProductionSessions { get; }
+
     // Phase 3 — Quality
     DbSet<DimensionCategory> DimensionCategories { get; }
     DbSet<Dimension> Dimensions { get; }

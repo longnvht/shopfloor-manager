@@ -18,6 +18,7 @@ public partial class OperationViewModel : Base.ViewModelBase
     public ObservableCollection<PartOpDto> Operations { get; } = [];
 
     public Action? OnBack { get; set; }
+    public Action<PartOpDto>? OnOperationSelected { get; set; }
 
     public OperationViewModel(IApiClient api)
     {
@@ -33,6 +34,9 @@ public partial class OperationViewModel : Base.ViewModelBase
 
     [RelayCommand]
     private void GoBack() => OnBack?.Invoke();
+
+    [RelayCommand]
+    private void SelectOperation(PartOpDto op) => OnOperationSelected?.Invoke(op);
 
     private async Task LoadAsync()
     {

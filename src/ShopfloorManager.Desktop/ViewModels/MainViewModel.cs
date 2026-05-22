@@ -49,8 +49,18 @@ public partial class MainViewModel : ViewModelBase
         PageTitle = $"Operations — {job.JobNumber}";
         var vm = _sp.GetRequiredService<OperationViewModel>();
         vm.OnBack = NavigateToJobs;
+        vm.OnOperationSelected = op => NavigateToProducts(job, op);
         CurrentPage = vm;
         _ = vm.InitializeAsync(job);
+    }
+
+    private void NavigateToProducts(JobSummaryDto job, PartOpDto op)
+    {
+        PageTitle = $"Sản phẩm — {job.JobNumber} › OP {op.OpNumber}";
+        var vm = _sp.GetRequiredService<ProductListViewModel>();
+        vm.OnBack = () => NavigateToOperations(job);
+        CurrentPage = vm;
+        _ = vm.InitializeAsync(job, op);
     }
 
     [RelayCommand]
