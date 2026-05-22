@@ -4,242 +4,192 @@
              xmlns:md="http://materialdesigninxaml.net/winfx/xaml/themes"
              xmlns:conv="clr-namespace:ShopfloorManager.Desktop.Converters"
              xmlns:models="clr-namespace:ShopfloorManager.Desktop.Models"
-             xmlns:kb="clr-namespace:ShopfloorManager.Desktop.Behaviors">
+             Background="{StaticResource BrandBg}">
 
     <UserControl.Resources>
         <conv:BoolToRedBrushConverter x:Key="BoolToRedBrushConverter"/>
 
-        <Style x:Key="OverdueRowStyle" TargetType="DataGridRow">
-            <Setter Property="Background"
-                    Value="{Binding IsOverdue, Converter={StaticResource BoolToRedBrushConverter}}"/>
+        <!-- ListBoxItem style: loại bỏ highlight mặc định, card tự xử lý selected -->
+        <Style x:Key="CardItem" TargetType="ListBoxItem">
+            <Setter Property="Padding" Value="5"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="bd"
+                                Background="White"
+                                CornerRadius="10"
+                                BorderBrush="#E8D5C4"
+                                BorderThickness="2"
+                                Padding="14,12">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource BrandPrimary}"/>
+                                <Setter TargetName="bd" Property="BorderThickness" Value="3"/>
+                                <Setter TargetName="bd" Property="Background" Value="{StaticResource BrandAccentLight}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
     </UserControl.Resources>
 
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="52"/>
             <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="64"/>
         </Grid.RowDefinitions>
 
-        <!-- Toolbar -->
-        <Border Grid.Row="0" Padding="0,0,0,16">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-
-                <!-- Search box -->
-                <TextBox Grid.Column="0"
-                         Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
-                         kb:KeyboardBehavior.Mode="Qwerty"
-                         md:HintAssist.Hint="Tìm theo số Job hoặc mã Part..."
-                         md:HintAssist.IsFloating="False"
-                         Style="{StaticResource MaterialDesignOutlinedTextBox}"
-                         MaxWidth="400"
-                         HorizontalAlignment="Left"
-                         md:TextFieldAssist.HasClearButton="True">
-                    <TextBox.InputBindings>
-                        <KeyBinding Key="Return" Command="{Binding SearchCommand}"/>
-                    </TextBox.InputBindings>
-                </TextBox>
-
-                <!-- Show completed toggle -->
-                <StackPanel Grid.Column="1" Orientation="Horizontal"
-                            VerticalAlignment="Center" Margin="16,0">
-                    <ToggleButton IsChecked="{Binding ShowCompleted}"
-                                  Style="{StaticResource MaterialDesignSwitchToggleButton}"/>
-                    <TextBlock Text="Hiện đã hoàn thành"
-                               VerticalAlignment="Center"
-                               Margin="8,0,0,0"/>
+        <!-- ══ TITLE BAR ══ -->
+        <Border Grid.Row="0" Background="{StaticResource BrandPrimary}">
+            <Grid Margin="16,0">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center">
+                    <md:PackIcon Kind="Factory" Width="20" Height="20"
+                                 Foreground="{StaticResource BrandAccentLight}"
+                                 VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <TextBlock Text="{Binding TitleContext, Mode=OneWay}"
+                               Foreground="White" FontWeight="Bold" FontSize="15"
+                               VerticalAlignment="Center"/>
                 </StackPanel>
 
-                <!-- Open Operations button -->
-                <Button Grid.Column="2"
-                        Command="{Binding OpenSelectedJobCommand}"
-                        Style="{StaticResource MaterialDesignRaisedButton}"
-                        Content="Xem Operations"
-                        Margin="0,0,8,0"/>
-
-                <!-- Search button -->
-                <Button Grid.Column="3"
-                        Command="{Binding SearchCommand}"
-                        Style="{StaticResource MaterialDesignOutlinedButton}"
-                        Content="Tìm kiếm"
-                        Margin="0,0,8,0"/>
-
-                <!-- Refresh button -->
-                <Button Grid.Column="4"
-                        Command="{Binding RefreshCommand}"
-                        Style="{StaticResource MaterialDesignOutlinedButton}"
-                        ToolTip="Làm mới">
-                    <md:PackIcon Kind="Refresh"/>
-                </Button>
+                <!-- Loading indicator -->
+                <ProgressBar Style="{StaticResource MaterialDesignCircularProgressBar}"
+                             IsIndeterminate="True" Width="24" Height="24"
+                             HorizontalAlignment="Right"
+                             Visibility="{Binding IsBusy, Converter={StaticResource BooleanToVisibilityConverter}}"/>
             </Grid>
         </Border>
 
-        <!-- Loading overlay -->
-        <Grid Grid.Row="1">
-            <DataGrid ItemsSource="{Binding Jobs}"
-                      SelectedItem="{Binding SelectedJob}"
-                      AutoGenerateColumns="False"
-                      CanUserAddRows="False"
-                      CanUserDeleteRows="False"
-                      CanUserResizeRows="False"
-                      IsReadOnly="True"
-                      SelectionMode="Single"
-                      RowStyle="{StaticResource OverdueRowStyle}"
-                      Style="{StaticResource MaterialDesignDataGrid}"
-                      GridLinesVisibility="Horizontal"
-                      HeadersVisibility="Column"
-                      md:DataGridAssist.ColumnHeaderPadding="16 8 16 8">
-                <DataGrid.InputBindings>
-                    <MouseBinding MouseAction="LeftDoubleClick"
-                                  Command="{Binding OpenSelectedJobCommand}"/>
-                </DataGrid.InputBindings>
+        <!-- ══ JOB CARD GRID ══ -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
+                      PanningMode="VerticalFirst" Margin="12,8">
+            <StackPanel>
+                <ListBox ItemsSource="{Binding Jobs}"
+                         SelectedItem="{Binding SelectedJob}"
+                         ItemContainerStyle="{StaticResource CardItem}"
+                         Background="Transparent"
+                         BorderThickness="0"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                         ScrollViewer.VerticalScrollBarVisibility="Disabled">
+                    <ListBox.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <UniformGrid Columns="5"/>
+                        </ItemsPanelTemplate>
+                    </ListBox.ItemsPanel>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate DataType="{x:Type models:JobSummaryDto}">
+                            <Grid Height="160">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
 
-                <DataGrid.Columns>
-                    <DataGridTextColumn Header="Số Job"
-                                        Binding="{Binding JobNumber}"
-                                        Width="140"
-                                        FontWeight="Medium"/>
+                                <!-- Job Number -->
+                                <TextBlock Grid.Row="0"
+                                           Text="{Binding JobNumber, Mode=OneWay}"
+                                           FontSize="17" FontWeight="Bold"
+                                           Foreground="{StaticResource BrandText}"
+                                           TextTrimming="CharacterEllipsis"/>
 
-                    <DataGridTextColumn Header="Part Number"
-                                        Binding="{Binding PartNumber}"
-                                        Width="160"/>
-
-                    <DataGridTextColumn Header="Rev"
-                                        Binding="{Binding RevCode}"
-                                        Width="60"/>
-
-                    <DataGridTextColumn Header="Routing Rev"
-                                        Binding="{Binding RoutingRevCode}"
-                                        Width="90"/>
-
-                    <DataGridTextColumn Header="SL"
-                                        Binding="{Binding RunQty}"
-                                        Width="60">
-                        <DataGridTextColumn.ElementStyle>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="TextAlignment" Value="Center"/>
-                            </Style>
-                        </DataGridTextColumn.ElementStyle>
-                    </DataGridTextColumn>
-
-                    <!-- ShipBy với màu overdue -->
-                    <DataGridTemplateColumn Header="Ngày giao" Width="120">
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate DataType="{x:Type models:JobSummaryDto}">
-                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                    <md:PackIcon Kind="AlertCircle"
-                                                 Foreground="#D32F2F"
-                                                 Width="16" Height="16"
-                                                 Margin="0,0,4,0"
-                                                 Visibility="{Binding IsOverdue, Converter={StaticResource BooleanToVisibilityConverter}}"/>
-                                    <TextBlock Text="{Binding ShipByDisplay}"
-                                               Foreground="{Binding IsOverdue, Converter={StaticResource BoolToRedBrushConverter}}"/>
+                                <!-- Part info -->
+                                <StackPanel Grid.Row="1" Margin="0,6,0,0">
+                                    <TextBlock Text="{Binding PartNumber, Mode=OneWay}"
+                                               FontSize="12" FontWeight="Medium"
+                                               Foreground="{StaticResource BrandTextSecondary}"
+                                               TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock FontSize="11" Foreground="{StaticResource BrandTextSecondary}"
+                                               Margin="0,2,0,0">
+                                        <Run Text="Rev"/>
+                                        <Run Text="{Binding RevCode, Mode=OneWay}" FontWeight="Medium"/>
+                                        <Run Text=" · "/>
+                                        <Run Text="{Binding RunQty, Mode=OneWay}"/>
+                                        <Run Text="pcs"/>
+                                    </TextBlock>
                                 </StackPanel>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
 
-                    <!-- Status badge -->
-                    <DataGridTemplateColumn Header="Trạng thái" Width="120">
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate DataType="{x:Type models:JobSummaryDto}">
-                                <Border CornerRadius="10"
-                                        Padding="8,2"
-                                        HorizontalAlignment="Left"
-                                        VerticalAlignment="Center">
+                                <!-- Ship date + overdue -->
+                                <Border Grid.Row="2" CornerRadius="4" Padding="6,2"
+                                        HorizontalAlignment="Left">
                                     <Border.Style>
                                         <Style TargetType="Border">
+                                            <Setter Property="Background" Value="#F5F5F5"/>
                                             <Style.Triggers>
-                                                <DataTrigger Binding="{Binding IsComplete}" Value="True">
-                                                    <Setter Property="Background" Value="#E8F5E9"/>
-                                                </DataTrigger>
-                                                <DataTrigger Binding="{Binding IsComplete}" Value="False">
-                                                    <Setter Property="Background" Value="#E3F2FD"/>
+                                                <DataTrigger Binding="{Binding IsOverdue}" Value="True">
+                                                    <Setter Property="Background" Value="#FFEBEE"/>
                                                 </DataTrigger>
                                             </Style.Triggers>
                                         </Style>
                                     </Border.Style>
-                                    <TextBlock Text="{Binding StatusLabel}" FontSize="11">
+                                    <TextBlock FontSize="11">
                                         <TextBlock.Style>
                                             <Style TargetType="TextBlock">
+                                                <Setter Property="Foreground" Value="{StaticResource BrandTextSecondary}"/>
                                                 <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding IsComplete}" Value="True">
-                                                        <Setter Property="Foreground" Value="#2E7D32"/>
-                                                    </DataTrigger>
-                                                    <DataTrigger Binding="{Binding IsComplete}" Value="False">
-                                                        <Setter Property="Foreground" Value="#1565C0"/>
+                                                    <DataTrigger Binding="{Binding IsOverdue}" Value="True">
+                                                        <Setter Property="Foreground" Value="#C62828"/>
+                                                        <Setter Property="FontWeight" Value="Medium"/>
                                                     </DataTrigger>
                                                 </Style.Triggers>
                                             </Style>
                                         </TextBlock.Style>
+                                        <Run Text="{Binding ShipByDisplay, Mode=OneWay}"/>
                                     </TextBlock>
                                 </Border>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
-                </DataGrid.Columns>
-            </DataGrid>
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
 
-            <!-- Loading spinner -->
-            <Border Background="#80FFFFFF"
-                    Visibility="{Binding IsBusy, Converter={StaticResource BooleanToVisibilityConverter}}">
-                <ProgressBar Style="{StaticResource MaterialDesignCircularProgressBar}"
-                             IsIndeterminate="True"
-                             Width="48" Height="48"
-                             HorizontalAlignment="Center"
-                             VerticalAlignment="Center"/>
-            </Border>
-
-            <!-- Empty state -->
-            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center"
-                        Visibility="{Binding ErrorMessage, Converter={StaticResource StringToVisibilityConverter}}">
-                <md:PackIcon Kind="AlertCircleOutline"
-                             Width="48" Height="48"
-                             Foreground="{DynamicResource MaterialDesign.Brush.ValidationError}"
-                             HorizontalAlignment="Center"/>
-                <TextBlock Text="{Binding ErrorMessage}"
-                           Margin="0,8,0,0"
-                           Foreground="{DynamicResource MaterialDesign.Brush.ValidationError}"
-                           HorizontalAlignment="Center"/>
-            </StackPanel>
-        </Grid>
-
-        <!-- Pagination footer -->
-        <Border Grid.Row="2" Padding="0,12,0,0">
-            <DockPanel>
-                <TextBlock DockPanel.Dock="Left"
-                           VerticalAlignment="Center"
-                           Foreground="{DynamicResource MaterialDesign.Brush.ForegroundLight}">
-                    <Run Text="Tổng:"/>
-                    <Run Text="{Binding TotalCount, Mode=OneWay}"/>
-                    <Run Text="job —"/>
-                    <Run Text="Trang"/>
-                    <Run Text="{Binding CurrentPage, Mode=OneWay}"/>
-                    <Run Text="/"/>
-                    <Run Text="{Binding TotalPages, Mode=OneWay}"/>
-                </TextBlock>
-
-                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                <!-- Pagination -->
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,8">
                     <Button Command="{Binding PrevPageCommand}"
                             Style="{StaticResource MaterialDesignIconButton}"
-                            ToolTip="Trang trước">
+                            Width="40" Height="40">
                         <md:PackIcon Kind="ChevronLeft"/>
                     </Button>
+                    <TextBlock VerticalAlignment="Center" Margin="8,0" FontSize="13"
+                               Foreground="{StaticResource BrandTextSecondary}">
+                        <Run Text="Trang"/>
+                        <Run Text="{Binding CurrentPage, Mode=OneWay}" FontWeight="Bold"/>
+                        <Run Text="/"/>
+                        <Run Text="{Binding TotalPages, Mode=OneWay}"/>
+                        <Run Text="  ·  "/>
+                        <Run Text="{Binding TotalCount, Mode=OneWay}"/>
+                        <Run Text="jobs"/>
+                    </TextBlock>
                     <Button Command="{Binding NextPageCommand}"
                             Style="{StaticResource MaterialDesignIconButton}"
-                            ToolTip="Trang sau">
+                            Width="40" Height="40">
                         <md:PackIcon Kind="ChevronRight"/>
                     </Button>
                 </StackPanel>
-            </DockPanel>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- ══ BOTTOM BAR ══ -->
+        <Border Grid.Row="2" Background="White"
+                BorderBrush="#E8D5C4" BorderThickness="0,1,0,0">
+            <Grid Margin="16,0">
+                <Button Command="{Binding GoBackCommand}"
+                        HorizontalAlignment="Left"
+                        Style="{StaticResource MaterialDesignOutlinedButton}"
+                        Height="44" Padding="20,0" FontSize="14"
+                        BorderBrush="{StaticResource BrandPrimary}"
+                        Foreground="{StaticResource BrandPrimary}"
+                        Content="← Quay lại"/>
+
+                <Button Command="{Binding OpenSelectedJobCommand}"
+                        HorizontalAlignment="Right"
+                        Style="{StaticResource MaterialDesignRaisedButton}"
+                        Background="{StaticResource BrandPrimary}" Foreground="White"
+                        Height="44" Padding="24,0" FontSize="14" FontWeight="Medium"
+                        Content="Lựa chọn →"/>
+            </Grid>
         </Border>
     </Grid>
 </UserControl>

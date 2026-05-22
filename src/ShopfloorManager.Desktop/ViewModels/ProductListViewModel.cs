@@ -15,8 +15,9 @@ public partial class ProductListViewModel : Base.ViewModelBase
     public JobSummaryDto? Job { get; private set; }
     public PartOpDto? Op { get; private set; }
 
-    public string Header => Job is null || Op is null ? "" :
-        $"{Job.JobNumber}  ›  OP {Op.OpNumber} — {Op.OpTypeDisplay}";
+    public string TitleContext => "CHỌN SẢN PHẨM";
+    public string SubContext => Job is null || Op is null ? "" :
+        $"{Job.JobNumber}  ·  OP {Op.OpNumber}";
 
     [ObservableProperty]
     private ProductWithSessionDto? _selectedProduct;
@@ -41,7 +42,7 @@ public partial class ProductListViewModel : Base.ViewModelBase
     {
         Job = job;
         Op = op;
-        OnPropertyChanged(nameof(Header));
+        OnPropertyChanged(nameof(SubContext));
         await LoadAsync();
 
         // Timer cập nhật elapsed time mỗi 30 giây
@@ -69,6 +70,12 @@ public partial class ProductListViewModel : Base.ViewModelBase
     private async Task SelectProductAsync()
     {
         if (SelectedProduct is null || Op is null) return;
+
+        if (!SelectedProduct.IsAvailable)
+        {
+            ErrorMessage = $"Sản phẩm {SelectedProduct.SerialNumber} đang được sử dụng ({SelectedProduct.DisplayStatus}).";
+            return;
+        }
 
         IsBusy = true;
         ClearError();
@@ -103,7 +110,7 @@ public partial class ProductListViewModel : Base.ViewModelBase
         }
     }
 
-    private bool CanSelectProduct() => SelectedProduct?.IsAvailable == true;
+    private bool CanSelectProduct() => SelectedProduct is not null;
 
     partial void OnSelectedProductChanged(ProductWithSessionDto? value) =>
         SelectProductCommand.NotifyCanExecuteChanged();

@@ -10,6 +10,8 @@ public partial class JobListViewModel : Base.ViewModelBase
 {
     private readonly IApiClient _api;
 
+    public string TitleContext => "CHỌN JOB";
+
     [ObservableProperty]
     private string _searchText = string.Empty;
 
