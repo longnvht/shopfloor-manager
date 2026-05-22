@@ -12,7 +12,7 @@
         ResizeMode="NoResize">
 
     <Window.Resources>
-        <!-- Key thường -->
+        <!-- Key chữ thường: nâu tối -->
         <Style x:Key="Key" TargetType="Button">
             <Setter Property="Width" Value="62"/>
             <Setter Property="Height" Value="62"/>
@@ -24,13 +24,13 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="bd" Background="#FF2D1A5E" CornerRadius="8"
-                                BorderBrush="#FF4A2D9E" BorderThickness="1">
+                        <Border x:Name="bd" Background="#FF5D3A1A" CornerRadius="8"
+                                BorderBrush="#FF8B5A2B" BorderThickness="1">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="#FF5A3DBF"/>
+                                <Setter TargetName="bd" Property="Background" Value="#FFA0522D"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -38,18 +38,18 @@
             </Setter>
         </Style>
 
-        <!-- Key chức năng (xanh dương đậm) -->
+        <!-- Key chức năng: nâu đậm -->
         <Style x:Key="FnKey" TargetType="Button" BasedOn="{StaticResource Key}">
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="bd" Background="#FF1A3A6E" CornerRadius="8"
-                                BorderBrush="#FF2D5AA0" BorderThickness="1">
+                        <Border x:Name="bd" Background="#FF4A2A0E" CornerRadius="8"
+                                BorderBrush="#FF7A4A1E" BorderThickness="1">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="#FF2D5AA0"/>
+                                <Setter TargetName="bd" Property="Background" Value="#FF8B5A2B"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -57,7 +57,7 @@
             </Setter>
         </Style>
 
-        <!-- ToggleButton cho CAPS — đổi màu khi bật -->
+        <!-- CAPS toggle: đổi cam khi bật -->
         <Style x:Key="CapsKey" TargetType="ToggleButton">
             <Setter Property="Width" Value="90"/>
             <Setter Property="Height" Value="62"/>
@@ -69,17 +69,17 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ToggleButton">
-                        <Border x:Name="bd" Background="#FF1A3A6E" CornerRadius="8"
-                                BorderBrush="#FF2D5AA0" BorderThickness="1">
+                        <Border x:Name="bd" Background="#FF4A2A0E" CornerRadius="8"
+                                BorderBrush="#FF7A4A1E" BorderThickness="1">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="#FF00695C"/>
-                                <Setter TargetName="bd" Property="BorderBrush" Value="#FF00BFA5"/>
+                                <Setter TargetName="bd" Property="Background" Value="#FFE65100"/>
+                                <Setter TargetName="bd" Property="BorderBrush" Value="#FFFF8C00"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="#FF2D5AA0"/>
+                                <Setter TargetName="bd" Property="Background" Value="#FF8B5A2B"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -87,33 +87,33 @@
             </Setter>
         </Style>
 
-        <!-- ToggleButton cho 123 -->
+        <!-- 123 toggle -->
         <Style x:Key="NumToggleKey" TargetType="ToggleButton" BasedOn="{StaticResource CapsKey}">
             <Setter Property="Width" Value="90"/>
         </Style>
     </Window.Resources>
 
-    <Border CornerRadius="14" Background="#EE1A1030"
-            BorderBrush="#FF4A2D9E" BorderThickness="1.5" Padding="12,10">
+    <!-- Container: nâu tối bán trong suốt -->
+    <Border CornerRadius="14" Background="#EE3E2000"
+            BorderBrush="#FF8B5A2B" BorderThickness="1.5" Padding="12,10">
         <Border.Effect>
-            <DropShadowEffect BlurRadius="20" Opacity="0.6" ShadowDepth="4"/>
+            <DropShadowEffect BlurRadius="20" Opacity="0.5" ShadowDepth="4" Color="#3E2000"/>
         </Border.Effect>
-
         <StackPanel>
-            <!-- ===== QWERTY PANEL ===== -->
+            <!-- QWERTY Panel -->
             <StackPanel x:Name="QwertyPanel">
                 <!-- Row 1: Q-P + Backspace -->
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                    <Button Content="Q" Style="{StaticResource Key}" Click="OnKey" Tag="q"/>
-                    <Button Content="W" Style="{StaticResource Key}" Click="OnKey" Tag="w"/>
-                    <Button Content="E" Style="{StaticResource Key}" Click="OnKey" Tag="e"/>
-                    <Button Content="R" Style="{StaticResource Key}" Click="OnKey" Tag="r"/>
-                    <Button Content="T" Style="{StaticResource Key}" Click="OnKey" Tag="t"/>
-                    <Button Content="Y" Style="{StaticResource Key}" Click="OnKey" Tag="y"/>
-                    <Button Content="U" Style="{StaticResource Key}" Click="OnKey" Tag="u"/>
-                    <Button Content="I" Style="{StaticResource Key}" Click="OnKey" Tag="i"/>
-                    <Button Content="O" Style="{StaticResource Key}" Click="OnKey" Tag="o"/>
-                    <Button Content="P" Style="{StaticResource Key}" Click="OnKey" Tag="p"/>
+                    <Button Content="q" Style="{StaticResource Key}" Click="OnKey" Tag="q"/>
+                    <Button Content="w" Style="{StaticResource Key}" Click="OnKey" Tag="w"/>
+                    <Button Content="e" Style="{StaticResource Key}" Click="OnKey" Tag="e"/>
+                    <Button Content="r" Style="{StaticResource Key}" Click="OnKey" Tag="r"/>
+                    <Button Content="t" Style="{StaticResource Key}" Click="OnKey" Tag="t"/>
+                    <Button Content="y" Style="{StaticResource Key}" Click="OnKey" Tag="y"/>
+                    <Button Content="u" Style="{StaticResource Key}" Click="OnKey" Tag="u"/>
+                    <Button Content="i" Style="{StaticResource Key}" Click="OnKey" Tag="i"/>
+                    <Button Content="o" Style="{StaticResource Key}" Click="OnKey" Tag="o"/>
+                    <Button Content="p" Style="{StaticResource Key}" Click="OnKey" Tag="p"/>
                     <Button Width="90" Height="62" Margin="2.5" Style="{StaticResource FnKey}"
                             FontSize="22" Click="OnBackspace">
                         <TextBlock Text="⌫"/>
@@ -122,30 +122,30 @@
 
                 <!-- Row 2: A-L + Enter -->
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                    <Button Content="A" Style="{StaticResource Key}" Click="OnKey" Tag="a"/>
-                    <Button Content="S" Style="{StaticResource Key}" Click="OnKey" Tag="s"/>
-                    <Button Content="D" Style="{StaticResource Key}" Click="OnKey" Tag="d"/>
-                    <Button Content="F" Style="{StaticResource Key}" Click="OnKey" Tag="f"/>
-                    <Button Content="G" Style="{StaticResource Key}" Click="OnKey" Tag="g"/>
-                    <Button Content="H" Style="{StaticResource Key}" Click="OnKey" Tag="h"/>
-                    <Button Content="J" Style="{StaticResource Key}" Click="OnKey" Tag="j"/>
-                    <Button Content="K" Style="{StaticResource Key}" Click="OnKey" Tag="k"/>
-                    <Button Content="L" Style="{StaticResource Key}" Click="OnKey" Tag="l"/>
+                    <Button Content="a" Style="{StaticResource Key}" Click="OnKey" Tag="a"/>
+                    <Button Content="s" Style="{StaticResource Key}" Click="OnKey" Tag="s"/>
+                    <Button Content="d" Style="{StaticResource Key}" Click="OnKey" Tag="d"/>
+                    <Button Content="f" Style="{StaticResource Key}" Click="OnKey" Tag="f"/>
+                    <Button Content="g" Style="{StaticResource Key}" Click="OnKey" Tag="g"/>
+                    <Button Content="h" Style="{StaticResource Key}" Click="OnKey" Tag="h"/>
+                    <Button Content="j" Style="{StaticResource Key}" Click="OnKey" Tag="j"/>
+                    <Button Content="k" Style="{StaticResource Key}" Click="OnKey" Tag="k"/>
+                    <Button Content="l" Style="{StaticResource Key}" Click="OnKey" Tag="l"/>
                     <Button Width="155" Height="62" Margin="2.5" Style="{StaticResource FnKey}"
                             FontSize="15" Content="Enter ↵" Click="OnConfirm"/>
                 </StackPanel>
 
-                <!-- Row 3: Caps + Z-M + . -->
+                <!-- Row 3: Caps + Z-M -->
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                     <ToggleButton x:Name="CapsBtn" Content="⇪ CAPS" Style="{StaticResource CapsKey}"
                                   Checked="OnCapsChanged" Unchecked="OnCapsChanged"/>
-                    <Button x:Name="BtnZ" Content="Z" Style="{StaticResource Key}" Click="OnKey" Tag="z"/>
-                    <Button x:Name="BtnX" Content="X" Style="{StaticResource Key}" Click="OnKey" Tag="x"/>
-                    <Button x:Name="BtnC" Content="C" Style="{StaticResource Key}" Click="OnKey" Tag="c"/>
-                    <Button x:Name="BtnV" Content="V" Style="{StaticResource Key}" Click="OnKey" Tag="v"/>
-                    <Button x:Name="BtnB" Content="B" Style="{StaticResource Key}" Click="OnKey" Tag="b"/>
-                    <Button x:Name="BtnN" Content="N" Style="{StaticResource Key}" Click="OnKey" Tag="n"/>
-                    <Button x:Name="BtnM" Content="M" Style="{StaticResource Key}" Click="OnKey" Tag="m"/>
+                    <Button x:Name="BtnZ" Content="z" Style="{StaticResource Key}" Click="OnKey" Tag="z"/>
+                    <Button x:Name="BtnX" Content="x" Style="{StaticResource Key}" Click="OnKey" Tag="x"/>
+                    <Button x:Name="BtnC" Content="c" Style="{StaticResource Key}" Click="OnKey" Tag="c"/>
+                    <Button x:Name="BtnV" Content="v" Style="{StaticResource Key}" Click="OnKey" Tag="v"/>
+                    <Button x:Name="BtnB" Content="b" Style="{StaticResource Key}" Click="OnKey" Tag="b"/>
+                    <Button x:Name="BtnN" Content="n" Style="{StaticResource Key}" Click="OnKey" Tag="n"/>
+                    <Button x:Name="BtnM" Content="m" Style="{StaticResource Key}" Click="OnKey" Tag="m"/>
                     <Button Content="-" Style="{StaticResource Key}" Click="OnKey" Tag="-"/>
                     <Button Content="." Style="{StaticResource Key}" Click="OnKey" Tag="."/>
                 </StackPanel>
@@ -165,7 +165,7 @@
                 </StackPanel>
             </StackPanel>
 
-            <!-- ===== NUMERIC / SYMBOL PANEL ===== -->
+            <!-- Numeric / Symbol Panel -->
             <StackPanel x:Name="NumericPanel" Visibility="Collapsed">
                 <!-- Row 1: 1-9 + Backspace -->
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
@@ -215,7 +215,7 @@
                     <Button Content="." Style="{StaticResource Key}" Click="OnKey" Tag="."/>
                 </StackPanel>
 
-                <!-- Row 4: Xóa + Space + ABC + Đóng -->
+                <!-- Row 4 -->
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                     <Button Width="90" Height="54" Margin="2.5" Style="{StaticResource FnKey}"
                             FontSize="14" Content="Xóa" Click="OnClear"/>

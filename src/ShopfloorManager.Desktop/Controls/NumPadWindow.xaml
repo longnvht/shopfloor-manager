@@ -12,6 +12,7 @@
         ResizeMode="NoResize">
 
     <Window.Resources>
+        <!-- Key số: nâu tối -->
         <Style x:Key="NumKey" TargetType="Button">
             <Setter Property="Width" Value="82"/>
             <Setter Property="Height" Value="72"/>
@@ -24,18 +25,18 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="bd"
-                                Background="#FF2D1A5E"
+                                Background="#FF5D3A1A"
                                 CornerRadius="10"
-                                BorderBrush="#FF4A2D9E"
+                                BorderBrush="#FF8B5A2B"
                                 BorderThickness="1.5">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="#FF4A2D9E"/>
+                                <Setter TargetName="bd" Property="Background" Value="#FFA0522D"/>
                             </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="#FF3D2470"/>
+                                <Setter TargetName="bd" Property="Background" Value="#FF6B4423"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -43,21 +44,21 @@
             </Setter>
         </Style>
 
+        <!-- Key chức năng: nâu đậm hơn -->
         <Style x:Key="ActionKey" TargetType="Button" BasedOn="{StaticResource NumKey}">
-            <Setter Property="Background" Value="#FF1A3A6E"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="bd"
-                                Background="#FF1A3A6E"
+                                Background="#FF4A2A0E"
                                 CornerRadius="10"
-                                BorderBrush="#FF2D5AA0"
+                                BorderBrush="#FF7A4A1E"
                                 BorderThickness="1.5">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="#FF2D5AA0"/>
+                                <Setter TargetName="bd" Property="Background" Value="#FF8B5A2B"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -65,6 +66,7 @@
             </Setter>
         </Style>
 
+        <!-- Key xác nhận: xanh lá -->
         <Style x:Key="ConfirmKey" TargetType="Button" BasedOn="{StaticResource NumKey}">
             <Setter Property="Template">
                 <Setter.Value>
@@ -87,55 +89,56 @@
         </Style>
     </Window.Resources>
 
+    <!-- Container: nền nâu tối bán trong suốt -->
     <Border CornerRadius="16"
-            Background="#EE1A1030"
-            BorderBrush="#FF4A2D9E"
+            Background="#EE3E2000"
+            BorderBrush="#FF8B5A2B"
             BorderThickness="1.5">
         <Border.Effect>
-            <DropShadowEffect BlurRadius="20" Opacity="0.6" ShadowDepth="4"/>
+            <DropShadowEffect BlurRadius="20" Opacity="0.5" ShadowDepth="4" Color="#3E2000"/>
         </Border.Effect>
 
         <StackPanel Margin="12">
-            <!-- Display -->
+            <!-- Display: hiển thị giá trị đang nhập -->
             <Border Background="#CC000000" CornerRadius="8" Margin="0,0,0,10" Padding="12,8">
                 <TextBlock x:Name="DisplayText"
                            Text="0"
                            FontSize="28"
                            FontWeight="Bold"
-                           Foreground="#FF00E5FF"
+                           Foreground="#FF8C00"
                            HorizontalAlignment="Right"
                            FontFamily="Consolas"/>
             </Border>
 
-            <!-- Row 1: 7 8 9 -->
+            <!-- 7 8 9 -->
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                 <Button Content="7" Style="{StaticResource NumKey}" Click="OnKey" Tag="7"/>
                 <Button Content="8" Style="{StaticResource NumKey}" Click="OnKey" Tag="8"/>
                 <Button Content="9" Style="{StaticResource NumKey}" Click="OnKey" Tag="9"/>
             </StackPanel>
 
-            <!-- Row 2: 4 5 6 -->
+            <!-- 4 5 6 -->
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                 <Button Content="4" Style="{StaticResource NumKey}" Click="OnKey" Tag="4"/>
                 <Button Content="5" Style="{StaticResource NumKey}" Click="OnKey" Tag="5"/>
                 <Button Content="6" Style="{StaticResource NumKey}" Click="OnKey" Tag="6"/>
             </StackPanel>
 
-            <!-- Row 3: 1 2 3 -->
+            <!-- 1 2 3 -->
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                 <Button Content="1" Style="{StaticResource NumKey}" Click="OnKey" Tag="1"/>
                 <Button Content="2" Style="{StaticResource NumKey}" Click="OnKey" Tag="2"/>
                 <Button Content="3" Style="{StaticResource NumKey}" Click="OnKey" Tag="3"/>
             </StackPanel>
 
-            <!-- Row 4: +/- 0 . -->
+            <!-- +/- 0 . -->
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                 <Button Content="±" Style="{StaticResource ActionKey}" Click="OnToggleSign"/>
                 <Button Content="0" Style="{StaticResource NumKey}" Click="OnKey" Tag="0"/>
                 <Button Content="." Style="{StaticResource NumKey}" Click="OnKey" Tag="."/>
             </StackPanel>
 
-            <!-- Row 5: XOA BACKSPACE NHAP -->
+            <!-- Xóa ⌫ OK -->
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,4,0,0">
                 <Button Width="82" Height="52" Margin="3" Style="{StaticResource ActionKey}"
                         FontSize="13" Content="Xóa" Click="OnClear"/>
@@ -144,7 +147,7 @@
                     <TextBlock Text="⌫"/>
                 </Button>
                 <Button Width="82" Height="52" Margin="3" Style="{StaticResource ConfirmKey}"
-                        FontSize="13" Content="✓ OK" Click="OnConfirm"/>
+                        FontSize="14" Content="✓ OK" Click="OnConfirm"/>
             </StackPanel>
         </StackPanel>
     </Border>
