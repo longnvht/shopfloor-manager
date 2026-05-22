@@ -1,6 +1,8 @@
 # Phase 4 — Desktop MES (Shop Floor Client)
 
 > Nguồn tham khảo: Vinam-MES WinForms (FANUC.sln) — rewrite theo kiến trúc mới (WPF + REST API + MinIO + JWT).
+> 
+> **Dashboard UI spec**: xem [`15_dashboard_desktop.md`](15_dashboard_desktop.md) — màu sắc, layout thẻ, shortcut grid, WorkContext state management.
 
 ---
 
