@@ -2,6 +2,9 @@
 
 > Màn hình hiển thị ngay sau khi đăng nhập thành công.
 > Thiết kế tối ưu cho màn hình cảm ứng shop floor.
+> 
+> **Implement status**: ✅ Done (2026-05-22) — `DashboardPage.xaml` + `DashboardViewModel.cs`
+> **Target**: 10-inch 16:9, ~1280×720
 
 ---
 
@@ -346,3 +349,26 @@ Tối ưu cho **1920×1080** và **1280×800** (shop floor tablet/PC):
 | Shortcuts | Menu list | Grid icon buttons |
 | Màu sắc | BlueGrey / Cyan | Brown / Light Orange |
 | Touch UX | Basic | Optimized — card lớn, ripple |
+
+---
+
+## Implement notes (thực tế vs spec)
+
+**Layout thực tế** (khác spec ban đầu):
+- Bỏ 2-column layout (left+right) → đổi thành 4-row vertical để phù hợp 10" 16:9
+- Machine Card + Operator Card nằm cùng row (50/50), không phải separate section
+- Work Info card compact hơn — không có 5 visual states riêng biệt, dùng visibility triggers
+- Start/Stop button nằm inline trên Work Info card, không phải separate row
+
+**Stats tracking** (in-memory, reset khi restart app):
+- `_appStartTime` = khi Desktop app khởi động
+- `_loginTime` = khi operator đăng nhập thành công
+- `_totalActiveTime` += thời gian mỗi session khi Complete
+- `_productsCreated` / `_productsCompleted` = đếm trong session
+
+**WorkInfo card states** dùng `Visibility` binding:
+- `HasWork=false` → Empty state (Chọn Job button)
+- `HasWork=true` → hiện các column Job/OP/Serial tùy available
+- `HasSession=false` → "Tiếp tục" button (navigate)
+- `CanStart=true` → "Bắt đầu" button cam (PUT /start)
+- `CanStop=true` → "Kết thúc" button đỏ + timer (PUT /complete)

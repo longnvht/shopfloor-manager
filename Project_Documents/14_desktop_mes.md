@@ -16,8 +16,26 @@ Desktop MES là ứng dụng chạy tại shop floor — trên máy tính công 
 - Tạo NCR khi sản phẩm không đạt
 - Theo dõi trạng thái sản xuất real-time
 
+## Trạng thái implement *(cập nhật 2026-05-22)*
+
+| Tính năng | Trạng thái |
+|---|---|
+| LoginWindow, MainWindow shell | ✅ Done |
+| JobListPage (search, pagination, overdue) | ✅ Done |
+| OperationPage (card, badges, SetupTime/ProdTime) | ✅ Done |
+| ProductListPage (card grid 4 màu) | ✅ Done |
+| Virtual Keyboard (NumPad + QWERTY, no-focus) | ✅ Done |
+| ProductionSession backend + API | ✅ Done |
+| WorkContext singleton (state management) | ✅ Done |
+| Dashboard (4-row layout, Machine/Operator stats) | ✅ Done |
+| FAIPage (gage selection + NumPad + timer) | ⏳ Next |
+| DocumentViewer (PDF/G-code) | ⏳ |
+| NCR dialog | ⏳ |
+
+---
+
 **Technology stack:**
-- **Framework**: WPF (.NET 8) — desktop only, Windows
+- **Framework**: WPF (.NET 9) — desktop only, Windows
 - **Auth**: JWT từ API (giống web — POST `/api/v1/auth/login`)
 - **Data**: REST API (shopfloor-manager API) — không kết nối DB trực tiếp
 - **Documents**: MinIO presigned URL để download PDF/G-code

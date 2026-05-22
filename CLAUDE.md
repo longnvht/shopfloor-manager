@@ -325,19 +325,27 @@ CalibRequestStatus:Pending=0, Approved=1, Completed=2, Cancelled=3
 - ✅ OperationPage: danh sách OP dạng card, badge ForJobOnly/Complete, SetupTime/ProdTime, nút "Bắt đầu FAI", back về JobList
 - ✅ Virtual Keyboard: NumPadWindow (số, floating no-focus), QwertyWindow (QWERTY + 123 panel, CapsLock toggle)
 - ✅ Touch-optimized: Button 56px, TextBox 52px, DataGridRow 52px, KeyboardBehavior attached property
+- ✅ Virtual Keyboard light theme: nền cam kem #FFF8F0, viền bo nâu #A0522D, Caps ON cam #E65100
 - ✅ ProductListPage: card grid 4 màu trạng thái (available/claimed/inprogress/complete), claim session
 - ✅ ProductionSession backend: entity + migration + API (claim/start/complete/cancel)
-- **Chưa implement:** FAIPage (với gage selection + NumPad), DocumentViewer, NCR dialog
+- ✅ WorkContext singleton: chia sẻ Job/OP/Product/Session state giữa tất cả pages
+- ✅ Dashboard: layout 4 rows (TitleBar / Machine+Operator / WorkInfo / Utilities) cho 10" 16:9
+  - Machine Card: uptime, active time, idle time, SP hoàn thành
+  - Operator Card: check-in, work duration, idle, SP tạo ra
+  - Work Info: Job/OP/Serial/Status, nút Bắt đầu🟠 / Kết thúc🔴 inline
+  - Shortcuts grid: dynamic theo WorkState + role
+  - Color scheme: Brown #6D3B1A + Orange #F57C00 + Cream #FFF8F0
+- **Chưa implement:** FAIPage (gage selection + NumPad + timer), DocumentViewer, NCR dialog
 
 **Ràng buộc ProductionSession (2 constraints):**
 - Per-product: 1 product chỉ có 1 session open tại 1 thời điểm (không chọn ở 2 máy/OP cùng lúc)
 - Per-machine: 1 máy chỉ gia công 1 product tại 1 thời điểm (không claim thêm khi đang có session open)
 
 **FAI workflow (cần implement):**
-1. Claim session → màn hình FAI
-2. Nút "Bắt đầu" → PUT start → timer bắt đầu
-3. Dimension card grid → tap card → BƯỚC 1: chọn Gage → BƯỚC 2: nhập giá trị (NumPad) → confirm
-4. Khi tất cả dims đo xong → nút "Kết thúc" → PUT complete
+1. Claim session → Dashboard hiện nút "Bắt đầu"
+2. Nút "Bắt đầu" → PUT start → timer chạy trên Dashboard
+3. Tap "Tiếp tục" → FAIPage: dimension card grid → tap card → chọn Gage → NumPad → confirm
+4. Khi tất cả dims đo xong → Dashboard nút "Kết thúc" → PUT complete
 5. Nếu Fail → dialog NCR
 
 **Desktop MES — kiến trúc quan trọng:**
@@ -352,6 +360,11 @@ CalibRequestStatus:Pending=0, Approved=1, Completed=2, Cancelled=3
 - Khi thêm child element vào XAML tag đang có attributes (như DataGrid.InputBindings), các attributes còn lại phải nằm trong tag mở `<Tag attr1="" attr2="">`, không được để lơ lửng sau closing `>`
 - Virtual keyboard dùng `WS_EX_NOACTIVATE` để không steal focus — TextBox vẫn giữ focus khi gõ phím
 - Keyboard label và output phải nhất quán từ đầu: gọi `UpdateLetterKeys(panel, caps: false)` trong `Loaded` để sync label với trạng thái mặc định
+- **WorkContext** là singleton ObservableObject — inject vào mọi ViewModel cần đọc/ghi Job/OP/Product/Session
+- **TextBlock.Text binding** read-only property cũng phải `Mode=OneWay` (không chỉ `Run.Text`)
+- **`Border` chỉ nhận 1 child** — khi có nhiều state panels, phải wrap trong `<Grid>` bên trong Border
+- **DispatcherTimer** dùng cho clock/elapsed time trong WPF — khởi tạo trong ViewModel, `Stop()` khi cleanup
+- Dashboard là màn hình chính sau login — không dùng sidebar, mọi navigation từ WorkInfo card + shortcuts
 
 ---
 
