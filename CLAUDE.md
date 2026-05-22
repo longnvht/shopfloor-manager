@@ -325,7 +325,20 @@ CalibRequestStatus:Pending=0, Approved=1, Completed=2, Cancelled=3
 - ✅ OperationPage: danh sách OP dạng card, badge ForJobOnly/Complete, SetupTime/ProdTime, nút "Bắt đầu FAI", back về JobList
 - ✅ Virtual Keyboard: NumPadWindow (số, floating no-focus), QwertyWindow (QWERTY + 123 panel, CapsLock toggle)
 - ✅ Touch-optimized: Button 56px, TextBox 52px, DataGridRow 52px, KeyboardBehavior attached property
-- **Chưa implement:** FAIPage, DocumentViewer, NCR dialog
+- ✅ ProductListPage: card grid 4 màu trạng thái (available/claimed/inprogress/complete), claim session
+- ✅ ProductionSession backend: entity + migration + API (claim/start/complete/cancel)
+- **Chưa implement:** FAIPage (với gage selection + NumPad), DocumentViewer, NCR dialog
+
+**Ràng buộc ProductionSession (2 constraints):**
+- Per-product: 1 product chỉ có 1 session open tại 1 thời điểm (không chọn ở 2 máy/OP cùng lúc)
+- Per-machine: 1 máy chỉ gia công 1 product tại 1 thời điểm (không claim thêm khi đang có session open)
+
+**FAI workflow (cần implement):**
+1. Claim session → màn hình FAI
+2. Nút "Bắt đầu" → PUT start → timer bắt đầu
+3. Dimension card grid → tap card → BƯỚC 1: chọn Gage → BƯỚC 2: nhập giá trị (NumPad) → confirm
+4. Khi tất cả dims đo xong → nút "Kết thúc" → PUT complete
+5. Nếu Fail → dialog NCR
 
 **Desktop MES — kiến trúc quan trọng:**
 - KHÔNG kết nối DB trực tiếp — chỉ qua REST API
