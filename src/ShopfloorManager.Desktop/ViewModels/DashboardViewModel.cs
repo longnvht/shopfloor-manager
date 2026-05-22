@@ -2,7 +2,6 @@ using System.Collections.ObjectModel;
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using Microsoft.Extensions.DependencyInjection;
 using ShopfloorManager.Desktop.Configuration;
 using ShopfloorManager.Desktop.Models;
 using ShopfloorManager.Desktop.Services;
@@ -12,56 +11,100 @@ namespace ShopfloorManager.Desktop.ViewModels;
 
 public partial class DashboardViewModel : ViewModelBase
 {
-    private readonly WorkContext _work;
+    private readonly WorkContext  _work;
     private readonly IAuthService _auth;
+    private readonly IApiClient   _api;
     private readonly INavigationService _nav;
-    private readonly IServiceProvider _sp;
-    private readonly AppSettings _settings;
+    private readonly AppSettings  _settings;
+
+    // ── Tracking ───────────────────────────────────────────────────────
+    private readonly DateTimeOffset _appStartTime  = DateTimeOffset.Now;
+    private readonly DateTimeOffset _loginTime     = DateTimeOffset.Now;
+    private TimeSpan  _totalActiveTime = TimeSpan.Zero;
+    private int       _productsCreated   = 0;
+    private int       _productsCompleted = 0;
+
+    // ── Timer ──────────────────────────────────────────────────────────
     private DispatcherTimer? _timer;
 
-    // ===== Auth / Machine info =====
-    public string UserDisplayName => _auth.UserName ?? "";
-    public string UserRole        => _auth.Role ?? "";
+    // ── Clock ──────────────────────────────────────────────────────────
+    public string CurrentTime => DateTime.Now.ToString("HH:mm:ss");
+
+    // ── Machine card ───────────────────────────────────────────────────
     public string MachineCode     => _settings.MachineCode;
     public string MachineName     => _settings.MachineName;
-    public string CurrentTime     => DateTime.Now.ToString("HH:mm:ss");
 
-    // ===== Work Info card — state flags =====
-    public bool ShowEmpty    => _work.WorkState == "empty";
-    public bool ShowHasJob   => _work.WorkState == "has-job";
-    public bool ShowHasOp    => _work.WorkState == "has-op";
-    public bool ShowWip      => _work.WorkState == "wip";
-    public bool ShowComplete => _work.WorkState == "complete";
+    public string UptimeDisplay
+    {
+        get { var t = DateTimeOffset.Now - _appStartTime; return FormatSpan(t); }
+    }
 
-    // ===== Work Info — display values =====
-    public string? JobNumber   => _work.CurrentJob?.JobNumber;
-    public string? PartDisplay => _work.CurrentJob is null ? null
+    public string ActiveTimeDisplay => FormatSpan(_totalActiveTime + CurrentActiveSpan);
+    public string IdleTimeDisplay
+    {
+        get
+        {
+            var idle = (DateTimeOffset.Now - _appStartTime) - (_totalActiveTime + CurrentActiveSpan);
+            return FormatSpan(idle < TimeSpan.Zero ? TimeSpan.Zero : idle);
+        }
+    }
+    public string ProductsCompletedDisplay => _productsCompleted.ToString();
+
+    // ── Operator card ──────────────────────────────────────────────────
+    public string UserDisplayName  => _auth.UserName ?? "";
+    public string UserRole         => _auth.Role ?? "";
+    public string CheckInDisplay   => _loginTime.LocalDateTime.ToString("HH:mm");
+    public string WorkDuration     => FormatSpan(DateTimeOffset.Now - _loginTime);
+    public string OperatorIdleDisplay
+    {
+        get
+        {
+            var idle = (DateTimeOffset.Now - _loginTime) - (_totalActiveTime + CurrentActiveSpan);
+            return FormatSpan(idle < TimeSpan.Zero ? TimeSpan.Zero : idle);
+        }
+    }
+    public string ProductsCreatedDisplay => _productsCreated.ToString();
+
+    // ── Work Info card ─────────────────────────────────────────────────
+    public bool HasWork      => _work.HasJob;
+    public bool HasSession   => _work.ActiveSession is not null;
+    public bool IsWip        => _work.IsWip;
+    public bool CanStart     => _work.IsWip && !(_work.ActiveSession?.StartedAt.HasValue == true);
+    public bool CanStop      => _work.IsWip &&   _work.ActiveSession?.StartedAt.HasValue == true;
+
+    public string? JobNumber    => _work.CurrentJob?.JobNumber;
+    public string? PartDisplay  => _work.CurrentJob is null ? null
         : $"{_work.CurrentJob.PartNumber}  Rev {_work.CurrentJob.RevCode}";
-    public string? ShipByDisplay => _work.CurrentJob?.ShipByDisplay;
-    public string? RunQtyDisplay => _work.CurrentJob?.RunQty?.ToString();
-
     public string? OpDisplay    => _work.CurrentOp is null ? null
         : $"OP {_work.CurrentOp.OpNumber} — {_work.CurrentOp.OpTypeDisplay}";
-    public string? SetupDisplay => _work.CurrentOp?.SetupTimeDisplay;
-    public string? ProdDisplay  => _work.CurrentOp?.ProdTimeDisplay;
-
-    public string? SerialDisplay  => _work.CurrentProduct?.SerialNumber;
-    public string? SessionMachine => _work.ActiveSession?.MachineCode;
+    public string? SerialDisplay => _work.CurrentProduct?.SerialNumber;
+    public string? StatusDisplay => _work.CurrentProduct?.DisplayStatus;
 
     [ObservableProperty] private string _elapsedTime = "00:00";
 
+    private TimeSpan CurrentActiveSpan
+    {
+        get
+        {
+            if (_work.ActiveSession?.StartedAt is DateTimeOffset s)
+                return DateTimeOffset.UtcNow - s;
+            return TimeSpan.Zero;
+        }
+    }
+
+    // ── Shortcuts ──────────────────────────────────────────────────────
     public ObservableCollection<ShortcutItem> Shortcuts { get; } = [];
 
-    // ===== Navigation action (set by parent) =====
+    // ── Navigation callback ────────────────────────────────────────────
     public Action<string>? NavigateTo { get; set; }
 
     public DashboardViewModel(WorkContext work, IAuthService auth,
-        INavigationService nav, IServiceProvider sp, AppSettings settings)
+        IApiClient api, INavigationService nav, AppSettings settings)
     {
-        _work = work;
-        _auth = auth;
-        _nav  = nav;
-        _sp   = sp;
+        _work     = work;
+        _auth     = auth;
+        _api      = api;
+        _nav      = nav;
         _settings = settings;
 
         _work.PropertyChanged += (_, _) => RefreshWorkInfo();
@@ -73,34 +116,24 @@ public partial class DashboardViewModel : ViewModelBase
         StartClock();
     }
 
-    private void RefreshWorkInfo()
-    {
-        OnPropertyChanged(nameof(ShowEmpty));
-        OnPropertyChanged(nameof(ShowHasJob));
-        OnPropertyChanged(nameof(ShowHasOp));
-        OnPropertyChanged(nameof(ShowWip));
-        OnPropertyChanged(nameof(ShowComplete));
-        OnPropertyChanged(nameof(JobNumber));
-        OnPropertyChanged(nameof(PartDisplay));
-        OnPropertyChanged(nameof(ShipByDisplay));
-        OnPropertyChanged(nameof(RunQtyDisplay));
-        OnPropertyChanged(nameof(OpDisplay));
-        OnPropertyChanged(nameof(SetupDisplay));
-        OnPropertyChanged(nameof(ProdDisplay));
-        OnPropertyChanged(nameof(SerialDisplay));
-        OnPropertyChanged(nameof(SessionMachine));
-        RefreshShortcuts();
-    }
+    // ── Clock / stats update ───────────────────────────────────────────
 
     private void StartClock()
     {
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-        _timer.Tick += (_, _) =>
-        {
-            OnPropertyChanged(nameof(CurrentTime));
-            UpdateElapsed();
-        };
+        _timer.Tick += (_, _) => Tick();
         _timer.Start();
+    }
+
+    private void Tick()
+    {
+        OnPropertyChanged(nameof(CurrentTime));
+        OnPropertyChanged(nameof(UptimeDisplay));
+        OnPropertyChanged(nameof(ActiveTimeDisplay));
+        OnPropertyChanged(nameof(IdleTimeDisplay));
+        OnPropertyChanged(nameof(WorkDuration));
+        OnPropertyChanged(nameof(OperatorIdleDisplay));
+        UpdateElapsed();
     }
 
     private void UpdateElapsed()
@@ -116,31 +149,90 @@ public partial class DashboardViewModel : ViewModelBase
         }
     }
 
-    // ===== Work Info Card tap =====
+    private static string FormatSpan(TimeSpan t) =>
+        t.TotalHours >= 1
+            ? $"{(int)t.TotalHours:D2}:{t.Minutes:D2}:{t.Seconds:D2}"
+            : $"{t.Minutes:D2}:{t.Seconds:D2}";
+
+    // ── Work Info refresh ──────────────────────────────────────────────
+
+    private void RefreshWorkInfo()
+    {
+        OnPropertyChanged(nameof(HasWork));
+        OnPropertyChanged(nameof(HasSession));
+        OnPropertyChanged(nameof(IsWip));
+        OnPropertyChanged(nameof(CanStart));
+        OnPropertyChanged(nameof(CanStop));
+        OnPropertyChanged(nameof(JobNumber));
+        OnPropertyChanged(nameof(PartDisplay));
+        OnPropertyChanged(nameof(OpDisplay));
+        OnPropertyChanged(nameof(SerialDisplay));
+        OnPropertyChanged(nameof(StatusDisplay));
+        StartCommand.NotifyCanExecuteChanged();
+        StopCommand.NotifyCanExecuteChanged();
+        RefreshShortcuts();
+    }
+
+    // ── Work Info commands ─────────────────────────────────────────────
 
     [RelayCommand]
     private void TapWorkInfo()
     {
         switch (_work.WorkState)
         {
-            case "empty":    NavigateTo?.Invoke("jobs");    break;
-            case "has-job":  NavigateTo?.Invoke("ops");     break;
+            case "empty":    NavigateTo?.Invoke("jobs");     break;
+            case "has-job":  NavigateTo?.Invoke("ops");      break;
             case "has-op":   NavigateTo?.Invoke("products"); break;
-            case "wip":      NavigateTo?.Invoke("fai");     break;
+            case "wip":
             case "complete": NavigateTo?.Invoke("products"); break;
         }
     }
 
     [RelayCommand]
-    private void SelectJob()    => NavigateTo?.Invoke("jobs");
+    private void SelectJob() => NavigateTo?.Invoke("jobs");
 
-    [RelayCommand]
-    private void GoToFai()      => NavigateTo?.Invoke("fai");
+    [RelayCommand(CanExecute = nameof(CanStart))]
+    private async Task StartAsync()
+    {
+        if (_work.ActiveSession is null) return;
+        IsBusy = true;
+        try
+        {
+            var result = await _api.PutAsync<object, ProductionSessionDto>(
+                $"/api/v1/production-sessions/{_work.ActiveSession.Id}/start", new { });
+            if (result?.Data is not null)
+            {
+                _work.SetProduct(_work.CurrentProduct!, result.Data);
+                RefreshWorkInfo();
+            }
+        }
+        finally { IsBusy = false; }
+    }
 
-    [RelayCommand]
-    private void GoToProducts() => NavigateTo?.Invoke("products");
+    [RelayCommand(CanExecute = nameof(CanStop))]
+    private async Task StopAsync()
+    {
+        if (_work.ActiveSession is null) return;
+        IsBusy = true;
+        try
+        {
+            var result = await _api.PutAsync<object, ProductionSessionDto>(
+                $"/api/v1/production-sessions/{_work.ActiveSession.Id}/complete", new { });
+            if (result?.Data is not null)
+            {
+                // Cộng thời gian active
+                if (_work.ActiveSession.StartedAt.HasValue)
+                    _totalActiveTime += DateTimeOffset.UtcNow - _work.ActiveSession.StartedAt.Value;
+                _productsCompleted++;
+                OnPropertyChanged(nameof(ProductsCompletedDisplay));
+                _work.ClearProduct();
+                RefreshWorkInfo();
+            }
+        }
+        finally { IsBusy = false; }
+    }
 
-    // ===== Logout =====
+    // ── Logout ─────────────────────────────────────────────────────────
 
     [RelayCommand]
     private void Logout()
@@ -151,53 +243,37 @@ public partial class DashboardViewModel : ViewModelBase
         _nav.NavigateTo<LoginViewModel>();
     }
 
-    // ===== Shortcuts =====
+    // ── Shortcuts ──────────────────────────────────────────────────────
 
     private void RefreshShortcuts()
     {
         Shortcuts.Clear();
-        var role = _auth.Role ?? "";
+        var role  = _auth.Role ?? "";
         var state = _work.WorkState;
 
-        // FAI — khi có product WIP
-        if (state == "wip")
-            Shortcuts.Add(new ShortcutItem("Tiếp tục FAI", "ClipboardCheck",
-                new RelayCommand(() => NavigateTo?.Invoke("fai"))));
-
-        // Chọn Job — luôn có
-        Shortcuts.Add(new ShortcutItem("Chọn Job", "ClipboardList",
-            new RelayCommand(() => NavigateTo?.Invoke("jobs"))));
-
-        // Chọn sản phẩm — khi có OP
-        if (_work.HasOp)
-            Shortcuts.Add(new ShortcutItem("Chọn sản phẩm", "FormatListNumbered",
-                new RelayCommand(() => NavigateTo?.Invoke("products"))));
-
-        // Tài liệu — khi có OP
-        if (_work.HasOp)
-        {
-            Shortcuts.Add(new ShortcutItem("Xem bản vẽ", "FileImageOutline",
-                new RelayCommand(() => NavigateTo?.Invoke("drawing"))));
-            Shortcuts.Add(new ShortcutItem("Hướng dẫn gá đặt", "Wrench",
-                new RelayCommand(() => NavigateTo?.Invoke("fixture"))));
-            Shortcuts.Add(new ShortcutItem("Hướng dẫn công việc", "FileDocumentOutline",
-                new RelayCommand(() => NavigateTo?.Invoke("routecard"))));
-            Shortcuts.Add(new ShortcutItem("Load G-code", "Download",
-                new RelayCommand(() => NavigateTo?.Invoke("gcode"))));
-        }
-
-        // QC / Engineer thêm shortcuts
+        Add("Chọn Job",       "ClipboardList",       "jobs",     always: true);
+        Add("Chọn sản phẩm",  "FormatListNumbered",  "products", when: _work.HasOp);
+        Add("Xem bản vẽ",     "FileImageOutline",    "drawing",  when: _work.HasOp);
+        Add("Hướng dẫn gá",   "Wrench",              "fixture",  when: _work.HasOp);
+        Add("Hướng dẫn CW",   "FileDocumentOutline", "routecard", when: _work.HasOp);
+        Add("Load G-code",    "Download",            "gcode",    when: _work.HasOp);
         if (role is "QC Inspector" or "Engineer" or "Administrator")
         {
-            if (_work.HasProduct)
-                Shortcuts.Add(new ShortcutItem("Lịch sử đo", "ChartBar",
-                    new RelayCommand(() => NavigateTo?.Invoke("history"))));
-
-            Shortcuts.Add(new ShortcutItem("Tạo NCR", "AlertCircle",
-                new RelayCommand(() => NavigateTo?.Invoke("ncr")),
-                IsEnabled: _work.HasProduct));
+            Add("Lịch sử đo", "ChartBar",   "history", when: _work.HasProduct);
+            Add("Tạo NCR",    "AlertCircle","ncr",     when: _work.HasProduct);
         }
     }
 
+    private void Add(string title, string icon, string target,
+        bool always = false, bool when = false)
+    {
+        if (!always && !when) return;
+        Shortcuts.Add(new ShortcutItem(title, icon,
+            new RelayCommand(() => NavigateTo?.Invoke(target))));
+    }
+
     public void Cleanup() => _timer?.Stop();
+
+    // Track product claimed
+    public void OnProductClaimed() { _productsCreated++; OnPropertyChanged(nameof(ProductsCreatedDisplay)); }
 }

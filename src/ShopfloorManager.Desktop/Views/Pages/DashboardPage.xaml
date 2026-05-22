@@ -6,37 +6,51 @@
              Background="{StaticResource BrandBg}">
 
     <UserControl.Resources>
-        <!-- Card base style -->
+        <!-- Card nền trắng, bo góc, shadow nhẹ -->
         <Style x:Key="Card" TargetType="Border">
             <Setter Property="Background" Value="White"/>
-            <Setter Property="CornerRadius" Value="12"/>
-            <Setter Property="Padding" Value="20,16"/>
-            <Setter Property="Margin" Value="0,0,0,16"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="16,12"/>
             <Setter Property="Effect">
                 <Setter.Value>
-                    <DropShadowEffect BlurRadius="8" Opacity="0.10" ShadowDepth="2" Color="#6D3B1A"/>
+                    <DropShadowEffect BlurRadius="6" Opacity="0.08" ShadowDepth="2" Color="#6D3B1A"/>
                 </Setter.Value>
             </Setter>
         </Style>
 
-        <!-- Shortcut button style -->
-        <Style x:Key="ShortcutBtn" TargetType="Button">
-            <Setter Property="Width" Value="140"/>
-            <Setter Property="Height" Value="130"/>
-            <Setter Property="Margin" Value="8"/>
-            <Setter Property="Background" Value="White"/>
-            <Setter Property="BorderBrush" Value="#EFEBE9"/>
-            <Setter Property="BorderThickness" Value="1.5"/>
+        <!-- Label nhỏ trên thẻ -->
+        <Style x:Key="CardLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="Foreground" Value="{StaticResource BrandAccent}"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
+        </Style>
+
+        <!-- Dòng stat: label + value -->
+        <Style x:Key="StatLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="{StaticResource BrandTextSecondary}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style x:Key="StatValue" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{StaticResource BrandText}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="HorizontalAlignment" Value="Right"/>
+        </Style>
+
+        <!-- Utility button -->
+        <Style x:Key="UtilBtn" TargetType="Button">
+            <Setter Property="Width" Value="120"/>
+            <Setter Property="Height" Value="80"/>
+            <Setter Property="Margin" Value="6"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="bd"
-                                Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="12"
-                                Padding="12">
+                        <Border x:Name="bd" Background="White" CornerRadius="10"
+                                BorderBrush="#E8D5C4" BorderThickness="1.5">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
@@ -52,22 +66,19 @@
                 </Setter.Value>
             </Setter>
         </Style>
-
-        <!-- Work Info card — clickable -->
-        <Style x:Key="WorkCard" TargetType="Border" BasedOn="{StaticResource Card}">
-            <Setter Property="Cursor" Value="Hand"/>
-        </Style>
     </UserControl.Resources>
 
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="60"/>  <!-- Top bar -->
-            <RowDefinition Height="*"/>   <!-- Content -->
+            <RowDefinition Height="52"/>   <!-- Title Bar -->
+            <RowDefinition Height="Auto"/> <!-- Machine + Operator -->
+            <RowDefinition Height="Auto"/> <!-- Work Info -->
+            <RowDefinition Height="*"/>    <!-- Tiện ích -->
         </Grid.RowDefinitions>
 
-        <!-- ===== TOP BAR ===== -->
+        <!-- ══════════════ TITLE BAR ══════════════ -->
         <Border Grid.Row="0" Background="{StaticResource BrandPrimary}">
-            <Grid Margin="20,0">
+            <Grid Margin="16,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
@@ -75,371 +86,322 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <!-- Logo + title -->
                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                    <md:PackIcon Kind="Factory" Width="28" Height="28"
+                    <md:PackIcon Kind="Factory" Width="24" Height="24"
                                  Foreground="{StaticResource BrandAccentLight}"
-                                 VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                 VerticalAlignment="Center" Margin="0,0,8,0"/>
                     <TextBlock Text="SHOPFLOOR MANAGER"
-                               Foreground="White" FontWeight="Bold"
-                               FontSize="16" VerticalAlignment="Center"
-                              />
+                               Foreground="White" FontWeight="Bold" FontSize="15"
+                               VerticalAlignment="Center"/>
                 </StackPanel>
 
-                <!-- Clock -->
                 <TextBlock Grid.Column="2"
                            Text="{Binding CurrentTime, Mode=OneWay}"
                            Foreground="{StaticResource BrandAccentLight}"
-                           FontSize="18" FontFamily="Consolas"
-                           VerticalAlignment="Center"
-                           Margin="0,0,20,0"/>
+                           FontSize="17" FontFamily="Consolas"
+                           VerticalAlignment="Center" Margin="0,0,16,0"/>
 
-                <!-- Logout -->
                 <Button Grid.Column="3"
                         Command="{Binding LogoutCommand}"
                         Style="{StaticResource MaterialDesignFlatButton}"
-                        Foreground="White"
-                        Height="40" Padding="12,0"
+                        Foreground="White" Height="36" Padding="10,0"
                         VerticalAlignment="Center">
                     <StackPanel Orientation="Horizontal">
-                        <md:PackIcon Kind="Logout" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                        <TextBlock Text="Đăng xuất" VerticalAlignment="Center"/>
+                        <md:PackIcon Kind="Logout" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                        <TextBlock Text="Đăng xuất" VerticalAlignment="Center" FontSize="13"/>
                     </StackPanel>
                 </Button>
             </Grid>
         </Border>
 
-        <!-- ===== CONTENT ===== -->
-        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" PanningMode="VerticalFirst">
-            <Grid Margin="24,20,24,24" MaxWidth="1400">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="320"/>
-                </Grid.ColumnDefinitions>
+        <!-- ══════════════ MACHINE + OPERATOR CARDS ══════════════ -->
+        <Grid Grid.Row="1" Margin="12,8,12,4">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="8"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
 
-                <!-- Left column: Employee + Work Info -->
-                <StackPanel Grid.Column="0" Margin="0,0,16,0">
+            <!-- Machine Card -->
+            <Border Grid.Column="0" Style="{StaticResource Card}">
+                <StackPanel>
+                    <!-- Header -->
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                        <Border Width="36" Height="36" CornerRadius="6"
+                                Background="{StaticResource BrandAccentLight}" Margin="0,0,10,0">
+                            <md:PackIcon Kind="Monitor" Width="22" Height="22"
+                                         Foreground="{StaticResource BrandAccent}"
+                                         HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="{Binding MachineCode, Mode=OneWay}"
+                                       FontSize="16" FontWeight="Bold"
+                                       Foreground="{StaticResource BrandText}"/>
+                            <TextBlock Text="{Binding MachineName, Mode=OneWay}"
+                                       FontSize="11" Foreground="{StaticResource BrandTextSecondary}"
+                                       TextTrimming="CharacterEllipsis"/>
+                        </StackPanel>
+                    </StackPanel>
 
-                    <!-- === EMPLOYEE + MACHINE ROW === -->
-                    <Grid Margin="0,0,0,0">
+                    <Separator Background="#F5E6D3" Margin="0,0,0,10"/>
+
+                    <!-- Stats grid -->
+                    <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="24"/>
+                            <RowDefinition Height="24"/>
+                            <RowDefinition Height="24"/>
+                            <RowDefinition Height="24"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Thời gian mở máy" Style="{StaticResource StatLabel}"/>
+                        <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding UptimeDisplay, Mode=OneWay}" Style="{StaticResource StatValue}" FontFamily="Consolas"/>
+
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Thời gian hoạt động" Style="{StaticResource StatLabel}"/>
+                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding ActiveTimeDisplay, Mode=OneWay}" Style="{StaticResource StatValue}" FontFamily="Consolas" Foreground="{StaticResource BrandAccent}"/>
+
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Thời gian chờ" Style="{StaticResource StatLabel}"/>
+                        <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding IdleTimeDisplay, Mode=OneWay}" Style="{StaticResource StatValue}" FontFamily="Consolas" Foreground="{StaticResource BrandTextSecondary}"/>
+
+                        <TextBlock Grid.Row="3" Grid.Column="0" Text="SP hoàn thành" Style="{StaticResource StatLabel}"/>
+                        <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding ProductsCompletedDisplay, Mode=OneWay}" Style="{StaticResource StatValue}" FontSize="16" Foreground="#2E7D32"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- Operator Card -->
+            <Border Grid.Column="2" Style="{StaticResource Card}">
+                <StackPanel>
+                    <!-- Header -->
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                        <Border Width="36" Height="36" CornerRadius="18"
+                                Background="{StaticResource BrandAccentLight}" Margin="0,0,10,0">
+                            <md:PackIcon Kind="AccountCircle" Width="22" Height="22"
+                                         Foreground="{StaticResource BrandPrimary}"
+                                         HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="{Binding UserDisplayName, Mode=OneWay}"
+                                       FontSize="15" FontWeight="Bold"
+                                       Foreground="{StaticResource BrandText}"/>
+                            <TextBlock Text="{Binding UserRole, Mode=OneWay}"
+                                       FontSize="11" Foreground="{StaticResource BrandTextSecondary}"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <Separator Background="#F5E6D3" Margin="0,0,0,10"/>
+
+                    <!-- Stats grid -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="24"/>
+                            <RowDefinition Height="24"/>
+                            <RowDefinition Height="24"/>
+                            <RowDefinition Height="24"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Check-in" Style="{StaticResource StatLabel}"/>
+                        <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding CheckInDisplay, Mode=OneWay}" Style="{StaticResource StatValue}" FontFamily="Consolas"/>
+
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Thời gian làm việc" Style="{StaticResource StatLabel}"/>
+                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding WorkDuration, Mode=OneWay}" Style="{StaticResource StatValue}" FontFamily="Consolas" Foreground="{StaticResource BrandAccent}"/>
+
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Thời gian nhàn rỗi" Style="{StaticResource StatLabel}"/>
+                        <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding OperatorIdleDisplay, Mode=OneWay}" Style="{StaticResource StatValue}" FontFamily="Consolas" Foreground="{StaticResource BrandTextSecondary}"/>
+
+                        <TextBlock Grid.Row="3" Grid.Column="0" Text="SP đã tạo ra" Style="{StaticResource StatLabel}"/>
+                        <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding ProductsCreatedDisplay, Mode=OneWay}" Style="{StaticResource StatValue}" FontSize="16" Foreground="#2E7D32"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- ══════════════ WORK INFO CARD ══════════════ -->
+        <Border Grid.Row="2" Style="{StaticResource Card}" Margin="12,4">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Left: Work Info -->
+                <Grid Grid.Column="0">
+                    <!-- EMPTY STATE -->
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
+                                Visibility="{Binding HasWork, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}">
+                        <md:PackIcon Kind="ClipboardOutline" Width="32" Height="32"
+                                     Foreground="#BCAAA4" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="Chưa có công việc"
+                                       FontSize="15" FontWeight="Medium"
+                                       Foreground="{StaticResource BrandTextSecondary}"/>
+                            <TextBlock Text="Nhấn 'Chọn Job' để bắt đầu"
+                                       FontSize="12" Foreground="#BCAAA4"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- HAS WORK STATE -->
+                    <Grid Visibility="{Binding HasWork, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
 
-                        <!-- Employee card -->
-                        <Border Grid.Column="0" Style="{StaticResource Card}" Margin="0,0,8,16">
-                            <Border.BorderBrush>
-                                <SolidColorBrush Color="{StaticResource BrandPrimaryColor}"/>
-                            </Border.BorderBrush>
-                            <Border.BorderThickness>2,0,0,0</Border.BorderThickness>
-                            <StackPanel Orientation="Horizontal">
-                                <Border Width="52" Height="52" CornerRadius="26"
-                                        Background="{StaticResource BrandAccentLight}"
-                                        Margin="0,0,16,0">
-                                    <md:PackIcon Kind="AccountCircle" Width="34" Height="34"
-                                                 Foreground="{StaticResource BrandPrimary}"
-                                                 HorizontalAlignment="Center"
-                                                 VerticalAlignment="Center"/>
-                                </Border>
-                                <StackPanel VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding UserDisplayName, Mode=OneWay}"
-                                               FontSize="15" FontWeight="Bold"
-                                               Foreground="{StaticResource BrandText}"/>
-                                    <TextBlock Text="{Binding UserRole, Mode=OneWay}"
-                                               FontSize="12"
-                                               Foreground="{StaticResource BrandTextSecondary}"
-                                               Margin="0,2,0,0"/>
-                                </StackPanel>
-                            </StackPanel>
-                        </Border>
+                        <!-- Job -->
+                        <StackPanel Grid.Column="0" Margin="0,0,24,0">
+                            <TextBlock Text="JOB" Style="{StaticResource CardLabel}"/>
+                            <TextBlock Text="{Binding JobNumber, Mode=OneWay}"
+                                       FontSize="20" FontWeight="Bold"
+                                       Foreground="{StaticResource BrandText}"/>
+                            <TextBlock Text="{Binding PartDisplay, Mode=OneWay}"
+                                       FontSize="11" Foreground="{StaticResource BrandTextSecondary}"
+                                       MaxWidth="160" TextTrimming="CharacterEllipsis"/>
+                        </StackPanel>
 
-                        <!-- Machine card -->
-                        <Border Grid.Column="1" Style="{StaticResource Card}" Margin="8,0,0,16">
-                            <Border.BorderBrush>
-                                <SolidColorBrush Color="{StaticResource BrandAccentColor}"/>
-                            </Border.BorderBrush>
-                            <Border.BorderThickness>2,0,0,0</Border.BorderThickness>
-                            <StackPanel Orientation="Horizontal">
-                                <Border Width="52" Height="52" CornerRadius="8"
-                                        Background="{StaticResource BrandAccentLight}"
-                                        Margin="0,0,16,0">
-                                    <md:PackIcon Kind="Monitor" Width="30" Height="30"
-                                                 Foreground="{StaticResource BrandAccent}"
-                                                 HorizontalAlignment="Center"
-                                                 VerticalAlignment="Center"/>
-                                </Border>
-                                <StackPanel VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding MachineCode, Mode=OneWay}"
-                                               FontSize="17" FontWeight="Bold"
-                                               Foreground="{StaticResource BrandText}"/>
-                                    <TextBlock Text="{Binding MachineName, Mode=OneWay}"
-                                               FontSize="11"
-                                               Foreground="{StaticResource BrandTextSecondary}"
-                                               TextTrimming="CharacterEllipsis"
-                                               MaxWidth="180"
-                                               Margin="0,2,0,0"/>
-                                </StackPanel>
+                        <!-- OP -->
+                        <StackPanel Grid.Column="1" Margin="0,0,24,0"
+                                    Visibility="{Binding OpDisplay, Converter={StaticResource StringToVisibilityConverter}}">
+                            <TextBlock Text="CÔNG ĐOẠN" Style="{StaticResource CardLabel}"/>
+                            <TextBlock Text="{Binding OpDisplay, Mode=OneWay}"
+                                       FontSize="16" FontWeight="SemiBold"
+                                       Foreground="{StaticResource BrandText}"/>
+                        </StackPanel>
+
+                        <!-- Serial -->
+                        <StackPanel Grid.Column="2" Margin="0,0,24,0"
+                                    Visibility="{Binding SerialDisplay, Converter={StaticResource StringToVisibilityConverter}}">
+                            <TextBlock Text="SẢN PHẨM" Style="{StaticResource CardLabel}"/>
+                            <TextBlock Text="{Binding SerialDisplay, Mode=OneWay}"
+                                       FontSize="22" FontWeight="Bold"
+                                       Foreground="{StaticResource BrandText}"/>
+                        </StackPanel>
+
+                        <!-- Status + Timer -->
+                        <StackPanel Grid.Column="3"
+                                    Visibility="{Binding HasSession, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <TextBlock Text="TRẠNG THÁI" Style="{StaticResource CardLabel}"/>
+                            <TextBlock Text="{Binding StatusDisplay, Mode=OneWay}"
+                                       FontSize="13" FontWeight="Medium"
+                                       Foreground="{StaticResource BrandAccent}"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0"
+                                        Visibility="{Binding CanStop, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <md:PackIcon Kind="TimerOutline" Width="14" Height="14"
+                                             Foreground="{StaticResource BrandAccent}"
+                                             VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding ElapsedTime, Mode=OneWay}"
+                                           FontSize="14" FontFamily="Consolas" FontWeight="Bold"
+                                           Foreground="{StaticResource BrandAccent}"
+                                           VerticalAlignment="Center" Margin="4,0,0,0"/>
                             </StackPanel>
-                        </Border>
+                        </StackPanel>
                     </Grid>
+                </Grid>
 
-                    <!-- === WORK INFO CARD === -->
-                    <Border Style="{StaticResource WorkCard}"
-                            MouseLeftButtonUp="OnWorkCardTapped">
-                        <!-- Grid wrapper — Border chỉ nhận 1 child -->
-                        <Grid>
+                <!-- Right: Action Buttons -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal"
+                            VerticalAlignment="Center" Margin="16,0,0,0">
 
-                        <!-- STATE: EMPTY -->
-                        <Grid Visibility="{Binding ShowEmpty, Converter={StaticResource BooleanToVisibilityConverter}}">
-                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
-                                        Margin="0,20">
-                                <md:PackIcon Kind="ClipboardOutline" Width="56" Height="56"
-                                             Foreground="#BCAAA4"
-                                             HorizontalAlignment="Center"/>
-                                <TextBlock Text="Chưa có công việc"
-                                           FontSize="18" FontWeight="Medium"
-                                           Foreground="{StaticResource BrandTextSecondary}"
-                                           HorizontalAlignment="Center"
-                                           Margin="0,12,0,4"/>
-                                <TextBlock Text="Nhấn để chọn Job và bắt đầu sản xuất"
-                                           FontSize="13"
-                                           Foreground="#A1887F"
-                                           HorizontalAlignment="Center"
-                                           Margin="0,0,0,20"/>
-                                <Button Content="+ Chọn Job"
-                                        Command="{Binding SelectJobCommand}"
-                                        Style="{StaticResource MaterialDesignRaisedButton}"
-                                        Background="{StaticResource BrandPrimary}"
-                                        Foreground="White"
-                                        HorizontalAlignment="Center"
-                                        Height="52" Padding="24,0" FontSize="14"/>
-                            </StackPanel>
-                        </Grid>
+                    <!-- Chọn Job (empty) -->
+                    <Button Command="{Binding SelectJobCommand}"
+                            Visibility="{Binding HasWork, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}"
+                            Style="{StaticResource MaterialDesignRaisedButton}"
+                            Background="{StaticResource BrandPrimary}" Foreground="White"
+                            Height="48" Padding="16,0" FontSize="13"
+                            Content="+ Chọn Job"/>
 
-                        <!-- STATE: HAS JOB -->
-                        <Grid Visibility="{Binding ShowHasJob, Converter={StaticResource BooleanToVisibilityConverter}}">
-                            <StackPanel>
-                                <TextBlock Text="CÔNG VIỆC" FontSize="11" FontWeight="Bold"
-                                           Foreground="{StaticResource BrandAccent}"/>
-                                <Separator Margin="0,8" Background="#EFEBE9"/>
-                                <Grid Margin="0,4">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel>
-                                        <TextBlock Text="{Binding JobNumber, Mode=OneWay}"
-                                                   FontSize="28" FontWeight="Bold"
-                                                   Foreground="{StaticResource BrandText}"/>
-                                        <TextBlock Text="{Binding PartDisplay, Mode=OneWay}"
-                                                   FontSize="14" Foreground="{StaticResource BrandTextSecondary}"/>
-                                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                                            <TextBlock Text="Giao: " FontSize="12" Foreground="#A1887F"/>
-                                            <TextBlock Text="{Binding ShipByDisplay, Mode=OneWay}"
-                                                       FontSize="12" Foreground="#A1887F"/>
-                                            <TextBlock Text="   Số lượng: " FontSize="12" Foreground="#A1887F"/>
-                                            <TextBlock Text="{Binding RunQtyDisplay, Mode=OneWay}"
-                                                       FontSize="12" Foreground="#A1887F"/>
-                                        </StackPanel>
-                                    </StackPanel>
-                                    <Border Grid.Column="1" Background="{StaticResource BrandAccentLight}"
-                                            CornerRadius="8" Padding="12,8" VerticalAlignment="Center">
-                                        <StackPanel Orientation="Horizontal">
-                                            <md:PackIcon Kind="ChevronRight" Foreground="{StaticResource BrandAccent}"
-                                                         VerticalAlignment="Center"/>
-                                            <TextBlock Text="Chọn OP" FontSize="13" FontWeight="Medium"
-                                                       Foreground="{StaticResource BrandAccent}"
-                                                       VerticalAlignment="Center"/>
-                                        </StackPanel>
-                                    </Border>
-                                </Grid>
-                            </StackPanel>
-                        </Grid>
+                    <!-- Tap để điều hướng (has work, no session) -->
+                    <Button Command="{Binding TapWorkInfoCommand}"
+                            Visibility="{Binding HasSession, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}"
+                            Style="{StaticResource MaterialDesignOutlinedButton}"
+                            Height="48" Padding="14,0" FontSize="13"
+                            Margin="0,0,8,0">
+                        <StackPanel Orientation="Horizontal">
+                            <md:PackIcon Kind="ChevronRight" VerticalAlignment="Center"/>
+                            <TextBlock Text="Tiếp tục" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
 
-                        <!-- STATE: HAS OP -->
-                        <Grid Visibility="{Binding ShowHasOp, Converter={StaticResource BooleanToVisibilityConverter}}">
-                            <StackPanel>
-                                <TextBlock Text="CÔNG VIỆC" FontSize="11" FontWeight="Bold"
-                                           Foreground="{StaticResource BrandAccent}"/>
-                                <Separator Margin="0,8" Background="#EFEBE9"/>
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel>
-                                        <TextBlock FontSize="14" Foreground="{StaticResource BrandTextSecondary}">
-                                            <Run FontWeight="Bold" Foreground="{StaticResource BrandText}"
-                                                 Text="{Binding JobNumber, Mode=OneWay}"/>
-                                            <Run Text=" — "/>
-                                            <Run Text="{Binding PartDisplay, Mode=OneWay}"/>
-                                        </TextBlock>
-                                        <TextBlock Text="{Binding OpDisplay, Mode=OneWay}"
-                                                   FontSize="20" FontWeight="Bold"
-                                                   Foreground="{StaticResource BrandText}"
-                                                   Margin="0,6,0,0"/>
-                                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                                            <md:PackIcon Kind="TimerOutline" Width="14" Height="14"
-                                                         Foreground="#A1887F" VerticalAlignment="Center"/>
-                                            <TextBlock FontSize="12" Foreground="#A1887F" Margin="4,0,0,0">
-                                                <Run Text="Setup: "/>
-                                                <Run Text="{Binding SetupDisplay, Mode=OneWay}"/>
-                                                <Run Text="   Gia công: "/>
-                                                <Run Text="{Binding ProdDisplay, Mode=OneWay}"/>
-                                            </TextBlock>
-                                        </StackPanel>
-                                        <TextBlock Text="Sản phẩm: chưa chọn"
-                                                   FontSize="13" Foreground="#BCAAA4" Margin="0,8,0,0"/>
-                                    </StackPanel>
-                                    <Border Grid.Column="1" Background="{StaticResource BrandAccentLight}"
-                                            CornerRadius="8" Padding="12,8" VerticalAlignment="Center">
-                                        <StackPanel Orientation="Horizontal">
-                                            <md:PackIcon Kind="ChevronRight" Foreground="{StaticResource BrandAccent}"
-                                                         VerticalAlignment="Center"/>
-                                            <TextBlock Text="Chọn SN" FontSize="13" FontWeight="Medium"
-                                                       Foreground="{StaticResource BrandAccent}"
-                                                       VerticalAlignment="Center"/>
-                                        </StackPanel>
-                                    </Border>
-                                </Grid>
-                            </StackPanel>
-                        </Grid>
+                    <!-- Bắt đầu (claimed, not started) -->
+                    <Button Command="{Binding StartCommand}"
+                            Visibility="{Binding CanStart, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}"
+                            Style="{StaticResource MaterialDesignRaisedButton}"
+                            Background="{StaticResource BrandAccent}" Foreground="White"
+                            Height="52" Padding="16,0" FontSize="14" FontWeight="Bold"
+                            Margin="0,0,8,0">
+                        <StackPanel Orientation="Horizontal">
+                            <md:PackIcon Kind="Play" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                            <TextBlock Text="Bắt đầu" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
 
-                        <!-- STATE: WIP -->
-                        <Border Visibility="{Binding ShowWip, Converter={StaticResource BooleanToVisibilityConverter}}"
-                                Background="{StaticResource BrandAccentLight}"
-                                CornerRadius="10" Padding="16">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <StackPanel>
-                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                                        <Border Background="{StaticResource BrandAccent}" CornerRadius="4"
-                                                Padding="8,2" Margin="0,0,10,0">
-                                            <TextBlock Text="⚙ ĐANG GIA CÔNG" FontSize="11" FontWeight="Bold"
-                                                       Foreground="White"/>
-                                        </Border>
-                                        <TextBlock Text="{Binding SessionMachine, Mode=OneWay}"
-                                                   FontSize="12" Foreground="{StaticResource BrandTextSecondary}"
-                                                   VerticalAlignment="Center"/>
-                                    </StackPanel>
-                                    <TextBlock FontSize="14" Foreground="{StaticResource BrandTextSecondary}">
-                                        <Run FontWeight="Bold" Foreground="{StaticResource BrandText}"
-                                             Text="{Binding JobNumber, Mode=OneWay}"/>
-                                        <Run Text=" › "/>
-                                        <Run Text="{Binding OpDisplay, Mode=OneWay}"/>
-                                    </TextBlock>
-                                    <TextBlock FontSize="26" FontWeight="Bold"
-                                               Foreground="{StaticResource BrandText}" Margin="0,4">
-                                        <Run Text="SN "/>
-                                        <Run Text="{Binding SerialDisplay, Mode=OneWay}"/>
-                                    </TextBlock>
-                                    <StackPanel Orientation="Horizontal">
-                                        <md:PackIcon Kind="TimerOutline" Width="16" Height="16"
-                                                     Foreground="{StaticResource BrandAccent}"
-                                                     VerticalAlignment="Center"/>
-                                        <TextBlock Text="{Binding ElapsedTime, Mode=OneWay}"
-                                                   FontSize="18" FontFamily="Consolas" FontWeight="Bold"
-                                                   Foreground="{StaticResource BrandAccent}"
-                                                   VerticalAlignment="Center" Margin="6,0,0,0"/>
-                                    </StackPanel>
-                                </StackPanel>
-                                <Button Grid.Column="1"
-                                        Command="{Binding GoToFaiCommand}"
-                                        Background="{StaticResource BrandPrimary}"
-                                        Foreground="White"
-                                        Style="{StaticResource MaterialDesignRaisedButton}"
-                                        Height="60" Padding="20,0"
-                                        VerticalAlignment="Center"
-                                        FontSize="14">
-                                    <StackPanel Orientation="Horizontal">
-                                        <md:PackIcon Kind="ChevronRight" VerticalAlignment="Center"/>
-                                        <TextBlock Text="Vào FAI" VerticalAlignment="Center" Margin="4,0,0,0"/>
-                                    </StackPanel>
-                                </Button>
-                            </Grid>
-                        </Border>
-
-                        <!-- STATE: COMPLETE -->
-                        <Grid Visibility="{Binding ShowComplete, Converter={StaticResource BooleanToVisibilityConverter}}">
-                            <StackPanel>
-                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                                    <Border Background="#2E7D32" CornerRadius="4" Padding="8,2">
-                                        <TextBlock Text="✓ HOÀN THÀNH" FontSize="11" FontWeight="Bold"
-                                                   Foreground="White"/>
-                                    </Border>
-                                </StackPanel>
-                                <TextBlock FontSize="14" Foreground="{StaticResource BrandTextSecondary}">
-                                    <Run FontWeight="Bold" Foreground="{StaticResource BrandText}"
-                                         Text="{Binding JobNumber, Mode=OneWay}"/>
-                                    <Run Text=" › SN "/>
-                                    <Run Text="{Binding SerialDisplay, Mode=OneWay}"/>
-                                </TextBlock>
-                                <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
-                                    <Button Content="Chọn sản phẩm tiếp theo"
-                                            Command="{Binding GoToProductsCommand}"
-                                            Style="{StaticResource MaterialDesignOutlinedButton}"
-                                            Height="48" Padding="16,0" Margin="0,0,12,0"/>
-                                </StackPanel>
-                            </StackPanel>
-                        </Grid>
-
-                        </Grid><!-- end wrapper -->
-                    </Border>
-
+                    <!-- Kết thúc (in progress) -->
+                    <Button Command="{Binding StopCommand}"
+                            Visibility="{Binding CanStop, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}"
+                            Style="{StaticResource MaterialDesignRaisedButton}"
+                            Background="#C62828" Foreground="White"
+                            Height="52" Padding="16,0" FontSize="14" FontWeight="Bold">
+                        <StackPanel Orientation="Horizontal">
+                            <md:PackIcon Kind="Stop" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                            <TextBlock Text="Kết thúc" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
                 </StackPanel>
-
-                <!-- Right column: Shortcuts -->
-                <Border Grid.Column="1" Style="{StaticResource Card}" VerticalAlignment="Top">
-                    <StackPanel>
-                        <TextBlock Text="TIỆN ÍCH" FontSize="11" FontWeight="Bold"
-                                   Foreground="{StaticResource BrandAccent}"
-                                   Margin="0,0,0,16"/>
-
-                        <ItemsControl ItemsSource="{Binding Shortcuts}">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <WrapPanel/>
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate DataType="{x:Type models:ShortcutItem}">
-                                    <Button Command="{Binding Command}"
-                                            IsEnabled="{Binding IsEnabled}"
-                                            Style="{StaticResource ShortcutBtn}">
-                                        <StackPanel HorizontalAlignment="Center">
-                                            <md:PackIcon x:Name="icon"
-                                                         Kind="{Binding IconKind}"
-                                                         Width="36" Height="36"
-                                                         Foreground="{StaticResource BrandPrimary}"
-                                                         HorizontalAlignment="Center"/>
-                                            <TextBlock Text="{Binding Title}"
-                                                       FontSize="12" FontWeight="Medium"
-                                                       Foreground="{StaticResource BrandText}"
-                                                       TextWrapping="Wrap"
-                                                       TextAlignment="Center"
-                                                       HorizontalAlignment="Center"
-                                                       MaxWidth="120"
-                                                       Margin="0,8,0,0"/>
-                                        </StackPanel>
-                                    </Button>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-
-                        <!-- Empty shortcuts state -->
-                        <TextBlock Text="Chọn Job để xem các tùy chọn"
-                                   FontSize="12" Foreground="#BCAAA4"
-                                   TextWrapping="Wrap" TextAlignment="Center"
-                                   Margin="0,8"
-                                   Visibility="{Binding Shortcuts.Count,
-                                       Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
-                    </StackPanel>
-                </Border>
             </Grid>
-        </ScrollViewer>
+        </Border>
+
+        <!-- ══════════════ DANH SÁCH TIỆN ÍCH ══════════════ -->
+        <Border Grid.Row="3" Style="{StaticResource Card}" Margin="12,4,12,8"
+                VerticalAlignment="Top">
+            <StackPanel>
+                <TextBlock Text="TIỆN ÍCH" Style="{StaticResource CardLabel}"/>
+
+                <ItemsControl ItemsSource="{Binding Shortcuts}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel Orientation="Horizontal"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="{x:Type models:ShortcutItem}">
+                            <Button Command="{Binding Command}"
+                                    IsEnabled="{Binding IsEnabled}"
+                                    Style="{StaticResource UtilBtn}">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <md:PackIcon Kind="{Binding IconKind}"
+                                                 Width="28" Height="28"
+                                                 Foreground="{StaticResource BrandPrimary}"
+                                                 HorizontalAlignment="Center"/>
+                                    <TextBlock Text="{Binding Title}"
+                                               FontSize="11" FontWeight="Medium"
+                                               Foreground="{StaticResource BrandText}"
+                                               TextWrapping="Wrap"
+                                               TextAlignment="Center"
+                                               MaxWidth="108"
+                                               HorizontalAlignment="Center"
+                                               Margin="0,6,0,0"/>
+                                </StackPanel>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <!-- Empty shortcuts -->
+                <TextBlock Text="Chọn Job để xem các tiện ích"
+                           FontSize="12" Foreground="#BCAAA4"
+                           Margin="8,4"
+                           Visibility="{Binding Shortcuts.Count,
+                               Converter={StaticResource ZeroToVisibilityConverter}}"/>
+            </StackPanel>
+        </Border>
     </Grid>
 </UserControl>

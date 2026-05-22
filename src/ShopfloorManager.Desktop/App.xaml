@@ -33,6 +33,7 @@
             <!-- Converters -->
             <conv:InverseBoolConverter x:Key="InverseBoolConverter"/>
             <conv:NullToVisibilityConverter x:Key="NullToVisibilityConverter"/>
+            <conv:ZeroToVisibilityConverter x:Key="ZeroToVisibilityConverter"/>
             <conv:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibilityConverter"/>
             <conv:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
             <conv:BoolToRedBrushConverter x:Key="BoolToRedBrushConverter"/>
