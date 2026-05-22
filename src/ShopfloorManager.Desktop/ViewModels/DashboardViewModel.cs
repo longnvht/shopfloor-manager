@@ -253,17 +253,22 @@ public partial class DashboardViewModel : ViewModelBase
         var role  = _auth.Role ?? "";
         var state = _work.WorkState;
 
-        Add("Chọn Job",       "ClipboardList",       "jobs",     always: true);
-        Add("Chọn OP",        "PlaylistEdit",        "ops",      when: _work.HasJob);
-        Add("Chọn sản phẩm",  "FormatListNumbered",  "products", when: _work.HasOp);
-        Add("Xem bản vẽ",     "FileImageOutline",    "drawing",  when: _work.HasOp);
-        Add("Hướng dẫn gá",   "Wrench",              "fixture",  when: _work.HasOp);
+        Add("Chọn Job",       "ClipboardList",       "jobs",      always: true);
+        Add("Chọn OP",        "PlaylistEdit",        "ops",       when: _work.HasJob);
+        Add("Chọn sản phẩm",  "FormatListNumbered",  "products",  when: _work.HasOp);
+        Add("Xem bản vẽ",     "FileImageOutline",    "drawing",   when: _work.HasOp);
+        Add("Hướng dẫn gá",   "Wrench",              "fixture",   when: _work.HasOp);
         Add("Hướng dẫn CW",   "FileDocumentOutline", "routecard", when: _work.HasOp);
-        Add("Load G-code",    "Download",            "gcode",    when: _work.HasOp);
+        Add("Xem G-code",     "Download",            "gcode",     when: _work.HasOp);
+        Add("Bảng đo",        "ClipboardTextOutline","fai",       when: _work.HasProduct);
         if (role is "QC Inspector" or "Engineer" or "Administrator")
         {
             Add("Lịch sử đo", "ChartBar",   "history", when: _work.HasProduct);
             Add("Tạo NCR",    "AlertCircle","ncr",     when: _work.HasProduct);
+        }
+        if (role is "Administrator")
+        {
+            Add("Cài đặt",    "CogOutline", "settings", always: true);
         }
     }
 

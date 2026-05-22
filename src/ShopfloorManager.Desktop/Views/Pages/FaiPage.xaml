@@ -1,0 +1,381 @@
+<UserControl x:Class="ShopfloorManager.Desktop.Views.Pages.FaiPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:md="http://materialdesigninxaml.net/winfx/xaml/themes"
+             xmlns:models="clr-namespace:ShopfloorManager.Desktop.Models"
+             xmlns:kb="clr-namespace:ShopfloorManager.Desktop.Behaviors"
+             Background="{StaticResource BrandBg}">
+
+    <UserControl.Resources>
+        <!-- Dimension card item style -->
+        <Style x:Key="DimCardItem" TargetType="ListBoxItem">
+            <Setter Property="Width" Value="112"/>
+            <Setter Property="Height" Value="88"/>
+            <Setter Property="Margin" Value="5"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="MinHeight" Value="0"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="bd" CornerRadius="8" BorderThickness="2"
+                                BorderBrush="#E8D5C4" Background="White">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <DataTrigger Binding="{Binding State}" Value="Pass">
+                                <Setter TargetName="bd" Property="BorderBrush" Value="#2E7D32"/>
+                                <Setter TargetName="bd" Property="Background" Value="#F1F8F1"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding State}" Value="Fail">
+                                <Setter TargetName="bd" Property="BorderBrush" Value="#C62828"/>
+                                <Setter TargetName="bd" Property="Background" Value="#FFF1F1"/>
+                            </DataTrigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="bd" Property="BorderBrush" Value="#F57C00"/>
+                                <Setter TargetName="bd" Property="BorderThickness" Value="3"/>
+                                <Setter TargetName="bd" Property="Background" Value="#FFE0B2"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="52"/>
+            <RowDefinition Height="34"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="64"/>
+        </Grid.RowDefinitions>
+
+        <!-- ══ TITLE BAR ══ -->
+        <Border Grid.Row="0" Background="{StaticResource BrandPrimary}">
+            <Grid Margin="16,0">
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="NHẬP KẾT QUẢ ĐO (FAI)"
+                               Foreground="White" FontWeight="Bold" FontSize="14"/>
+                    <TextBlock Text="{Binding TitleContext, Mode=OneWay}"
+                               Foreground="{StaticResource BrandAccentLight}"
+                               FontSize="11" Margin="0,1,0,0"/>
+                </StackPanel>
+                <ProgressBar Style="{StaticResource MaterialDesignCircularProgressBar}"
+                             IsIndeterminate="True" Width="24" Height="24"
+                             HorizontalAlignment="Right"
+                             Visibility="{Binding IsBusy, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+            </Grid>
+        </Border>
+
+        <!-- ══ PROGRESS STRIP ══ -->
+        <Border Grid.Row="1" Background="White" BorderBrush="#E8D5C4" BorderThickness="0,0,0,1">
+            <Grid Margin="16,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" VerticalAlignment="Center" FontSize="13"
+                           Foreground="{StaticResource BrandText}">
+                    <Run Text="Đã đo:" FontWeight="Medium"/>
+                    <Run Text="{Binding MeasuredCount, Mode=OneWay}"/>
+                    <Run Text="/"/>
+                    <Run Text="{Binding TotalCount, Mode=OneWay}"/>
+                </TextBlock>
+                <ProgressBar Grid.Column="1" Margin="12,0" Height="8" VerticalAlignment="Center"
+                             Value="{Binding Progress, Mode=OneWay}" Maximum="1"
+                             Foreground="{StaticResource BrandPrimary}"
+                             Background="#E8D5C4"/>
+                <TextBlock Grid.Column="2" VerticalAlignment="Center" FontSize="12"
+                           Foreground="{StaticResource BrandTextSecondary}"
+                           Text="{Binding Progress, Mode=OneWay, StringFormat={}{0:P0}}"/>
+            </Grid>
+        </Border>
+
+        <!-- ══ MAIN: SPLIT LAYOUT ══ -->
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="0.55*"/>
+                <ColumnDefinition Width="1"/>
+                <ColumnDefinition Width="0.45*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- ── LEFT: Dimension card grid ── -->
+            <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto"
+                          PanningMode="VerticalFirst" Margin="8,8,4,8">
+                <StackPanel>
+                    <ListBox ItemsSource="{Binding Dimensions}"
+                             SelectedItem="{Binding SelectedDimension}"
+                             ItemContainerStyle="{StaticResource DimCardItem}"
+                             Background="Transparent" BorderThickness="0"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             ScrollViewer.VerticalScrollBarVisibility="Disabled">
+                        <ListBox.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel/>
+                            </ItemsPanelTemplate>
+                        </ListBox.ItemsPanel>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate DataType="{x:Type models:DimensionCardVm}">
+                                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
+                                            Margin="4,6">
+                                    <!-- Balloon number -->
+                                    <TextBlock Text="{Binding BalloonNumber, Mode=OneWay}"
+                                               FontSize="20" FontWeight="Bold"
+                                               HorizontalAlignment="Center"
+                                               Foreground="#212121"/>
+                                    <!-- State label -->
+                                    <TextBlock Text="{Binding StateLabel, Mode=OneWay}"
+                                               FontSize="10" HorizontalAlignment="Center"
+                                               FontWeight="Medium">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Foreground" Value="#9E9E9E"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding State}" Value="Pass">
+                                                        <Setter Property="Foreground" Value="#2E7D32"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding State}" Value="Fail">
+                                                        <Setter Property="Foreground" Value="#C62828"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                    <!-- Measured value (when measured) -->
+                                    <TextBlock FontSize="10" HorizontalAlignment="Center"
+                                               Foreground="#616161">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsMeasured}" Value="True">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                        <Run Text="{Binding MeasuredValue, Mode=OneWay, StringFormat={}{0:F3}}"/>
+                                    </TextBlock>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+
+                    <!-- Error / empty message -->
+                    <TextBlock Text="{Binding ErrorMessage, Mode=OneWay}"
+                               HorizontalAlignment="Center" Margin="0,20"
+                               Foreground="{StaticResource BrandTextSecondary}"
+                               Visibility="{Binding ErrorMessage, Converter={StaticResource StringToVisibilityConverter}}"/>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- Divider -->
+            <Border Grid.Column="1" Background="#E8D5C4"/>
+
+            <!-- ── RIGHT: Input panel ── -->
+            <Grid Grid.Column="2" Margin="0,8,8,8">
+
+                <!-- Placeholder -->
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center"
+                            Visibility="{Binding ShowPlaceholder, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <md:PackIcon Kind="CursorDefaultOutline" Width="48" Height="48"
+                                 HorizontalAlignment="Center" Foreground="#BDBDBD"/>
+                    <TextBlock Text="Chọn kích thước" FontSize="14"
+                               Foreground="{StaticResource BrandTextSecondary}"
+                               HorizontalAlignment="Center" Margin="0,12,0,4"/>
+                    <TextBlock Text="để nhập giá trị đo" FontSize="14"
+                               Foreground="{StaticResource BrandTextSecondary}"
+                               HorizontalAlignment="Center"/>
+                </StackPanel>
+
+                <!-- Numeric input panel -->
+                <Grid Margin="12,0"
+                      Visibility="{Binding ShowNumericInput, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Dimension info card -->
+                    <Border Grid.Row="0" Background="White" CornerRadius="10" Padding="14,10"
+                            BorderBrush="#E8D5C4" BorderThickness="1" Margin="0,0,0,12">
+                        <StackPanel>
+                            <!-- Header row: balloon + critical badge -->
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                <TextBlock Text="{Binding SelectedDimension.BalloonNumber, Mode=OneWay}"
+                                           FontSize="28" FontWeight="Bold"
+                                           Foreground="{StaticResource BrandText}"/>
+                                <Border Margin="10,6,0,0" CornerRadius="4" Padding="6,2"
+                                        Background="#FFEBEE" VerticalAlignment="Top">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding SelectedDimension.IsCritical}" Value="True">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                    <TextBlock Text="CRITICAL" FontSize="10" FontWeight="Bold"
+                                               Foreground="#C62828"/>
+                                </Border>
+                            </StackPanel>
+
+                            <!-- Nominal / Min / Max row -->
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Grid.Column="0" HorizontalAlignment="Center">
+                                    <TextBlock Text="Nominal" FontSize="10"
+                                               Foreground="{StaticResource BrandTextSecondary}"
+                                               HorizontalAlignment="Center"/>
+                                    <TextBlock Text="{Binding SelectedDimension.NominalDisplay, Mode=OneWay}"
+                                               FontSize="14" FontWeight="Bold"
+                                               HorizontalAlignment="Center"
+                                               Foreground="{StaticResource BrandText}"/>
+                                    <TextBlock Text="{Binding SelectedDimension.Unit, Mode=OneWay}"
+                                               FontSize="10" HorizontalAlignment="Center"
+                                               Foreground="{StaticResource BrandTextSecondary}"/>
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="1" HorizontalAlignment="Center">
+                                    <TextBlock Text="Min" FontSize="10" Foreground="#C62828"
+                                               HorizontalAlignment="Center"/>
+                                    <TextBlock Text="{Binding SelectedDimension.MinValue, Mode=OneWay, StringFormat={}{0:F4}}"
+                                               FontSize="14" FontWeight="SemiBold"
+                                               HorizontalAlignment="Center" Foreground="#C62828"/>
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="2" HorizontalAlignment="Center">
+                                    <TextBlock Text="Max" FontSize="10" Foreground="#2E7D32"
+                                               HorizontalAlignment="Center"/>
+                                    <TextBlock Text="{Binding SelectedDimension.MaxValue, Mode=OneWay, StringFormat={}{0:F4}}"
+                                               FontSize="14" FontWeight="SemiBold"
+                                               HorizontalAlignment="Center" Foreground="#2E7D32"/>
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Value input -->
+                    <StackPanel Grid.Row="1" VerticalAlignment="Center">
+                        <TextBlock Text="Giá trị đo:" FontSize="13"
+                                   Foreground="{StaticResource BrandTextSecondary}"
+                                   Margin="0,0,0,8"/>
+                        <TextBox Text="{Binding InputValue, UpdateSourceTrigger=PropertyChanged}"
+                                 kb:KeyboardBehavior.Mode="NumPad"
+                                 FontSize="26" FontWeight="Bold"
+                                 TextAlignment="Center"
+                                 MinHeight="64">
+                            <TextBox.InputBindings>
+                                <KeyBinding Key="Return" Command="{Binding ConfirmCommand}"/>
+                            </TextBox.InputBindings>
+                        </TextBox>
+                    </StackPanel>
+
+                    <!-- Confirm button -->
+                    <Button Grid.Row="2" Command="{Binding ConfirmCommand}"
+                            Style="{StaticResource MaterialDesignRaisedButton}"
+                            Background="{StaticResource BrandPrimary}" Foreground="White"
+                            Height="56" FontSize="16" FontWeight="Medium"
+                            Margin="0,12,0,0">
+                        <StackPanel Orientation="Horizontal">
+                            <md:PackIcon Kind="Check" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <TextBlock Text="Xác nhận" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                </Grid>
+
+                <!-- Text type input panel (PASS / FAIL) -->
+                <Grid Margin="12,0"
+                      Visibility="{Binding ShowTextInput, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Dimension info card -->
+                    <Border Grid.Row="0" Background="White" CornerRadius="10" Padding="14,12"
+                            BorderBrush="#E8D5C4" BorderThickness="1" Margin="0,0,0,16">
+                        <StackPanel>
+                            <TextBlock Text="{Binding SelectedDimension.BalloonNumber, Mode=OneWay}"
+                                       FontSize="28" FontWeight="Bold"
+                                       Foreground="{StaticResource BrandText}"
+                                       Margin="0,0,0,6"/>
+                            <TextBlock Text="Yêu cầu kỹ thuật:" FontSize="11"
+                                       Foreground="{StaticResource BrandTextSecondary}"
+                                       Margin="0,0,0,4"/>
+                            <TextBlock Text="{Binding SelectedDimension.NominalText, Mode=OneWay}"
+                                       FontSize="14" FontWeight="Medium"
+                                       Foreground="{StaticResource BrandText}"
+                                       TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- PASS / FAIL buttons -->
+                    <Grid Grid.Row="1" VerticalAlignment="Center">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="12"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Button Grid.Column="0" Command="{Binding SetPassCommand}"
+                                Style="{StaticResource MaterialDesignRaisedButton}"
+                                Background="#2E7D32" Foreground="White"
+                                Height="80" FontSize="18" FontWeight="Bold">
+                            <StackPanel>
+                                <md:PackIcon Kind="CheckCircleOutline" Width="28" Height="28"
+                                             HorizontalAlignment="Center"/>
+                                <TextBlock Text="PASS" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                            </StackPanel>
+                        </Button>
+
+                        <Button Grid.Column="2" Command="{Binding SetFailCommand}"
+                                Style="{StaticResource MaterialDesignRaisedButton}"
+                                Background="#C62828" Foreground="White"
+                                Height="80" FontSize="18" FontWeight="Bold">
+                            <StackPanel>
+                                <md:PackIcon Kind="CloseCircleOutline" Width="28" Height="28"
+                                             HorizontalAlignment="Center"/>
+                                <TextBlock Text="FAIL" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+                </Grid>
+
+            </Grid>
+        </Grid>
+
+        <!-- ══ BOTTOM BAR ══ -->
+        <Border Grid.Row="3" Background="White" BorderBrush="#E8D5C4" BorderThickness="0,1,0,0">
+            <Grid Margin="16,0">
+                <Button Command="{Binding GoBackCommand}"
+                        HorizontalAlignment="Left"
+                        Style="{StaticResource MaterialDesignOutlinedButton}"
+                        Height="44" Padding="20,0" FontSize="14"
+                        BorderBrush="{StaticResource BrandPrimary}"
+                        Foreground="{StaticResource BrandPrimary}"
+                        Content="← Về Dashboard"/>
+
+                <!-- Progress summary -->
+                <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center"
+                           FontSize="13" Foreground="{StaticResource BrandTextSecondary}">
+                    <Run Text="{Binding MeasuredCount, Mode=OneWay}"/>
+                    <Run Text="/"/>
+                    <Run Text="{Binding TotalCount, Mode=OneWay}"/>
+                    <Run Text=" kích thước đã đo"/>
+                </TextBlock>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

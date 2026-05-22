@@ -32,9 +32,10 @@ Desktop MES là ứng dụng chạy tại shop floor — trên máy tính công 
 | WorkContext singleton (Job/OP/Product/Session state) | ✅ Done |
 | Dashboard (4-row layout, Machine/Operator stats, Start/Stop buttons) | ✅ Done |
 | Design Language (16_design_language.md) | ✅ Done |
-| FAIPage (gage selection + NumPad + timer) | ⏳ Next |
-| DocumentViewer (PDF/G-code) | ⏳ |
-| NCR dialog | ⏳ |
+| FAIPage — dimension card grid, NumPad/PASS·FAIL, POST measure, auto-advance | ✅ Done |
+| DocumentViewer (PDF/G-code) | ⏳ Next |
+| NCR dialog (khi dimension Fail) | ⏳ |
+| Settings Page (Admin) | ⏳ |
 
 ---
 

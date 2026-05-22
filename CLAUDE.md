@@ -277,7 +277,7 @@ CalibRequestStatus:Pending=0, Approved=1, Completed=2, Cancelled=3
 
 ## Project Status
 
-*(cập nhật 2026-05-20)*
+*(cập nhật 2026-05-22)*
 
 | Phase | Status |
 |---|---|
@@ -335,18 +335,20 @@ CalibRequestStatus:Pending=0, Approved=1, Completed=2, Cancelled=3
 - ✅ Dashboard Work Info buttons: CanNavigate / CanStart / CanStop — hiển thị đúng theo trạng thái session
 - ✅ Dashboard Utilities: thêm "Chọn OP", card fill chiều cao còn lại, ScrollViewer cuộn dọc
 - ✅ Virtual keyboard tự đóng khi chuyển màn hình (MainViewModel inject IKeyboardService, gọi Hide() trước mỗi Navigate)
-- **Chưa implement:** FAIPage (gage selection + NumPad + timer), DocumentViewer, NCR dialog
+- ✅ FAIPage (Bảng đo): split layout 55/45, dimension card grid (xám/xanh/đỏ), NumPad cho số, PASS/FAIL cho text, POST `/api/v1/fai/measure`, auto-advance sang dim tiếp theo
+- ✅ Shortcuts cập nhật: "Bảng đo" (khi HasProduct), "Cài đặt" (khi Admin), "Xem G-code" thay "Load G-code"
+- **Chưa implement:** NCR dialog (khi Fail), DocumentViewer (PDF + G-code), Settings page
 
 **Ràng buộc ProductionSession (2 constraints):**
 - Per-product: 1 product chỉ có 1 session open tại 1 thời điểm (không chọn ở 2 máy/OP cùng lúc)
 - Per-machine: 1 máy chỉ gia công 1 product tại 1 thời điểm (không claim thêm khi đang có session open)
 
-**FAI workflow (cần implement):**
+**FAI workflow (đã implement một phần):**
 1. Claim session → Dashboard hiện nút "Bắt đầu"
 2. Nút "Bắt đầu" → PUT start → timer chạy trên Dashboard
-3. Tap "Tiếp tục" → FAIPage: dimension card grid → tap card → chọn Gage → NumPad → confirm
+3. Shortcut "Bảng đo" → FAIPage: dimension card grid → tap card → NumPad nhập số / PASS·FAIL cho text → confirm → auto-advance
 4. Khi tất cả dims đo xong → Dashboard nút "Kết thúc" → PUT complete
-5. Nếu Fail → dialog NCR
+5. Nếu Fail → **dialog NCR (chưa implement)**
 
 **Desktop MES — kiến trúc quan trọng:**
 - KHÔNG kết nối DB trực tiếp — chỉ qua REST API
@@ -373,6 +375,12 @@ CalibRequestStatus:Pending=0, Approved=1, Completed=2, Cancelled=3
 - **ProductListViewModel claim flow**: sau claim, gọi `_work.SetProduct(product, session)` TRƯỚC khi invoke `OnProductSelected` callback — callback trong MainViewModel chỉ gọi `NavigateToDashboard()`, KHÔNG gọi SetProduct lại (sẽ xóa session)
 - **Keyboard auto-hide**: inject `IKeyboardService` vào MainViewModel, gọi `_keyboard.Hide()` đầu mỗi `NavigateTo*` method
 - **Dashboard Utilities card**: dùng `Grid` 2 rows (Auto + *) bên trong Border để card fill chiều cao; bọc ItemsControl trong `ScrollViewer` với `PanningMode="VerticalFirst"`
+- **FAIPage layout**: split 55% card grid / 45% input panel — dùng `Grid.ColumnDefinitions` với `0.55*` và `0.45*`; divider là `Border Width=1 Background=#E8D5C4`
+- **DimensionCardVm**: `ObservableObject` riêng với `[NotifyPropertyChangedFor]` trên `State` → tự notify `IsMeasured`, `StateLabel`; màu card dùng `DataTrigger` trong `ItemContainerStyle` (không bind color từ VM)
+- **FAI API route**: `GET /api/v1/fai?jobId=&partOpId=` → `FaiSheetDto`; `POST /api/v1/fai/measure` → `MeasureValueDto`; field `ProductId` khớp với `ProductWithSessionDto.ProductId` (không phải `.Id`)
+- **Text dimension** (`IsTextType=true`): PASS/FAIL button auto-save ngay (không cần bước confirm riêng); gửi `ManualResult=true/false`, `Value=null`
+- **WrapPanel trong ListBox**: set `ScrollViewer.HorizontalScrollBarVisibility="Disabled"` trên ListBox, bọc ListBox trong `ScrollViewer` ngoài để scroll dọc
+- **Shortcut "Cài đặt"**: chỉ hiện cho role `Administrator` — `always: true` nhưng check role trước khi gọi `Add()`
 
 ---
 

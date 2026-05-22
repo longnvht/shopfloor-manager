@@ -45,6 +45,7 @@ public partial class MainViewModel : ViewModelBase
             case "ops":      NavigateToOps();       break;
             case "products": NavigateToProducts();  break;
             case "fai":      NavigateToFai();       break;
+            // document viewers & settings wired in future tasks
         }
     }
 
@@ -95,13 +96,20 @@ public partial class MainViewModel : ViewModelBase
         _ = vm.InitializeAsync(_work.CurrentJob, _work.CurrentOp);
     }
 
-    // ===== FAI (placeholder) =====
+    // ===== FAI (Bảng đo) =====
 
     public void NavigateToFai()
     {
         _keyboard.Hide();
-        // TODO: implement FAIPage
-        NavigateToDashboard();
+        if (_work.CurrentJob is null || _work.CurrentOp is null || _work.CurrentProduct is null)
+        {
+            NavigateToDashboard();
+            return;
+        }
+        var vm = _sp.GetRequiredService<FaiViewModel>();
+        vm.OnBack = NavigateToDashboard;
+        CurrentPage = vm;
+        _ = vm.InitializeAsync();
     }
 
     // ===== Logout (called từ DashboardViewModel) =====
