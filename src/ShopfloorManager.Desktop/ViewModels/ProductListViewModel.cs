@@ -8,63 +8,63 @@ namespace ShopfloorManager.Desktop.ViewModels;
 
 public partial class ProductListViewModel : Base.ViewModelBase
 {
-    private readonly IApiClient _api;
-    private readonly IAuthService _auth;
+    private readonly IApiClient  _api;
+    private readonly WorkContext _work;
     private readonly Configuration.AppSettings _settings;
 
+    private readonly List<ProductWithSessionDto> _allProducts = [];
+
     public JobSummaryDto? Job { get; private set; }
-    public PartOpDto? Op { get; private set; }
+    public PartOpDto?     Op  { get; private set; }
 
     public string TitleContext => "CHỌN SẢN PHẨM";
     public string SubContext => Job is null || Op is null ? "" :
         $"{Job.JobNumber}  ·  OP {Op.OpNumber}";
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(SelectProductCommand))]
     private ProductWithSessionDto? _selectedProduct;
+
+    [ObservableProperty]
+    private string _filterText = string.Empty;
 
     public ObservableCollection<ProductWithSessionDto> Products { get; } = [];
 
     public Action? OnBack { get; set; }
     public Action<ProductWithSessionDto>? OnProductSelected { get; set; }
 
-    // Timer để cập nhật elapsed time cho WIP products
     private System.Threading.Timer? _timer;
 
-    public ProductListViewModel(IApiClient api, IAuthService auth,
+    public ProductListViewModel(IApiClient api, WorkContext work,
         Configuration.AppSettings settings)
     {
-        _api = api;
-        _auth = auth;
+        _api      = api;
+        _work     = work;
         _settings = settings;
     }
 
     public async Task InitializeAsync(JobSummaryDto job, PartOpDto op)
     {
-        Job = job;
-        Op = op;
+        Job = job; Op = op; FilterText = string.Empty;
+        SelectedProduct = null;
         OnPropertyChanged(nameof(SubContext));
         await LoadAsync();
 
-        // Timer cập nhật elapsed time mỗi 30 giây
         _timer = new System.Threading.Timer(_ =>
-        {
-            App.Current.Dispatcher.Invoke(() =>
-            {
-                foreach (var p in Products.Where(p => p.StatusCode == "inprogress"))
-                    OnPropertyChanged(nameof(Products)); // trigger refresh
-            });
-        }, null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+            App.Current.Dispatcher.Invoke(() => OnPropertyChanged(nameof(Products))),
+            null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
     }
 
+    // ── Commands ────────────────────────────────────────────────────────
+
     [RelayCommand]
-    private void GoBack()
-    {
-        _timer?.Dispose();
-        OnBack?.Invoke();
-    }
+    private void GoBack() { _timer?.Dispose(); OnBack?.Invoke(); }
 
     [RelayCommand]
     private async Task RefreshAsync() => await LoadAsync();
+
+    [RelayCommand]
+    private void Search() => ApplyFilter();
 
     [RelayCommand(CanExecute = nameof(CanSelectProduct))]
     private async Task SelectProductAsync()
@@ -77,69 +77,66 @@ public partial class ProductListViewModel : Base.ViewModelBase
             return;
         }
 
-        IsBusy = true;
-        ClearError();
+        IsBusy = true; ClearError();
         try
         {
-            var result = await _api.PostAsync<object, object>(
+            // Claim session — parse response để lấy SessionDto
+            var result = await _api.PostAsync<object, ProductionSessionDto>(
                 "/api/v1/production-sessions",
-                new
-                {
-                    productId   = SelectedProduct.ProductId,
-                    partOpId    = Op.Id,
-                    machineCode = _settings.MachineCode
-                });
+                new { productId = SelectedProduct.ProductId, partOpId = Op.Id, machineCode = _settings.MachineCode });
 
             if (result?.Success == true)
             {
+                // Cập nhật WorkContext với session vừa tạo
+                _work.SetProduct(SelectedProduct, result.Data);
+                _timer?.Dispose();
                 OnProductSelected?.Invoke(SelectedProduct);
             }
             else
             {
                 ErrorMessage = result?.Error ?? "Không thể chọn sản phẩm.";
-                await LoadAsync(); // Refresh để thấy trạng thái mới nhất
+                await LoadAsync();
             }
         }
-        catch (Exception ex)
-        {
-            ErrorMessage = $"Lỗi: {ex.Message}";
-        }
-        finally
-        {
-            IsBusy = false;
-        }
+        catch (Exception ex) { ErrorMessage = $"Lỗi: {ex.Message}"; }
+        finally { IsBusy = false; }
     }
 
     private bool CanSelectProduct() => SelectedProduct is not null;
 
-    partial void OnSelectedProductChanged(ProductWithSessionDto? value) =>
-        SelectProductCommand.NotifyCanExecuteChanged();
+    // ── Filter ──────────────────────────────────────────────────────────
+
+    partial void OnFilterTextChanged(string value) => ApplyFilter();
+
+    private void ApplyFilter()
+    {
+        var q = FilterText.Trim().ToLower();
+        Products.Clear();
+        foreach (var p in _allProducts)
+        {
+            if (string.IsNullOrEmpty(q) || p.SerialNumber.ToLower().Contains(q))
+                Products.Add(p);
+        }
+    }
+
+    // ── Load ────────────────────────────────────────────────────────────
 
     private async Task LoadAsync()
     {
         if (Job is null || Op is null) return;
-        IsBusy = true;
-        ClearError();
+        IsBusy = true; ClearError();
         try
         {
             var result = await _api.GetAsync<List<ProductWithSessionDto>>(
                 $"/api/v1/jobs/{Job.Id}/operations/{Op.Id}/products");
 
-            Products.Clear();
-            if (result?.Data is not null)
-                foreach (var p in result.Data)
-                    Products.Add(p);
+            _allProducts.Clear();
+            if (result?.Data is not null) _allProducts.AddRange(result.Data);
+            ApplyFilter();
 
-            if (!Products.Any())
-                ErrorMessage = "Job này chưa có sản phẩm nào.";
+            if (!Products.Any()) ErrorMessage = "Job này chưa có sản phẩm nào.";
         }
-        catch (Exception ex)
-        {
-            ErrorMessage = $"Không thể tải danh sách sản phẩm: {ex.Message}";
-        }
-        finally
-        {
-            IsBusy = false;
-        }
+        catch (Exception ex) { ErrorMessage = $"Không thể tải: {ex.Message}"; }
+        finally { IsBusy = false; }
     }
 }

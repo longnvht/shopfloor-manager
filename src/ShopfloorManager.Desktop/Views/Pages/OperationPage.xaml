@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:md="http://materialdesigninxaml.net/winfx/xaml/themes"
              xmlns:models="clr-namespace:ShopfloorManager.Desktop.Models"
+             xmlns:kb="clr-namespace:ShopfloorManager.Desktop.Behaviors"
              Background="{StaticResource BrandBg}">
 
     <UserControl.Resources>
@@ -40,6 +41,7 @@
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="52"/>
+            <RowDefinition Height="60"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="64"/>
         </Grid.RowDefinitions>
@@ -61,8 +63,39 @@
             </Grid>
         </Border>
 
+        <!-- ══ SEARCH BAR ══ -->
+        <Border Grid.Row="1" Background="White" Margin="12,6,12,0"
+                CornerRadius="8" BorderBrush="#E8D5C4" BorderThickness="1.5">
+            <Grid Margin="12,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBox Grid.Column="0"
+                         Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}"
+                         kb:KeyboardBehavior.Mode="Qwerty"
+                         BorderThickness="0" FontSize="15" VerticalAlignment="Center"
+                         Style="{StaticResource MaterialDesignTextBox}"
+                         md:HintAssist.Hint="Tìm theo số OP hoặc tên công đoạn..."
+                         md:HintAssist.IsFloating="False">
+                    <TextBox.InputBindings>
+                        <KeyBinding Key="Return" Command="{Binding SearchCommand}"/>
+                    </TextBox.InputBindings>
+                </TextBox>
+                <Button Grid.Column="1" Command="{Binding SearchCommand}"
+                        Style="{StaticResource MaterialDesignRaisedButton}"
+                        Background="{StaticResource BrandPrimary}" Foreground="White"
+                        Height="36" Padding="16,0" Margin="8,0,0,0" FontSize="13">
+                    <StackPanel Orientation="Horizontal">
+                        <md:PackIcon Kind="Magnify" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                        <TextBlock Text="Tìm" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+            </Grid>
+        </Border>
+
         <!-- ══ OP CARD LIST (full-width) ══ -->
-        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
                       PanningMode="VerticalFirst" Margin="12,8">
             <StackPanel>
                 <ListBox ItemsSource="{Binding Operations}"
@@ -163,7 +196,7 @@
         </ScrollViewer>
 
         <!-- ══ BOTTOM BAR ══ -->
-        <Border Grid.Row="2" Background="White"
+        <Border Grid.Row="3" Background="White"
                 BorderBrush="#E8D5C4" BorderThickness="0,1,0,0">
             <Grid Margin="16,0">
                 <Button Command="{Binding GoBackCommand}"
