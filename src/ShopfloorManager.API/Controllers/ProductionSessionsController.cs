@@ -1,9 +1,11 @@
+using System.Security.Claims;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ShopfloorManager.API.Common;
 using ShopfloorManager.Application.Production;
 using ShopfloorManager.Domain.Entities;
+using ShopfloorManager.Shared.Constants;
 
 namespace ShopfloorManager.API.Controllers;
 
@@ -12,6 +14,18 @@ namespace ShopfloorManager.API.Controllers;
 [Authorize]
 public class ProductionSessionsController(IMediator mediator) : ControllerBase
 {
+    private int UserId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0");
+
+    /// <summary>Lấy session đang mở trên máy (để kiểm tra khi login).</summary>
+    [HttpGet("machines/{machineCode}/active-session")]
+    public async Task<IActionResult> GetActiveSession(string machineCode)
+    {
+        var result = await mediator.Send(new GetActiveSessionQuery(machineCode));
+        return result.IsSuccess
+            ? Ok(ApiResponse<ActiveSessionDto?>.Ok(result.Value))
+            : BadRequest(ApiResponse<ActiveSessionDto?>.Fail(result.Errors));
+    }
+
     /// <summary>Danh sách sản phẩm kèm trạng thái session của từng OP.</summary>
     [HttpGet("jobs/{jobId:int}/operations/{opId:int}/products")]
     public async Task<IActionResult> GetProductsWithSession(int jobId, int opId)
@@ -24,9 +38,10 @@ public class ProductionSessionsController(IMediator mediator) : ControllerBase
 
     /// <summary>Operator chọn sản phẩm — tạo session (Claimed).</summary>
     [HttpPost("production-sessions")]
-    public async Task<IActionResult> Claim([FromBody] ClaimSessionCommand command)
+    public async Task<IActionResult> Claim([FromBody] ClaimSessionRequest request)
     {
-        var result = await mediator.Send(command);
+        var result = await mediator.Send(new ClaimSessionCommand(
+            request.ProductId, request.PartOpId, request.MachineCode, UserId));
         return result.IsSuccess
             ? Ok(ApiResponse<ProductionSessionDto>.Ok(result.Value))
             : BadRequest(ApiResponse<ProductionSessionDto>.Fail(result.Errors));
@@ -63,4 +78,17 @@ public class ProductionSessionsController(IMediator mediator) : ControllerBase
             ? Ok(ApiResponse<ProductionSessionDto>.Ok(result.Value))
             : BadRequest(ApiResponse<ProductionSessionDto>.Fail(result.Errors));
     }
+
+    /// <summary>Leader/Admin force-complete phiên của người khác.</summary>
+    [HttpPut("production-sessions/{id:int}/force-complete")]
+    [Authorize(Roles = $"{AppConstants.Roles.Leader},{AppConstants.Roles.Admin},{AppConstants.Roles.Manager}")]
+    public async Task<IActionResult> ForceComplete(int id)
+    {
+        var result = await mediator.Send(new ForceCompleteSessionCommand(id, UserId));
+        return result.IsSuccess
+            ? Ok(ApiResponse<ProductionSessionDto>.Ok(result.Value))
+            : BadRequest(ApiResponse<ProductionSessionDto>.Fail(result.Errors));
+    }
 }
+
+public record ClaimSessionRequest(int ProductId, int PartOpId, string MachineCode);

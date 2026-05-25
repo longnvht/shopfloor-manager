@@ -93,6 +93,17 @@
                     <TextBlock Text="SHOPFLOOR MANAGER"
                                Foreground="White" FontWeight="Bold" FontSize="15"
                                VerticalAlignment="Center"/>
+                    <!-- VIEW MODE badge -->
+                    <Border Background="#FF8F00" CornerRadius="4" Padding="8,3"
+                            VerticalAlignment="Center" Margin="12,0,0,0"
+                            Visibility="{Binding IsViewMode, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <StackPanel Orientation="Horizontal">
+                            <md:PackIcon Kind="EyeOutline" Width="13" Height="13"
+                                         Foreground="White" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                            <TextBlock Text="VIEW MODE" FontSize="11" FontWeight="Bold" Foreground="White"
+                                       VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
 
                 <TextBlock Grid.Column="2"
@@ -355,6 +366,24 @@
                             <TextBlock Text="Kết thúc" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
+
+                    <!-- Kết thúc phiên (Leader/Admin force-finish) -->
+                    <StackPanel Orientation="Vertical"
+                                Visibility="{Binding CanForceFinish, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <TextBlock FontSize="10" Foreground="#FF8F00" TextAlignment="Center" Margin="0,0,0,4">
+                            <Run Text="⚠ Bởi:"/>
+                            <Run Text="{Binding IncomingOwnerName, Mode=OneWay}" FontWeight="Bold"/>
+                        </TextBlock>
+                        <Button Command="{Binding ForceFinishCommand}"
+                                Style="{StaticResource MaterialDesignRaisedButton}"
+                                Background="#E65100" Foreground="White"
+                                Height="44" Padding="14,0" FontSize="13" FontWeight="Bold">
+                            <StackPanel Orientation="Horizontal">
+                                <md:PackIcon Kind="ShieldRemoveOutline" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                <TextBlock Text="Kết thúc phiên" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
                 </StackPanel>
             </Grid>
         </Border>

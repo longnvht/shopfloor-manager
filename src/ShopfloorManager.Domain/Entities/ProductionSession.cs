@@ -18,6 +18,7 @@ public class ProductionSession
     public DateTimeOffset? StartedAt { get; set; }  // Khi bấm "Bắt đầu"
     public DateTimeOffset? CompletedAt { get; set; } // Khi bấm "Kết thúc"
 
+    public int ClaimedBy { get; set; }              // UserId operator claim session
     public int? CancelledBy { get; set; }           // UserId supervisor unlock
     public string? Note { get; set; }
 
@@ -26,6 +27,7 @@ public class ProductionSession
     // Navigation
     public Product Product { get; set; } = null!;
     public PartOp PartOp { get; set; } = null!;
+    public User ClaimedByUser { get; set; } = null!;
     public User? CancelledByUser { get; set; }
 }
 

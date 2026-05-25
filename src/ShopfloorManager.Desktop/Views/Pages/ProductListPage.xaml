@@ -98,7 +98,8 @@
 
         <!-- ══ PRODUCT CARD GRID ══ -->
         <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
-                      PanningMode="VerticalFirst" Margin="12,8">
+                      PanningMode="VerticalFirst" Margin="12,8"
+                      kb:DragScrollBehavior.Enabled="True">
             <StackPanel>
                 <ListBox ItemsSource="{Binding Products}"
                          SelectedItem="{Binding SelectedProduct}"

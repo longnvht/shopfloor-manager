@@ -12,23 +12,32 @@ Start-Sleep -Seconds 4
 docker ps --format "{{.Names}} {{.Status}}"
 ```
 
-2. **API** — Start .NET API ở background, chờ "listening":
+2. **API** — Kiểm tra nếu API đang chạy; nếu không thì start:
 ```powershell
-Get-Process -Name "dotnet" | Stop-Process -Force -ErrorAction SilentlyContinue
-Start-Sleep -Seconds 2
-Remove-Item "C:\Temp\api_out.txt","C:\Temp\api_err.txt" -Force -ErrorAction SilentlyContinue
-New-Item -ItemType Directory -Path "C:\Temp" -Force | Out-Null
-Set-Location "c:\Users\longn\source\repos\shopfloor-manager\src"
-$env:ASPNETCORE_ENVIRONMENT = "Development"
-Start-Process -FilePath "dotnet" -ArgumentList "run --project ShopfloorManager.API" -RedirectStandardOutput "C:\Temp\api_out.txt" -RedirectStandardError "C:\Temp\api_err.txt" -WindowStyle Hidden
-# Chờ API ready
-$ready = $false
-for ($i = 0; $i -lt 30; $i++) {
+$apiUp = $false
+try { $r = Invoke-WebRequest -Uri "http://localhost:5066/swagger" -UseBasicParsing -TimeoutSec 3; $apiUp = $true } catch {}
+if ($apiUp) {
+    Write-Host "API already running: http://localhost:5066"
+} else {
+    # Chỉ kill dotnet process của ShopfloorManager.API (không kill Desktop hay process khác)
+    Get-Process -Name "dotnet" -ErrorAction SilentlyContinue | Where-Object {
+        $_.MainWindowTitle -eq "" -and $_.CPU -lt 5
+    } | Stop-Process -Force -ErrorAction SilentlyContinue
     Start-Sleep -Seconds 2
-    $content = Get-Content "C:\Temp\api_out.txt" -ErrorAction SilentlyContinue
-    if ($content | Select-String "listening") { $ready = $true; break }
+    Remove-Item "C:\Temp\api_out.txt","C:\Temp\api_err.txt" -Force -ErrorAction SilentlyContinue
+    New-Item -ItemType Directory -Path "C:\Temp" -Force | Out-Null
+    Set-Location "c:\Users\longn\source\repos\shopfloor-manager\src"
+    $env:ASPNETCORE_ENVIRONMENT = "Development"
+    Start-Process -FilePath "dotnet" -ArgumentList "run --project ShopfloorManager.API" -RedirectStandardOutput "C:\Temp\api_out.txt" -RedirectStandardError "C:\Temp\api_err.txt" -WindowStyle Hidden
+    # Chờ API ready
+    $ready = $false
+    for ($i = 0; $i -lt 30; $i++) {
+        Start-Sleep -Seconds 2
+        $content = Get-Content "C:\Temp\api_out.txt" -ErrorAction SilentlyContinue
+        if ($content | Select-String "listening") { $ready = $true; break }
+    }
+    if ($ready) { Write-Host "API ready: http://localhost:5066" } else { Write-Host "API timeout — check C:\Temp\api_out.txt" }
 }
-if ($ready) { Write-Host "API ready: http://localhost:5066" } else { Write-Host "API timeout — check C:\Temp\api_out.txt" }
 ```
 
 3. **Web** — Start Next.js:
@@ -44,12 +53,19 @@ if ($web) { Write-Host "Web ready: http://localhost:3000" } else { Write-Host "W
 
 4. **Desktop WPF** (tùy chọn — chỉ khi test Phase 4):
 ```powershell
-$exe = "c:\Users\longn\source\repos\shopfloor-manager\src\ShopfloorManager.Desktop\bin\Debug\net9.0-windows\ShopfloorManager.Desktop.exe"
-if (Test-Path $exe) {
-    Start-Process -FilePath $exe
-    Write-Host "Desktop app launched"
+# Đảm bảo API đang chạy trước khi launch Desktop
+$apiUp = $false
+try { $r = Invoke-WebRequest -Uri "http://localhost:5066/swagger" -UseBasicParsing -TimeoutSec 3; $apiUp = $true } catch {}
+if (-not $apiUp) {
+    Write-Host "API chưa chạy — chạy bước 2 trước"
 } else {
-    Write-Host "EXE not found — build trước: dotnet build src/ShopfloorManager.Desktop/..."
+    $exe = "c:\Users\longn\source\repos\shopfloor-manager\src\ShopfloorManager.Desktop\bin\Debug\net9.0-windows\ShopfloorManager.Desktop.exe"
+    if (Test-Path $exe) {
+        Start-Process -FilePath $exe
+        Write-Host "Desktop app launched"
+    } else {
+        Write-Host "EXE not found — build trước: dotnet build src/ShopfloorManager.Desktop/..."
+    }
 }
 ```
 
@@ -59,3 +75,7 @@ if (Test-Path $exe) {
 - Web: http://localhost:3000
 - Desktop: LoginWindow → Dashboard (chỉ khi test Phase 4)
 - Login: admin / Admin@123
+
+## Lưu ý
+- Khi build lại Desktop app, chỉ kill `ShopfloorManager.Desktop` process, **không** kill toàn bộ dotnet (sẽ tắt API)
+- API là dotnet process riêng biệt, chạy độc lập với Desktop app

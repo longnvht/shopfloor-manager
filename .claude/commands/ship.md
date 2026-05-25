@@ -25,7 +25,7 @@ git status --short
 
 ### 3. Commit
 Dùng conventional commits: `feat`, `fix`, `refactor`, `docs`, `chore`.
-Scope gợi ý: `domain`, `infra`, `api`, `web`, `phase1`, `phase2`, `phase3`.
+Scope gợi ý: `domain`, `infra`, `api`, `web`, `desktop`, `phase1`, `phase2`, `phase3`, `phase4`.
 
 ```powershell
 Set-Location "c:\Users\longn\source\repos\shopfloor-manager"
@@ -43,6 +43,8 @@ feat(phase2+3): add TechDocument part-level ownership
 fix(infra): handle empty-string MinIO credentials
 refactor(tech-documents): align ownership với business logic
 docs(claude.md): cập nhật TechDocument ownership model
+feat(phase4): add NCR dialog — department chip + reason ComboBox + Khác
+fix(desktop): fix numpad height clipping after drag handle
 ```
 
 ## Lưu ý

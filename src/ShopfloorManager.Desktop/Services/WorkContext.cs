@@ -3,6 +3,8 @@ using ShopfloorManager.Desktop.Models;
 
 namespace ShopfloorManager.Desktop.Services;
 
+public enum AppMode { Operation, View }
+
 /// <summary>
 /// Singleton — lưu trạng thái công việc hiện tại của operator.
 /// Chia sẻ giữa tất cả Pages thông qua DI.
@@ -13,6 +15,15 @@ public partial class WorkContext : ObservableObject
     [ObservableProperty] private PartOpDto?              _currentOp;
     [ObservableProperty] private ProductWithSessionDto?  _currentProduct;
     [ObservableProperty] private ProductionSessionDto?   _activeSession;
+
+    /// <summary>Operation = operator đang làm việc bình thường. View = đọc-only do máy đang bị dùng bởi người khác.</summary>
+    [ObservableProperty] private AppMode _mode = AppMode.Operation;
+
+    /// <summary>Session của người khác trên máy này (chỉ set khi Mode=View hoặc Leader cần force-finish).</summary>
+    public ActiveSessionDto? IncomingSession { get; set; }
+
+    public bool IsOperationMode => Mode == AppMode.Operation;
+    public bool IsViewMode      => Mode == AppMode.View;
 
     public bool HasJob     => CurrentJob     is not null;
     public bool HasOp      => CurrentOp      is not null;
@@ -55,6 +66,12 @@ public partial class WorkContext : ObservableObject
         OnPropertyChanged(nameof(WorkState));
     }
 
+    partial void OnModeChanged(AppMode value)
+    {
+        OnPropertyChanged(nameof(IsOperationMode));
+        OnPropertyChanged(nameof(IsViewMode));
+    }
+
     public void SetJob(JobSummaryDto job)
     {
         CurrentJob     = job;
@@ -84,9 +101,11 @@ public partial class WorkContext : ObservableObject
 
     public void Clear()
     {
-        CurrentJob     = null;
-        CurrentOp      = null;
-        CurrentProduct = null;
-        ActiveSession  = null;
+        CurrentJob      = null;
+        CurrentOp       = null;
+        CurrentProduct  = null;
+        ActiveSession   = null;
+        IncomingSession = null;
+        Mode            = AppMode.Operation;
     }
 }

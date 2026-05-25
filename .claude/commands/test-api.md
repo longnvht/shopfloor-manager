@@ -64,6 +64,28 @@ Write-Host "  ✅ Part-level docs (partRevId=1): $($docs.data.Count)"; $pass++
 $docs2 = Invoke-RestMethod -Uri "http://localhost:5066/api/v1/tech-documents?partOpId=1" -Headers $h
 Write-Host "  ✅ OP-level docs (partOpId=1): $($docs2.data.Count)"; $pass++
 
+Write-Host "`n[ Phase 4: Desktop MES APIs ]"
+# ProductionSession
+try {
+    $sessions = Invoke-RestMethod -Uri "http://localhost:5066/api/v1/production-sessions?jobId=1" -Headers $h
+    Write-Host "  ✅ ProductionSessions: $($sessions.data.Count)"; $pass++
+} catch { Write-Host "  ❌ ProductionSessions: $_"; $fail++ }
+# NCR list + filter by department
+try {
+    $ncrs2 = Invoke-RestMethod -Uri "http://localhost:5066/api/v1/ncrs?page=1&pageSize=5" -Headers $h
+    Write-Host "  ✅ NCRs (paged): $($ncrs2.data.Count)"; $pass++
+} catch { Write-Host "  ❌ NCRs paged: $_"; $fail++ }
+# Departments lookup (used by NCR dialog)
+try {
+    $depts2 = Invoke-RestMethod -Uri "http://localhost:5066/api/v1/departments" -Headers $h
+    Check "Departments for NCR" $depts2.data.Count 4
+} catch { Write-Host "  ❌ Departments: $_"; $fail++ }
+# NCR Reasons filtered by department
+try {
+    $nrResp = Invoke-RestMethod -Uri "http://localhost:5066/api/v1/ncr-reasons" -Headers $h
+    Write-Host "  ✅ NcrReasons (all): $($nrResp.data.Count)"; $pass++
+} catch { Write-Host "  ❌ NcrReasons: $_"; $fail++ }
+
 Write-Host "`n========================================"
 Write-Host "  PASS: $pass   FAIL: $fail"
 Write-Host "========================================"

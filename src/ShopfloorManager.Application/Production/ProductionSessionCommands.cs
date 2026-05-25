@@ -19,8 +19,26 @@ public record ProductionSessionDto(
     DateTimeOffset ClaimedAt,
     DateTimeOffset? StartedAt,
     DateTimeOffset? CompletedAt,
+    int ClaimedBy,
     int? CancelledBy,
     string? Note);
+
+public record ActiveSessionDto(
+    int SessionId,
+    string MachineCode,
+    int ClaimedBy,
+    string ClaimedByName,
+    int ProductId,
+    string SerialNumber,
+    int PartOpId,
+    string Status,
+    DateTimeOffset ClaimedAt,
+    DateTimeOffset? StartedAt,
+    // Job/OP context needed to restore WorkContext on resume
+    int JobId,
+    string JobNumber,
+    string PartNumber,
+    string OpNumber);
 
 public record ProductWithSessionDto(
     int ProductId,
@@ -36,7 +54,7 @@ public record ProductWithSessionDto(
 
 // ===== CLAIM (operator chọn product) =====
 
-public record ClaimSessionCommand(int ProductId, int PartOpId, string MachineCode)
+public record ClaimSessionCommand(int ProductId, int PartOpId, string MachineCode, int UserId)
     : IRequest<Result<ProductionSessionDto>>;
 
 public class ClaimSessionCommandValidator : AbstractValidator<ClaimSessionCommand>
@@ -71,6 +89,7 @@ public class ClaimSessionHandler(IShopfloorDbContext db)
             MachineCode = req.MachineCode,
             Status      = SessionStatus.Open,
             ClaimedAt   = DateTimeOffset.UtcNow,
+            ClaimedBy   = req.UserId,
             CreatedAt   = DateTimeOffset.UtcNow
         };
 
@@ -154,6 +173,72 @@ public class CancelSessionHandler(IShopfloorDbContext db)
     }
 }
 
+// ===== QUERY: Active session on a machine =====
+
+public record GetActiveSessionQuery(string MachineCode) : IRequest<Result<ActiveSessionDto?>>;
+
+public class GetActiveSessionHandler(IShopfloorDbContext db)
+    : IRequestHandler<GetActiveSessionQuery, Result<ActiveSessionDto?>>
+{
+    public async Task<Result<ActiveSessionDto?>> Handle(GetActiveSessionQuery req, CancellationToken ct)
+    {
+        var session = await db.ProductionSessions
+            .Where(s => s.MachineCode == req.MachineCode && s.Status == SessionStatus.Open)
+            .Include(s => s.ClaimedByUser)
+            .Include(s => s.Product).ThenInclude(p => p.Job).ThenInclude(j => j.PartRev).ThenInclude(r => r.Part)
+            .Include(s => s.PartOp)
+            .FirstOrDefaultAsync(ct);
+
+        if (session is null) return Result.Ok<ActiveSessionDto?>(null);
+
+        var dto = new ActiveSessionDto(
+            session.Id,
+            session.MachineCode,
+            session.ClaimedBy,
+            session.ClaimedByUser?.Name ?? session.ClaimedBy.ToString(),
+            session.ProductId,
+            session.Product.SerialNumber,
+            session.PartOpId,
+            session.Status,
+            session.ClaimedAt,
+            session.StartedAt,
+            session.Product.JobId,
+            session.Product.Job.JobNumber,
+            session.Product.Job.PartRev.Part.PartNumber,
+            session.PartOp.OpNumber);
+
+        return Result.Ok<ActiveSessionDto?>(dto);
+    }
+}
+
+// ===== FORCE-COMPLETE (Leader/Admin kết thúc session của người khác) =====
+
+public record ForceCompleteSessionCommand(int SessionId, int ForcedByUserId)
+    : IRequest<Result<ProductionSessionDto>>;
+
+public class ForceCompleteSessionHandler(IShopfloorDbContext db)
+    : IRequestHandler<ForceCompleteSessionCommand, Result<ProductionSessionDto>>
+{
+    public async Task<Result<ProductionSessionDto>> Handle(ForceCompleteSessionCommand req, CancellationToken ct)
+    {
+        var session = await db.ProductionSessions
+            .Include(s => s.Product)
+            .FirstOrDefaultAsync(s => s.Id == req.SessionId, ct);
+
+        if (session is null) return Result.Fail("Phiên gia công không tồn tại.");
+        if (session.Status != SessionStatus.Open) return Result.Fail("Chỉ có thể kết thúc phiên đang mở.");
+
+        session.Status      = SessionStatus.Complete;
+        session.CompletedAt = DateTimeOffset.UtcNow;
+        session.CancelledBy = req.ForcedByUserId;   // ghi lại ai force-complete
+        if (!session.StartedAt.HasValue)
+            session.StartedAt = session.CompletedAt;
+
+        await db.SaveChangesAsync(ct);
+        return Result.Ok(Mapper.Map(session, session.Product.SerialNumber));
+    }
+}
+
 // ===== QUERY: Products with session status =====
 
 public record GetProductsWithSessionQuery(int JobId, int PartOpId)
@@ -201,5 +286,6 @@ file static class Mapper
 {
     internal static ProductionSessionDto Map(ProductionSession s, string serial) => new(
         s.Id, s.ProductId, serial, s.PartOpId, s.MachineCode,
-        s.Status, s.ClaimedAt, s.StartedAt, s.CompletedAt, s.CancelledBy, s.Note);
+        s.Status, s.ClaimedAt, s.StartedAt, s.CompletedAt,
+        s.ClaimedBy, s.CancelledBy, s.Note);
 }

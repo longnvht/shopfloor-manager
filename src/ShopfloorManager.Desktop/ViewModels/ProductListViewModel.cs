@@ -33,6 +33,9 @@ public partial class ProductListViewModel : Base.ViewModelBase
     public Action? OnBack { get; set; }
     public Action<ProductWithSessionDto>? OnProductSelected { get; set; }
 
+    /// <summary>True = View mode — no claiming, "Lựa chọn" button hidden.</summary>
+    public bool IsViewMode { get; set; }
+
     private System.Threading.Timer? _timer;
 
     public ProductListViewModel(IApiClient api, WorkContext work,
@@ -48,6 +51,7 @@ public partial class ProductListViewModel : Base.ViewModelBase
         Job = job; Op = op; FilterText = string.Empty;
         SelectedProduct = null;
         OnPropertyChanged(nameof(SubContext));
+        SelectProductCommand.NotifyCanExecuteChanged();
         await LoadAsync();
 
         _timer = new System.Threading.Timer(_ =>
@@ -69,7 +73,7 @@ public partial class ProductListViewModel : Base.ViewModelBase
     [RelayCommand(CanExecute = nameof(CanSelectProduct))]
     private async Task SelectProductAsync()
     {
-        if (SelectedProduct is null || Op is null) return;
+        if (SelectedProduct is null || Op is null || IsViewMode) return;
 
         if (!SelectedProduct.IsAvailable)
         {
@@ -102,7 +106,7 @@ public partial class ProductListViewModel : Base.ViewModelBase
         finally { IsBusy = false; }
     }
 
-    private bool CanSelectProduct() => SelectedProduct is not null;
+    private bool CanSelectProduct() => SelectedProduct is not null && !IsViewMode;
 
     // ── Filter ──────────────────────────────────────────────────────────
 

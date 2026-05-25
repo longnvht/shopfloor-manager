@@ -6,6 +6,7 @@ public static class AppConstants
     {
         public const string Admin    = "Administrator";
         public const string Manager  = "Manager";
+        public const string Leader   = "Leader";      // Tổ trưởng — quản lý ca, force-finish session
         public const string Engineer = "Engineer";
         public const string QC       = "QC Inspector";
         public const string Operator = "Operator";

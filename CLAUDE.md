@@ -267,7 +267,13 @@ CalibRequestStatus:Pending=0, Approved=1, Completed=2, Cancelled=3
 ```
 
 **Roles** (from `AppConstants.Roles`):
-`Administrator`, `Manager`, `Engineer`, `QC Inspector`, `Operator`, `Planner`
+`Administrator`, `Manager`, `Engineer`, `QC Inspector`, `Operator`, `Planner`, `Leader`
+
+**Role phân quyền Desktop MES (ProductionSession):**
+- `Operator`: chỉ tạo và kết thúc session của chính mình
+- `Leader`: có thể force-finish session của Operator bất kỳ trên cùng máy
+- `Administrator`: quyền tương đương Leader + access Settings page
+- Các role khác (`Engineer`, `QC Inspector`, `Manager`, `Planner`): View_Mode only khi máy đang có session của người khác
 
 **MinIO:** tất cả file trong bucket `shopfloor-storage`. Upload via pre-signed URL — client upload thẳng, API chỉ quản lý metadata.
 
@@ -277,7 +283,7 @@ CalibRequestStatus:Pending=0, Approved=1, Completed=2, Cancelled=3
 
 ## Project Status
 
-*(cập nhật 2026-05-22)*
+*(cập nhật 2026-05-25)*
 
 | Phase | Status |
 |---|---|
@@ -338,9 +344,17 @@ CalibRequestStatus:Pending=0, Approved=1, Completed=2, Cancelled=3
 - ✅ FAIPage (Bảng đo): split layout 55/45, dimension card grid (xám/xanh/đỏ), NumPad cho số, PASS/FAIL cho text, POST `/api/v1/fai/measure`, auto-advance sang dim tiếp theo
 - ✅ Shortcuts cập nhật: "Bảng đo" (khi HasProduct), "Cài đặt" (khi Admin), "Xem G-code" thay "Load G-code"
 - ✅ Virtual keyboard drag: drag handle strip (⠿ icon, 22px) ở đầu mỗi keyboard — kéo được mà không mất focus TextBox
-- **Chưa implement:** NCR dialog (khi Fail), DocumentViewer (PDF + G-code), Settings page
+- ✅ NCR dialog: department chip + reason ComboBox + tùy chọn "Khác" (yêu cầu mô tả), POST `/api/v1/ncrs`
+- ✅ NcrReasons seed data: 15 lý do gắn DepartmentId (PROD×6, QC×3, ENG×5, null×1)
+- ✅ DragScrollBehavior: attached property `kb:DragScrollBehavior.Enabled` — drag-to-scroll trên JobList/OP/Product/FAI pages
+- ✅ Operation_Mode/View_Mode: AppMode enum trong WorkContext; login flow check active session → set mode + restore WorkContext nếu resume; View_Mode: navigation không ghi WorkContext, ProductListPage ẩn nút "Lựa chọn"
+- ✅ session resume on login: GET /api/v1/machines/{code}/active-session → reconstruct minimal DTOs → SetJob/SetOp/SetProduct
+- ✅ force-finish session: PUT /api/v1/production-sessions/{id}/force-complete (role Leader/Manager/Admin); DashboardPage hiện "Kết thúc phiên" button + VIEW MODE badge
+- ✅ ClaimedBy FK: ProductionSession.ClaimedBy → Users (thay shadow `CancelledByUserId`); ProductionSessionConfiguration Fluent API
+- ✅ Leader role: thêm vào AppConstants.Roles + DB seed (Id=7)
+- **Chưa implement:** manual mode toggle, DocumentViewer (PDF + G-code), Settings page
 
-**Ràng buộc ProductionSession (2 constraints):**
+**Ràng buộc ProductionSession (2 constraints cứng):**
 - Per-product: 1 product chỉ có 1 session open tại 1 thời điểm (không chọn ở 2 máy/OP cùng lúc)
 - Per-machine: 1 máy chỉ gia công 1 product tại 1 thời điểm (không claim thêm khi đang có session open)
 
@@ -349,7 +363,61 @@ CalibRequestStatus:Pending=0, Approved=1, Completed=2, Cancelled=3
 2. Nút "Bắt đầu" → PUT start → timer chạy trên Dashboard
 3. Shortcut "Bảng đo" → FAIPage: dimension card grid → tap card → NumPad nhập số / PASS·FAIL cho text → confirm → auto-advance
 4. Khi tất cả dims đo xong → Dashboard nút "Kết thúc" → PUT complete
-5. Nếu Fail → **dialog NCR (chưa implement)**
+5. Nếu Fail → NCR dialog (đã implement)
+
+**Operation_Mode / View_Mode — thiết kế (✅ implemented):**
+
+Hai mode giải quyết các vấn đề: operator browse hồ sơ mà không ảnh hưởng session đang chạy; user B login khi máy đang được dùng bởi user A.
+
+```
+Operation_Mode                         View_Mode
+────────────────────────────────────   ────────────────────────────────────
+WorkContext operation slot ACTIVE       WorkContext operation slot FROZEN
+Dashboard hiện Work Info + timer        Dashboard ẩn Work Info
+Navigation GHI WorkContext              Navigation KHÔNG ghi WorkContext
+Claim/Start/Stop session                Chỉ đọc / xem hồ sơ
+```
+
+**Login flow — xác định mode tự động:**
+```
+Sau login → GET /api/v1/production-sessions/active?machineCode=X
+
+Không có session active trên máy:
+  → Operation_Mode (mọi role)
+
+Session của chính mình trên máy:
+  → Operation_Mode (resume — khôi phục WorkContext Job/OP/Product/Session)
+
+Session của người khác trên máy:
+  → Role là Leader hoặc Admin  → Operation_Mode
+  │    Dashboard hiện: "[Tên A] đang gia công [serial]"
+  │    Có button "Kết thúc thay [Tên A]" (force-finish)
+  │    Sau force-finish → session clear, máy tự do
+  └─ Role là Operator (và các role khác) → View_Mode (forced, không toggle được)
+       Dashboard hiện thông báo "Máy đang được sử dụng bởi [Tên A]"
+```
+
+**Mode toggle (manual):**
+- Radio button / toggle trên TitleBar: chỉ visible khi KHÔNG bị forced View_Mode
+- Operator có session của mình → có thể toggle sang View_Mode để browse hồ sơ → toggle về Operation_Mode, WorkContext còn nguyên
+- TitleBar màu khác khi View_Mode (neutral/gray thay vì BrandPrimary)
+
+**Phân quyền force-finish:**
+- Chỉ `Leader` và `Administrator` có button "Kết thúc thay"
+- Thực hiện từ chính máy đang có session đó (không remote)
+- API: `PUT /api/v1/production-sessions/{id}/force-complete` (yêu cầu role Leader/Admin)
+
+**API endpoints (✅ implemented):**
+- `GET /api/v1/machines/{machineCode}/active-session` — trả về `ActiveSessionDto?` đang active trên máy + thông tin user, dùng cho login check
+- `PUT /api/v1/production-sessions/{id}/force-complete` — Leader/Manager/Admin force-finish session của người khác
+- Claim: `POST /api/v1/production-sessions` nhận `ClaimSessionRequest(ProductId, PartOpId, MachineCode)`; server tự thêm `UserId` từ JWT
+
+**Desktop changes:**
+- `WorkContext`: thêm `AppMode` enum (`Operation` | `View`) + `IsOperationMode` computed
+- `LoginViewModel`: sau login gọi active-session API, set mode + khôi phục WorkContext nếu resume
+- `MainViewModel`: mode-aware navigation — khi View_Mode, `OnJobOpened/OnOperationSelected/OnProductSelected` callbacks KHÔNG gọi `_work.SetJob/SetOp/SetProduct`; bỏ WorkContext guards khi View_Mode
+- `DashboardViewModel`: ẩn Work Info section khi View_Mode; hiện force-finish button khi View_Mode + có active session + role Leader/Admin
+- `DashboardPage.xaml`: thêm mode toggle (TitleBar) + visual indicator View_Mode
 
 **Desktop MES — kiến trúc quan trọng:**
 - KHÔNG kết nối DB trực tiếp — chỉ qua REST API
@@ -384,6 +452,12 @@ CalibRequestStatus:Pending=0, Approved=1, Completed=2, Cancelled=3
 - **Text dimension** (`IsTextType=true`): PASS/FAIL button auto-save ngay (không cần bước confirm riêng); gửi `ManualResult=true/false`, `Value=null`
 - **WrapPanel trong ListBox**: set `ScrollViewer.HorizontalScrollBarVisibility="Disabled"` trên ListBox, bọc ListBox trong `ScrollViewer` ngoài để scroll dọc
 - **Shortcut "Cài đặt"**: chỉ hiện cho role `Administrator` — `always: true` nhưng check role trước khi gọi `Add()`
+- **DragScrollBehavior**: attached property `kb:DragScrollBehavior.Enabled="True"` trên outer `ScrollViewer` — nhận `PreviewMouseMove`, capture mouse khi drag > 8px, scroll bằng `ScrollToVerticalOffset`; state lưu per-instance qua DependencyProperty (không dùng static field)
+- **AppMode (Operation/View)**: `WorkContext.AppMode` quyết định behavior của `MainViewModel.NavigateTo*` — khi View_Mode KHÔNG gọi `_work.SetJob/SetOp/SetProduct`, bỏ qua WorkContext guards; DashboardViewModel ẩn Work Info section khi View_Mode
+- **Session resume**: sau login thành công, gọi `GET /api/v1/machines/{code}/active-session` trước khi navigate → nếu `session.ClaimedBy == auth.UserId` thì reconstruct minimal DTOs từ `ActiveSessionDto` rồi gọi `_work.SetJob/SetOp/SetProduct` → vào Dashboard với WorkContext đã restore
+- **ClaimSessionRequest**: Desktop POST body chỉ cần `ProductId, PartOpId, MachineCode` — server inject `UserId` từ JWT. Controller dùng `ClaimSessionRequest` record riêng (không dùng command trực tiếp) để tránh expose `UserId` field trong API contract
+- **ProductionSessionConfiguration**: `HasForeignKey(s => s.ClaimedBy)` + `HasForeignKey(s => s.CancelledBy)` — map explicit int FK props thay shadow properties. Nếu thiếu config này, EF tạo shadow `ClaimedByUserId` và `CancelledByUserId`, khiến Include navigation luôn null
+- **Force-finish**: chỉ Leader/Admin; thực hiện từ máy đang có session đó; sau force-finish máy tự do, user có thể bắt đầu session mới
 
 ---
 

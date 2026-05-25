@@ -71,6 +71,9 @@ public class ShopfloorDbContext(DbContextOptions<ShopfloorDbContext> options)
         modelBuilder.ApplyConfiguration(new NcrConfiguration());
         modelBuilder.ApplyConfiguration(new NcrLogConfiguration());
 
+        // Phase 4
+        modelBuilder.ApplyConfiguration(new ProductionSessionConfiguration());
+
         SeedStaticData(modelBuilder);
     }
 
@@ -82,7 +85,8 @@ public class ShopfloorDbContext(DbContextOptions<ShopfloorDbContext> options)
             new Role { Id = 3, Name = "Engineer" },
             new Role { Id = 4, Name = "QC Inspector" },
             new Role { Id = 5, Name = "Operator" },
-            new Role { Id = 6, Name = "Planner" }
+            new Role { Id = 6, Name = "Planner" },
+            new Role { Id = 7, Name = "Leader" }     // Tổ trưởng — quản lý ca, force-finish session
         );
 
         modelBuilder.Entity<Department>().HasData(
@@ -147,16 +151,32 @@ public class ShopfloorDbContext(DbContextOptions<ShopfloorDbContext> options)
             new DimensionCategory { Id = 5, Code = "SFC", Name = "Surface",   Description = "Surface tester" }
         );
 
-        // NcrReason seed (từ 07_ncr.md)
+        // NcrReason seed — gắn DepartmentId để NCR dialog filter đúng
+        // PROD=3, QC=2, ENG=4; id=7 (Other) giữ null — code sentinel "Khác" xử lý
         var seedDate = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
         modelBuilder.Entity<NcrReason>().HasData(
-            new NcrReason { Id = 1, Name = "Tool wear",      Tag = "TOOL",  SortOrder = 1,  CreatedAt = seedDate },
-            new NcrReason { Id = 2, Name = "Setup error",    Tag = "SETUP", SortOrder = 2,  CreatedAt = seedDate },
-            new NcrReason { Id = 3, Name = "Drawing error",  Tag = "DRW",   SortOrder = 3,  CreatedAt = seedDate },
-            new NcrReason { Id = 4, Name = "Wrong material", Tag = "MAT",   SortOrder = 4,  CreatedAt = seedDate },
-            new NcrReason { Id = 5, Name = "Machine error",  Tag = "MACH",  SortOrder = 5,  CreatedAt = seedDate },
-            new NcrReason { Id = 6, Name = "CMM error",      Tag = "CMM",   SortOrder = 6,  CreatedAt = seedDate },
-            new NcrReason { Id = 7, Name = "Other",          Tag = "OTHER", SortOrder = 99, CreatedAt = seedDate }
+            // PROD — Sản xuất
+            new NcrReason { Id = 1,  Name = "Mòn dụng cụ cắt",         Tag = "TOOL",  DepartmentId = 3, SortOrder = 1,  CreatedAt = seedDate },
+            new NcrReason { Id = 2,  Name = "Lỗi gá đặt",              Tag = "SETUP", DepartmentId = 3, SortOrder = 2,  CreatedAt = seedDate },
+            new NcrReason { Id = 5,  Name = "Lỗi máy gia công",         Tag = "MACH",  DepartmentId = 3, SortOrder = 3,  CreatedAt = seedDate },
+            new NcrReason { Id = 8,  Name = "Lỗi đồ gá / fixture",      Tag = "FXT",   DepartmentId = 3, SortOrder = 4,  CreatedAt = seedDate },
+            new NcrReason { Id = 9,  Name = "Lỗi vận hành / thao tác",  Tag = "OPR",   DepartmentId = 3, SortOrder = 5,  CreatedAt = seedDate },
+            new NcrReason { Id = 10, Name = "Sai thông số cắt gọt",     Tag = "PARAM", DepartmentId = 3, SortOrder = 6,  CreatedAt = seedDate },
+
+            // QC — Kiểm tra chất lượng
+            new NcrReason { Id = 6,  Name = "Lỗi thiết bị đo CMM",      Tag = "CMM",   DepartmentId = 2, SortOrder = 1,  CreatedAt = seedDate },
+            new NcrReason { Id = 11, Name = "Dụng cụ đo chưa hiệu chuẩn", Tag = "CALIB", DepartmentId = 2, SortOrder = 2,  CreatedAt = seedDate },
+            new NcrReason { Id = 12, Name = "Sai phương pháp kiểm tra",  Tag = "INSP",  DepartmentId = 2, SortOrder = 3,  CreatedAt = seedDate },
+
+            // ENG — Kỹ thuật công nghệ
+            new NcrReason { Id = 3,  Name = "Lỗi bản vẽ / dung sai",    Tag = "DRW",   DepartmentId = 4, SortOrder = 1,  CreatedAt = seedDate },
+            new NcrReason { Id = 4,  Name = "Sai vật liệu",              Tag = "MAT",   DepartmentId = 4, SortOrder = 2,  CreatedAt = seedDate },
+            new NcrReason { Id = 13, Name = "Lỗi lập trình CAM/G-code",  Tag = "CAM",   DepartmentId = 4, SortOrder = 3,  CreatedAt = seedDate },
+            new NcrReason { Id = 14, Name = "Lỗi quy trình công nghệ",   Tag = "PROC",  DepartmentId = 4, SortOrder = 4,  CreatedAt = seedDate },
+            new NcrReason { Id = 15, Name = "Dung sai thiết kế quá chặt", Tag = "TOL",  DepartmentId = 4, SortOrder = 5,  CreatedAt = seedDate },
+
+            // Không gắn phòng ban — fallback (không hiện trong ComboBox filter)
+            new NcrReason { Id = 7,  Name = "Other",                     Tag = "OTHER", SortOrder = 99, CreatedAt = seedDate }
         );
     }
 }

@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using ShopfloorManager.Desktop.Configuration;
 using ShopfloorManager.Desktop.Models;
 using ShopfloorManager.Desktop.Services;
 
@@ -11,6 +12,7 @@ public partial class FaiViewModel : Base.ViewModelBase
 {
     private readonly IApiClient  _api;
     private readonly WorkContext _work;
+    private readonly AppSettings _settings;
 
     public JobSummaryDto?          Job     { get; private set; }
     public PartOpDto?              Op      { get; private set; }
@@ -41,11 +43,13 @@ public partial class FaiViewModel : Base.ViewModelBase
     public bool ShowTextInput    => SelectedDimension is { IsTextType: true };
 
     public Action? OnBack { get; set; }
+    public Action<NcrTriggerArgs>? OnDimensionFail { get; set; }
 
-    public FaiViewModel(IApiClient api, WorkContext work)
+    public FaiViewModel(IApiClient api, WorkContext work, AppSettings settings)
     {
-        _api  = api;
-        _work = work;
+        _api      = api;
+        _work     = work;
+        _settings = settings;
     }
 
     public async Task InitializeAsync()
@@ -177,6 +181,20 @@ public partial class FaiViewModel : Base.ViewModelBase
             var current = SelectedDimension;
             current.State         = resp.Data.Result == "Pass" ? MeasureState.Pass : MeasureState.Fail;
             current.MeasuredValue = value;
+
+            if (current.State == MeasureState.Fail && OnDimensionFail is not null)
+            {
+                var args = new NcrTriggerArgs(
+                    JobId:          Job!.Id,
+                    ProductId:      Product!.ProductId,
+                    PartOpId:       Op!.Id,
+                    BalloonNumber:  current.BalloonNumber,
+                    MeasuredValue:  value,
+                    MinValue:       current.MinValue,
+                    MaxValue:       current.MaxValue,
+                    MachineCode:    _settings.MachineCode);
+                OnDimensionFail.Invoke(args);
+            }
 
             InputValue        = "";
             SelectedDimension = Dimensions.FirstOrDefault(d => !d.IsMeasured);

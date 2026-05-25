@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using ShopfloorManager.Infrastructure.Data;
@@ -11,9 +12,11 @@ using ShopfloorManager.Infrastructure.Data;
 namespace ShopfloorManager.Infrastructure.Data.Migrations
 {
     [DbContext(typeof(ShopfloorDbContext))]
-    partial class ShopfloorDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260525165747_AddSessionClaimedBy")]
+    partial class AddSessionClaimedBy
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1524,11 +1527,6 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                         {
                             Id = 6,
                             Name = "Planner"
-                        },
-                        new
-                        {
-                            Id = 7,
-                            Name = "Leader"
                         });
                 });
 

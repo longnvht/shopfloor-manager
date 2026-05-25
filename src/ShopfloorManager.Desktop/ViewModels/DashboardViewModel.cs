@@ -68,10 +68,22 @@ public partial class DashboardViewModel : ViewModelBase
     // ── Work Info card ─────────────────────────────────────────────────
     public bool HasWork      => _work.HasJob;
     public bool HasSession   => _work.ActiveSession is not null;
-    public bool CanNavigate  => _work.HasJob && _work.ActiveSession is null;
+    public bool CanNavigate  => _work.HasJob && _work.ActiveSession is null && _work.IsOperationMode;
     public bool IsWip        => _work.IsWip;
-    public bool CanStart     => _work.IsWip && !(_work.ActiveSession?.StartedAt.HasValue == true);
-    public bool CanStop      => _work.IsWip &&   _work.ActiveSession?.StartedAt.HasValue == true;
+    public bool CanStart     => _work.IsWip && !(_work.ActiveSession?.StartedAt.HasValue == true) && _work.IsOperationMode;
+    public bool CanStop      => _work.IsWip &&   _work.ActiveSession?.StartedAt.HasValue == true  && _work.IsOperationMode;
+
+    // ── View mode / Force-finish ───────────────────────────────────────
+    public bool IsViewMode      => _work.IsViewMode;
+    public bool IsOperationMode => _work.IsOperationMode;
+
+    /// <summary>Tên người đang giữ session trên máy này (hiển thị trong banner View mode).</summary>
+    public string IncomingOwnerName => _work.IncomingSession?.ClaimedByName ?? string.Empty;
+
+    /// <summary>Leader/Admin có thể force-finish session của người khác.</summary>
+    public bool CanForceFinish =>
+        _work.IncomingSession is not null
+        && _auth.Role is "Leader" or "Manager" or "Administrator";
 
     public string? JobNumber    => _work.CurrentJob?.JobNumber;
     public string? PartDisplay  => _work.CurrentJob is null ? null
@@ -170,8 +182,13 @@ public partial class DashboardViewModel : ViewModelBase
         OnPropertyChanged(nameof(OpDisplay));
         OnPropertyChanged(nameof(SerialDisplay));
         OnPropertyChanged(nameof(StatusDisplay));
+        OnPropertyChanged(nameof(IsViewMode));
+        OnPropertyChanged(nameof(IsOperationMode));
+        OnPropertyChanged(nameof(IncomingOwnerName));
+        OnPropertyChanged(nameof(CanForceFinish));
         StartCommand.NotifyCanExecuteChanged();
         StopCommand.NotifyCanExecuteChanged();
+        ForceFinishCommand.NotifyCanExecuteChanged();
         RefreshShortcuts();
     }
 
@@ -229,6 +246,32 @@ public partial class DashboardViewModel : ViewModelBase
                 OnPropertyChanged(nameof(ProductsCompletedDisplay));
                 _work.ClearProduct();
                 RefreshWorkInfo();
+            }
+        }
+        finally { IsBusy = false; }
+    }
+
+    // ── Force-finish (Leader/Admin kết thúc session của người khác) ────
+
+    [RelayCommand(CanExecute = nameof(CanForceFinish))]
+    private async Task ForceFinishAsync()
+    {
+        if (_work.IncomingSession is not { SessionId: var sid }) return;
+        IsBusy = true;
+        try
+        {
+            var result = await _api.PutAsync<object, ProductionSessionDto>(
+                $"/api/v1/production-sessions/{sid}/force-complete", new { });
+            if (result?.Success == true)
+            {
+                _work.IncomingSession = null;
+                _work.Mode = AppMode.Operation;
+                _work.Clear();
+                RefreshWorkInfo();
+            }
+            else
+            {
+                ErrorMessage = result?.Error ?? "Không thể kết thúc phiên.";
             }
         }
         finally { IsBusy = false; }

@@ -104,7 +104,8 @@
 
             <!-- ── LEFT: Dimension card grid ── -->
             <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto"
-                          PanningMode="VerticalFirst" Margin="8,8,4,8">
+                          PanningMode="VerticalFirst" Margin="8,8,4,8"
+                          kb:DragScrollBehavior.Enabled="True">
                 <StackPanel>
                     <ListBox ItemsSource="{Binding Dimensions}"
                              SelectedItem="{Binding SelectedDimension}"

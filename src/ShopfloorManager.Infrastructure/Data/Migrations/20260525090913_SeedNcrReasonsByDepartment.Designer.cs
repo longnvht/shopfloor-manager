@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using ShopfloorManager.Infrastructure.Data;
@@ -11,9 +12,11 @@ using ShopfloorManager.Infrastructure.Data;
 namespace ShopfloorManager.Infrastructure.Data.Migrations
 {
     [DbContext(typeof(ShopfloorDbContext))]
-    partial class ShopfloorDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260525090913_SeedNcrReasonsByDepartment")]
+    partial class SeedNcrReasonsByDepartment
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1406,13 +1409,13 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("cancelled_by");
 
+                    b.Property<int?>("CancelledByUserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("cancelled_by_user_id");
+
                     b.Property<DateTimeOffset>("ClaimedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("claimed_at");
-
-                    b.Property<int>("ClaimedBy")
-                        .HasColumnType("integer")
-                        .HasColumnName("claimed_by");
 
                     b.Property<DateTimeOffset?>("CompletedAt")
                         .HasColumnType("timestamp with time zone")
@@ -1424,13 +1427,11 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
 
                     b.Property<string>("MachineCode")
                         .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
+                        .HasColumnType("text")
                         .HasColumnName("machine_code");
 
                     b.Property<string>("Note")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
+                        .HasColumnType("text")
                         .HasColumnName("note");
 
                     b.Property<int>("PartOpId")
@@ -1447,30 +1448,20 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
 
                     b.Property<string>("Status")
                         .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
+                        .HasColumnType("text")
                         .HasColumnName("status");
 
                     b.HasKey("Id")
                         .HasName("pk_production_sessions");
 
-                    b.HasIndex("CancelledBy")
-                        .HasDatabaseName("ix_production_sessions_cancelled_by");
-
-                    b.HasIndex("ClaimedBy")
-                        .HasDatabaseName("ix_production_sessions_claimed_by");
-
-                    b.HasIndex("MachineCode")
-                        .HasDatabaseName("ix_production_sessions_machine_code");
+                    b.HasIndex("CancelledByUserId")
+                        .HasDatabaseName("ix_production_sessions_cancelled_by_user_id");
 
                     b.HasIndex("PartOpId")
                         .HasDatabaseName("ix_production_sessions_part_op_id");
 
                     b.HasIndex("ProductId")
                         .HasDatabaseName("ix_production_sessions_product_id");
-
-                    b.HasIndex("MachineCode", "Status")
-                        .HasDatabaseName("ix_production_sessions_machine_code_status");
 
                     b.ToTable("production_sessions", (string)null);
                 });
@@ -1524,11 +1515,6 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                         {
                             Id = 6,
                             Name = "Planner"
-                        },
-                        new
-                        {
-                            Id = 7,
-                            Name = "Leader"
                         });
                 });
 
@@ -2188,21 +2174,13 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                 {
                     b.HasOne("ShopfloorManager.Domain.Entities.User", "CancelledByUser")
                         .WithMany()
-                        .HasForeignKey("CancelledBy")
-                        .OnDelete(DeleteBehavior.SetNull)
-                        .HasConstraintName("fk_production_sessions_users_cancelled_by");
-
-                    b.HasOne("ShopfloorManager.Domain.Entities.User", "ClaimedByUser")
-                        .WithMany()
-                        .HasForeignKey("ClaimedBy")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_production_sessions_users_claimed_by");
+                        .HasForeignKey("CancelledByUserId")
+                        .HasConstraintName("fk_production_sessions_users_cancelled_by_user_id");
 
                     b.HasOne("ShopfloorManager.Domain.Entities.PartOp", "PartOp")
                         .WithMany()
                         .HasForeignKey("PartOpId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_production_sessions_part_ops_part_op_id");
 
@@ -2214,8 +2192,6 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                         .HasConstraintName("fk_production_sessions_products_product_id");
 
                     b.Navigation("CancelledByUser");
-
-                    b.Navigation("ClaimedByUser");
 
                     b.Navigation("PartOp");
 
