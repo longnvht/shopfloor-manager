@@ -42,8 +42,20 @@ $web = Get-Content "C:\Temp\web_out.txt" -ErrorAction SilentlyContinue | Select-
 if ($web) { Write-Host "Web ready: http://localhost:3000" } else { Write-Host "Web starting... check C:\Temp\web_out.txt" }
 ```
 
+4. **Desktop WPF** (tùy chọn — chỉ khi test Phase 4):
+```powershell
+$exe = "c:\Users\longn\source\repos\shopfloor-manager\src\ShopfloorManager.Desktop\bin\Debug\net9.0-windows\ShopfloorManager.Desktop.exe"
+if (Test-Path $exe) {
+    Start-Process -FilePath $exe
+    Write-Host "Desktop app launched"
+} else {
+    Write-Host "EXE not found — build trước: dotnet build src/ShopfloorManager.Desktop/..."
+}
+```
+
 ## Kết quả mong đợi
 - Docker: postgres, minio, mosquitto đều Up
 - API: http://localhost:5066/swagger
 - Web: http://localhost:3000
+- Desktop: LoginWindow → Dashboard (chỉ khi test Phase 4)
 - Login: admin / Admin@123

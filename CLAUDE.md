@@ -337,6 +337,7 @@ CalibRequestStatus:Pending=0, Approved=1, Completed=2, Cancelled=3
 - ✅ Virtual keyboard tự đóng khi chuyển màn hình (MainViewModel inject IKeyboardService, gọi Hide() trước mỗi Navigate)
 - ✅ FAIPage (Bảng đo): split layout 55/45, dimension card grid (xám/xanh/đỏ), NumPad cho số, PASS/FAIL cho text, POST `/api/v1/fai/measure`, auto-advance sang dim tiếp theo
 - ✅ Shortcuts cập nhật: "Bảng đo" (khi HasProduct), "Cài đặt" (khi Admin), "Xem G-code" thay "Load G-code"
+- ✅ Virtual keyboard drag: drag handle strip (⠿ icon, 22px) ở đầu mỗi keyboard — kéo được mà không mất focus TextBox
 - **Chưa implement:** NCR dialog (khi Fail), DocumentViewer (PDF + G-code), Settings page
 
 **Ràng buộc ProductionSession (2 constraints):**
@@ -374,6 +375,8 @@ CalibRequestStatus:Pending=0, Approved=1, Completed=2, Cancelled=3
 - **Dashboard Work Info button logic**: `CanNavigate = HasJob && ActiveSession == null` (Tiếp tục); `CanStart = IsWip && !StartedAt`; `CanStop = IsWip && StartedAt` — 3 trạng thái loại trừ nhau
 - **ProductListViewModel claim flow**: sau claim, gọi `_work.SetProduct(product, session)` TRƯỚC khi invoke `OnProductSelected` callback — callback trong MainViewModel chỉ gọi `NavigateToDashboard()`, KHÔNG gọi SetProduct lại (sẽ xóa session)
 - **Keyboard auto-hide**: inject `IKeyboardService` vào MainViewModel, gọi `_keyboard.Hide()` đầu mỗi `NavigateTo*` method
+- **Keyboard drag (no-focus window)**: dùng `ReleaseCapture()` + `SendMessage(hwnd, WM_NCLBUTTONDOWN, HTCAPTION, 0)` trong `MouseLeftButtonDown` của drag handle — kéo được mà `WS_EX_NOACTIVATE` vẫn giữ focus TextBox; KHÔNG dùng `DragMove()` vì nó yêu cầu window activate
+- **Floating window có dynamic content**: dùng `SizeToContent="Height"` thay `Height` cố định — tránh bị cắt khi thêm/bớt element; gọi `PositionBottomRight()` trong `Loaded` event (sau khi `ActualHeight` đã xác định) thay vì trong constructor
 - **Dashboard Utilities card**: dùng `Grid` 2 rows (Auto + *) bên trong Border để card fill chiều cao; bọc ItemsControl trong `ScrollViewer` với `PanningMode="VerticalFirst"`
 - **FAIPage layout**: split 55% card grid / 45% input panel — dùng `Grid.ColumnDefinitions` với `0.55*` và `0.45*`; divider là `Border Width=1 Background=#E8D5C4`
 - **DimensionCardVm**: `ObservableObject` riêng với `[NotifyPropertyChangedFor]` trên `State` → tự notify `IsMeasured`, `StateLabel`; màu card dùng `DataTrigger` trong `ItemContainerStyle` (không bind color từ VM)

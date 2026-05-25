@@ -108,6 +108,13 @@
         </Border.Effect>
 
         <StackPanel>
+            <!-- Drag handle -->
+            <Border Height="22" Cursor="SizeAll" Background="Transparent"
+                    MouseLeftButtonDown="OnDragHandle_MouseDown" Margin="0,0,0,4">
+                <TextBlock Text="⠿" HorizontalAlignment="Center" VerticalAlignment="Center"
+                           Foreground="#A0522D" FontSize="16" Opacity="0.6"/>
+            </Border>
+
             <!-- QWERTY Panel -->
             <StackPanel x:Name="QwertyPanel">
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
