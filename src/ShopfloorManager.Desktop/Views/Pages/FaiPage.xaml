@@ -276,11 +276,32 @@
                                  kb:KeyboardBehavior.Mode="NumPad"
                                  FontSize="26" FontWeight="Bold"
                                  TextAlignment="Center"
+                                 IsReadOnly="{Binding IsInputLocked, Mode=OneWay}"
                                  MinHeight="64">
                             <TextBox.InputBindings>
                                 <KeyBinding Key="Return" Command="{Binding ConfirmCommand}"/>
                             </TextBox.InputBindings>
                         </TextBox>
+                        <!-- Already-measured notice -->
+                        <Border CornerRadius="6" Padding="10,6" Margin="0,8,0,0"
+                                Background="#FFF8E1" BorderBrush="#FFB300" BorderThickness="1">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsInputLocked, Mode=OneWay}" Value="True">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <StackPanel Orientation="Horizontal">
+                                <md:PackIcon Kind="LockOutline" Width="16" Height="16"
+                                             Foreground="#F57F17" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                <TextBlock Text="Kích thước đã đo — chỉ được nhập một lần"
+                                           FontSize="12" Foreground="#F57F17" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
 
                     <!-- Confirm button -->

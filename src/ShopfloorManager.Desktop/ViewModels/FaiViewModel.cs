@@ -27,7 +27,10 @@ public partial class FaiViewModel : Base.ViewModelBase
     [NotifyPropertyChangedFor(nameof(ShowPlaceholder))]
     [NotifyPropertyChangedFor(nameof(ShowNumericInput))]
     [NotifyPropertyChangedFor(nameof(ShowTextInput))]
+    [NotifyPropertyChangedFor(nameof(IsInputLocked))]
     [NotifyCanExecuteChangedFor(nameof(ConfirmCommand))]
+    [NotifyCanExecuteChangedFor(nameof(SetPassCommand))]
+    [NotifyCanExecuteChangedFor(nameof(SetFailCommand))]
     private DimensionCardVm? _selectedDimension;
 
     [ObservableProperty]
@@ -41,6 +44,7 @@ public partial class FaiViewModel : Base.ViewModelBase
     public bool ShowPlaceholder  => SelectedDimension is null;
     public bool ShowNumericInput => SelectedDimension is { IsTextType: false };
     public bool ShowTextInput    => SelectedDimension is { IsTextType: true };
+    public bool IsInputLocked    => SelectedDimension?.IsMeasured == true;
 
     public Action? OnBack { get; set; }
     public Action<NcrTriggerArgs>? OnDimensionFail { get; set; }
@@ -70,7 +74,10 @@ public partial class FaiViewModel : Base.ViewModelBase
 
     partial void OnSelectedDimensionChanged(DimensionCardVm? value)
     {
-        InputValue = "";
+        if (value?.IsMeasured == true && !value.IsTextType)
+            InputValue = value.MeasuredValue?.ToString("F4", System.Globalization.CultureInfo.InvariantCulture) ?? "";
+        else
+            InputValue = "";
     }
 
     private async Task LoadAsync()
@@ -148,15 +155,18 @@ public partial class FaiViewModel : Base.ViewModelBase
 
     private bool CanConfirm() =>
         SelectedDimension is { IsTextType: false } &&
-        !string.IsNullOrWhiteSpace(InputValue);
+        !string.IsNullOrWhiteSpace(InputValue) &&
+        !IsInputLocked;
 
     // ── Text type: PASS / FAIL buttons ────────────────────────────────────
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanSetPass))]
     private async Task SetPassAsync() => await SaveAsync(null, true);
+    private bool CanSetPass() => !IsInputLocked;
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanSetFail))]
     private async Task SetFailAsync() => await SaveAsync(null, false);
+    private bool CanSetFail() => !IsInputLocked;
 
     // ── Core save logic ───────────────────────────────────────────────────
 
