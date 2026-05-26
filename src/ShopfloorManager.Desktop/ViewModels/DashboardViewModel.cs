@@ -80,10 +80,14 @@ public partial class DashboardViewModel : ViewModelBase
     /// <summary>Tên người đang giữ session trên máy này (hiển thị trong banner View mode).</summary>
     public string IncomingOwnerName => _work.IncomingSession?.ClaimedByName ?? string.Empty;
 
-    /// <summary>Leader/Admin có thể force-finish session của người khác.</summary>
+    /// <summary>Leader/Admin có thể force-finish session của người khác (không phải của chính mình).</summary>
     public bool CanForceFinish =>
         _work.IncomingSession is not null
+        && _work.IncomingSession.ClaimedBy != _auth.UserId
         && _auth.Role is "Leader" or "Manager" or "Administrator";
+
+    /// <summary>Hiện nút "Kết thúc" bình thường — ẩn khi đang hiện ForceFinish.</summary>
+    public bool ShowStopButton => CanStop && !CanForceFinish;
 
     public string? JobNumber    => _work.CurrentJob?.JobNumber;
     public string? PartDisplay  => _work.CurrentJob is null ? null
@@ -186,6 +190,7 @@ public partial class DashboardViewModel : ViewModelBase
         OnPropertyChanged(nameof(IsOperationMode));
         OnPropertyChanged(nameof(IncomingOwnerName));
         OnPropertyChanged(nameof(CanForceFinish));
+        OnPropertyChanged(nameof(ShowStopButton));
         StartCommand.NotifyCanExecuteChanged();
         StopCommand.NotifyCanExecuteChanged();
         ForceFinishCommand.NotifyCanExecuteChanged();

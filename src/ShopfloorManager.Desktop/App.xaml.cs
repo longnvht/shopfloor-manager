@@ -82,8 +82,9 @@ public partial class App : Application
     {
         Window? next = vm switch
         {
-            MainViewModel => _sp.GetRequiredService<MainWindow>(),
-            _ => null
+            MainViewModel  => _sp.GetRequiredService<MainWindow>(),
+            LoginViewModel => _sp.GetRequiredService<LoginWindow>(),
+            _              => null
         };
 
         if (next is null) return;

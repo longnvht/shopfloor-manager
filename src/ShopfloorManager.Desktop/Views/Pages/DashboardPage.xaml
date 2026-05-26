@@ -357,7 +357,7 @@
 
                     <!-- Kết thúc (in progress) -->
                     <Button Command="{Binding StopCommand}"
-                            Visibility="{Binding CanStop, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}"
+                            Visibility="{Binding ShowStopButton, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}"
                             Style="{StaticResource MaterialDesignRaisedButton}"
                             Background="#C62828" Foreground="White"
                             Height="52" Padding="16,0" FontSize="14" FontWeight="Bold">
