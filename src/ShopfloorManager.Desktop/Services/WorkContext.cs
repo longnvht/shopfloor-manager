@@ -84,7 +84,8 @@ public partial class WorkContext : ObservableObject
     {
         OnPropertyChanged(nameof(IsOperationMode));
         OnPropertyChanged(nameof(IsViewMode));
-        ClearViewContext(); // Hai môi trường độc lập — xóa browse state khi chuyển mode
+        // View context được giữ nguyên khi toggle — user quay lại View Mode thấy lại dữ liệu cũ
+        // Chỉ clear khi logout (via Clear()) hoặc khi SetViewJob được gọi với job mới
     }
 
     public void SetJob(JobSummaryDto job)
