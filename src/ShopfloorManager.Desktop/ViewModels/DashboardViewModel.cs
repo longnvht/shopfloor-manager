@@ -65,17 +65,23 @@ public partial class DashboardViewModel : ViewModelBase
     }
     public string ProductsCreatedDisplay => _productsCreated.ToString();
 
+    // ── Mode-aware context helpers ─────────────────────────────────────
+    // Đọc đúng context tùy mode: Operation → CurrentJob/Op/Product, View → ViewJob/Op/Product
+    private JobSummaryDto?         CtxJob     => _work.IsViewMode ? _work.ViewJob     : _work.CurrentJob;
+    private PartOpDto?             CtxOp      => _work.IsViewMode ? _work.ViewOp      : _work.CurrentOp;
+    private ProductWithSessionDto? CtxProduct => _work.IsViewMode ? _work.ViewProduct : _work.CurrentProduct;
+
     // ── Work Info card ─────────────────────────────────────────────────
-    public bool HasWork      => _work.HasJob;
-    public bool HasSession   => _work.ActiveSession is not null;
-    public bool CanNavigate  => _work.HasJob && _work.ActiveSession is null;
+    public bool HasWork      => CtxJob is not null;
+    public bool HasSession   => !_work.IsViewMode && _work.ActiveSession is not null;
+    public bool CanNavigate  => HasWork && _work.ActiveSession is null;
     public bool IsWip        => _work.IsWip;
     public bool CanStart     => _work.IsWip && !(_work.ActiveSession?.StartedAt.HasValue == true) && _work.IsOperationMode;
     public bool CanStop      => _work.IsWip &&   _work.ActiveSession?.StartedAt.HasValue == true  && _work.IsOperationMode;
 
     // ── Mutually exclusive button visibility ───────────────────────────────
     /// <summary>Hiện "Chọn Job" chỉ khi chưa có job VÀ không đang cần force-finish.</summary>
-    public bool ShowSelectJobButton => !_work.HasJob && !CanForceFinish;
+    public bool ShowSelectJobButton => !HasWork && !CanForceFinish;
     /// <summary>Hiện "Tiếp tục" khi có thể navigate nhưng không đang force-finish.</summary>
     public bool ShowNavigateButton  => CanNavigate && !CanForceFinish;
 
@@ -95,13 +101,13 @@ public partial class DashboardViewModel : ViewModelBase
     /// <summary>Hiện nút "Kết thúc" bình thường — ẩn khi đang hiện ForceFinish.</summary>
     public bool ShowStopButton => CanStop && !CanForceFinish;
 
-    public string? JobNumber    => _work.CurrentJob?.JobNumber;
-    public string? PartDisplay  => _work.CurrentJob is null ? null
-        : $"{_work.CurrentJob.PartNumber}  Rev {_work.CurrentJob.RevCode}";
-    public string? OpDisplay    => _work.CurrentOp is null ? null
-        : $"OP {_work.CurrentOp.OpNumber} — {_work.CurrentOp.OpTypeDisplay}";
-    public string? SerialDisplay => _work.CurrentProduct?.SerialNumber;
-    public string? StatusDisplay => _work.CurrentProduct?.DisplayStatus;
+    public string? JobNumber    => CtxJob?.JobNumber;
+    public string? PartDisplay  => CtxJob is null ? null
+        : $"{CtxJob.PartNumber}  Rev {CtxJob.RevCode}";
+    public string? OpDisplay    => CtxOp is null ? null
+        : $"OP {CtxOp.OpNumber} — {CtxOp.OpTypeDisplay}";
+    public string? SerialDisplay => CtxProduct?.SerialNumber;
+    public string? StatusDisplay => !_work.IsViewMode ? _work.CurrentProduct?.DisplayStatus : null;
 
     [ObservableProperty] private string _elapsedTime = "00:00";
 
@@ -210,6 +216,14 @@ public partial class DashboardViewModel : ViewModelBase
     [RelayCommand]
     private void TapWorkInfo()
     {
+        if (_work.IsViewMode)
+        {
+            // View Mode: navigate dựa trên view context
+            if (!_work.HasViewOp)       NavigateTo?.Invoke("ops");
+            else if (!_work.HasViewProduct) NavigateTo?.Invoke("products");
+            else                        NavigateTo?.Invoke("products");
+            return;
+        }
         switch (_work.WorkState)
         {
             case "empty":    NavigateTo?.Invoke("jobs");     break;
