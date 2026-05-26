@@ -48,11 +48,7 @@ public partial class LoginViewModel : ViewModelBase
             }
 
             await DetermineAppMode();
-
-            if (_auth.FirstLogin)
-                _nav.NavigateTo<ChangePasswordViewModel>();
-            else
-                _nav.NavigateTo<MainViewModel>();
+            _nav.NavigateTo<MainViewModel>();
         }
         finally
         {
