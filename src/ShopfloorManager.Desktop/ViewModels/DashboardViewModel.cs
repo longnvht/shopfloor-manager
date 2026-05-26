@@ -68,10 +68,16 @@ public partial class DashboardViewModel : ViewModelBase
     // ── Work Info card ─────────────────────────────────────────────────
     public bool HasWork      => _work.HasJob;
     public bool HasSession   => _work.ActiveSession is not null;
-    public bool CanNavigate  => _work.HasJob && _work.ActiveSession is null && _work.IsOperationMode;
+    public bool CanNavigate  => _work.HasJob && _work.ActiveSession is null;
     public bool IsWip        => _work.IsWip;
     public bool CanStart     => _work.IsWip && !(_work.ActiveSession?.StartedAt.HasValue == true) && _work.IsOperationMode;
     public bool CanStop      => _work.IsWip &&   _work.ActiveSession?.StartedAt.HasValue == true  && _work.IsOperationMode;
+
+    // ── Mutually exclusive button visibility ───────────────────────────────
+    /// <summary>Hiện "Chọn Job" chỉ khi chưa có job VÀ không đang cần force-finish.</summary>
+    public bool ShowSelectJobButton => !_work.HasJob && !CanForceFinish;
+    /// <summary>Hiện "Tiếp tục" khi có thể navigate nhưng không đang force-finish.</summary>
+    public bool ShowNavigateButton  => CanNavigate && !CanForceFinish;
 
     // ── View mode / Force-finish ───────────────────────────────────────
     public bool IsViewMode      => _work.IsViewMode;
@@ -191,6 +197,8 @@ public partial class DashboardViewModel : ViewModelBase
         OnPropertyChanged(nameof(IncomingOwnerName));
         OnPropertyChanged(nameof(CanForceFinish));
         OnPropertyChanged(nameof(ShowStopButton));
+        OnPropertyChanged(nameof(ShowSelectJobButton));
+        OnPropertyChanged(nameof(ShowNavigateButton));
         StartCommand.NotifyCanExecuteChanged();
         StopCommand.NotifyCanExecuteChanged();
         ForceFinishCommand.NotifyCanExecuteChanged();
@@ -280,6 +288,15 @@ public partial class DashboardViewModel : ViewModelBase
             }
         }
         finally { IsBusy = false; }
+    }
+
+    // ── Mode toggle ────────────────────────────────────────────────────
+
+    [RelayCommand]
+    private void ToggleMode()
+    {
+        _work.Mode = _work.IsViewMode ? AppMode.Operation : AppMode.View;
+        RefreshWorkInfo();
     }
 
     // ── Logout ─────────────────────────────────────────────────────────

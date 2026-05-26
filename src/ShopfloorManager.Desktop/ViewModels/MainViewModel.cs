@@ -64,7 +64,8 @@ public partial class MainViewModel : ViewModelBase
         var vm = _sp.GetRequiredService<JobListViewModel>();
         vm.OnJobOpened = job =>
         {
-            if (!IsViewMode) _work.SetJob(job);
+            // Write WorkContext when no active session so shortcuts update in View Mode too
+            if (!IsViewMode || _work.ActiveSession is null) _work.SetJob(job);
             _browseJob = job;
             NavigateToOps();
         };
@@ -88,7 +89,7 @@ public partial class MainViewModel : ViewModelBase
         vm.OnBack = NavigateToDashboard;
         vm.OnOperationSelected = op =>
         {
-            if (!IsViewMode) _work.SetOp(op);
+            if (!IsViewMode || _work.ActiveSession is null) _work.SetOp(op);
             _browseOp = op;
             NavigateToProducts();
         };
