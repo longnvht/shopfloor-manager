@@ -64,8 +64,8 @@ public partial class MainViewModel : ViewModelBase
         var vm = _sp.GetRequiredService<JobListViewModel>();
         vm.OnJobOpened = job =>
         {
-            // Write WorkContext when no active session so shortcuts update in View Mode too
-            if (!IsViewMode || _work.ActiveSession is null) _work.SetJob(job);
+            if (IsViewMode) _work.SetViewJob(job);
+            else _work.SetJob(job);
             _browseJob = job;
             NavigateToOps();
         };
@@ -74,7 +74,7 @@ public partial class MainViewModel : ViewModelBase
         _ = vm.InitializeAsync();
     }
 
-    // Temporary browse state used in View_Mode to pass Job/Op context without writing WorkContext
+    // Browse state — dùng cho View_Mode để truyền context mà không ghi WorkContext chính
     private JobSummaryDto? _browseJob;
     private PartOpDto? _browseOp;
 
@@ -83,13 +83,14 @@ public partial class MainViewModel : ViewModelBase
     public void NavigateToOps()
     {
         _keyboard.Hide();
-        var job = IsViewMode ? _browseJob : _work.CurrentJob;
+        var job = IsViewMode ? _browseJob ?? _work.ViewJob : _work.CurrentJob;
         if (job is null) { NavigateToJobs(); return; }
         var vm = _sp.GetRequiredService<OperationViewModel>();
         vm.OnBack = NavigateToDashboard;
         vm.OnOperationSelected = op =>
         {
-            if (!IsViewMode || _work.ActiveSession is null) _work.SetOp(op);
+            if (IsViewMode) _work.SetViewOp(op);
+            else _work.SetOp(op);
             _browseOp = op;
             NavigateToProducts();
         };
@@ -102,15 +103,18 @@ public partial class MainViewModel : ViewModelBase
     public void NavigateToProducts()
     {
         _keyboard.Hide();
-        var job = IsViewMode ? _browseJob : _work.CurrentJob;
-        var op  = IsViewMode ? _browseOp  : _work.CurrentOp;
+        var job = IsViewMode ? _browseJob ?? _work.ViewJob : _work.CurrentJob;
+        var op  = IsViewMode ? _browseOp  ?? _work.ViewOp  : _work.CurrentOp;
         if (job is null || op is null) { NavigateToDashboard(); return; }
         var vm = _sp.GetRequiredService<ProductListViewModel>();
         vm.OnBack = NavigateToDashboard;
         if (IsViewMode)
         {
-            // In View_Mode: no claiming — just browse and return
-            vm.OnProductSelected = _ => NavigateToDashboard();
+            vm.OnProductSelected = product =>
+            {
+                _work.SetViewProduct(product);
+                NavigateToDashboard();
+            };
             vm.IsViewMode = true;
         }
         else
@@ -127,7 +131,9 @@ public partial class MainViewModel : ViewModelBase
     public void NavigateToFai()
     {
         _keyboard.Hide();
-        if (_work.CurrentJob is null || _work.CurrentOp is null || _work.CurrentProduct is null)
+        // FAI chỉ khả dụng trong Operation Mode khi session đã được bắt đầu (StartedAt có giá trị)
+        if (_work.CurrentJob is null || _work.CurrentOp is null || _work.CurrentProduct is null
+            || _work.ActiveSession?.StartedAt.HasValue != true)
         {
             NavigateToDashboard();
             return;

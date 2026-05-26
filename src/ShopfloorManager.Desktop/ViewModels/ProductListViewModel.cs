@@ -73,7 +73,15 @@ public partial class ProductListViewModel : Base.ViewModelBase
     [RelayCommand(CanExecute = nameof(CanSelectProduct))]
     private async Task SelectProductAsync()
     {
-        if (SelectedProduct is null || Op is null || IsViewMode) return;
+        if (SelectedProduct is null || Op is null) return;
+
+        if (IsViewMode)
+        {
+            // View Mode: chỉ chọn để xem, không tạo session
+            _timer?.Dispose();
+            OnProductSelected?.Invoke(SelectedProduct);
+            return;
+        }
 
         if (!SelectedProduct.IsAvailable)
         {
@@ -84,14 +92,12 @@ public partial class ProductListViewModel : Base.ViewModelBase
         IsBusy = true; ClearError();
         try
         {
-            // Claim session — parse response để lấy SessionDto
             var result = await _api.PostAsync<object, ProductionSessionDto>(
                 "/api/v1/production-sessions",
                 new { productId = SelectedProduct.ProductId, partOpId = Op.Id, machineCode = _settings.MachineCode });
 
             if (result?.Success == true)
             {
-                // Cập nhật WorkContext với session vừa tạo
                 _work.SetProduct(SelectedProduct, result.Data);
                 _timer?.Dispose();
                 OnProductSelected?.Invoke(SelectedProduct);
@@ -106,7 +112,7 @@ public partial class ProductListViewModel : Base.ViewModelBase
         finally { IsBusy = false; }
     }
 
-    private bool CanSelectProduct() => SelectedProduct is not null && !IsViewMode;
+    private bool CanSelectProduct() => SelectedProduct is not null;
 
     // ── Filter ──────────────────────────────────────────────────────────
 

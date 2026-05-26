@@ -227,8 +227,20 @@
                         HorizontalAlignment="Right"
                         Style="{StaticResource MaterialDesignRaisedButton}"
                         Background="{StaticResource BrandPrimary}" Foreground="White"
-                        Height="44" Padding="24,0" FontSize="14" FontWeight="Medium"
-                        Content="Lựa chọn →"/>
+                        Height="44" Padding="24,0" FontSize="14" FontWeight="Medium">
+                    <TextBlock>
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Text" Value="Lựa chọn →"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsViewMode}" Value="True">
+                                        <Setter Property="Text" Value="Xem sản phẩm →"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </Button>
             </Grid>
         </Border>
     </Grid>

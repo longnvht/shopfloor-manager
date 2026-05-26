@@ -11,10 +11,20 @@ public enum AppMode { Operation, View }
 /// </summary>
 public partial class WorkContext : ObservableObject
 {
+    // ── Operation Mode state ───────────────────────────────────────────
     [ObservableProperty] private JobSummaryDto?          _currentJob;
     [ObservableProperty] private PartOpDto?              _currentOp;
     [ObservableProperty] private ProductWithSessionDto?  _currentProduct;
     [ObservableProperty] private ProductionSessionDto?   _activeSession;
+
+    // ── View Mode browse state — hoàn toàn độc lập với Op context ─────
+    [ObservableProperty] private JobSummaryDto?         _viewJob;
+    [ObservableProperty] private PartOpDto?             _viewOp;
+    [ObservableProperty] private ProductWithSessionDto? _viewProduct;
+
+    public bool HasViewJob     => ViewJob     is not null;
+    public bool HasViewOp      => ViewOp      is not null;
+    public bool HasViewProduct => ViewProduct is not null;
 
     /// <summary>Operation = operator đang làm việc bình thường. View = đọc-only do máy đang bị dùng bởi người khác.</summary>
     [ObservableProperty] private AppMode _mode = AppMode.Operation;
@@ -66,10 +76,15 @@ public partial class WorkContext : ObservableObject
         OnPropertyChanged(nameof(WorkState));
     }
 
+    partial void OnViewJobChanged(JobSummaryDto? value)     => OnPropertyChanged(nameof(HasViewJob));
+    partial void OnViewOpChanged(PartOpDto? value)          => OnPropertyChanged(nameof(HasViewOp));
+    partial void OnViewProductChanged(ProductWithSessionDto? value) => OnPropertyChanged(nameof(HasViewProduct));
+
     partial void OnModeChanged(AppMode value)
     {
         OnPropertyChanged(nameof(IsOperationMode));
         OnPropertyChanged(nameof(IsViewMode));
+        ClearViewContext(); // Hai môi trường độc lập — xóa browse state khi chuyển mode
     }
 
     public void SetJob(JobSummaryDto job)
@@ -99,6 +114,18 @@ public partial class WorkContext : ObservableObject
         ActiveSession  = null;
     }
 
+    // ── View Mode browse context ───────────────────────────────────────
+    public void SetViewJob(JobSummaryDto job) { ViewJob = job; ViewOp = null; ViewProduct = null; }
+    public void SetViewOp(PartOpDto op)       { ViewOp = op;   ViewProduct = null; }
+    public void SetViewProduct(ProductWithSessionDto product) { ViewProduct = product; }
+
+    public void ClearViewContext()
+    {
+        ViewJob     = null;
+        ViewOp      = null;
+        ViewProduct = null;
+    }
+
     public void Clear()
     {
         CurrentJob      = null;
@@ -107,5 +134,6 @@ public partial class WorkContext : ObservableObject
         ActiveSession   = null;
         IncomingSession = null;
         Mode            = AppMode.Operation;
+        // View context cleared via OnModeChanged
     }
 }

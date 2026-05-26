@@ -315,21 +315,27 @@ public partial class DashboardViewModel : ViewModelBase
     private void RefreshShortcuts()
     {
         Shortcuts.Clear();
-        var role  = _auth.Role ?? "";
-        var state = _work.WorkState;
+        var role = _auth.Role ?? "";
+
+        // Dùng view context khi View Mode để shortcuts phản ánh đúng trạng thái browse
+        bool hasJob  = _work.IsViewMode ? _work.HasViewJob  : _work.HasJob;
+        bool hasOp   = _work.IsViewMode ? _work.HasViewOp   : _work.HasOp;
+        bool hasProd = _work.IsViewMode ? _work.HasViewProduct : _work.HasProduct;
+        // FAI chỉ khả dụng trong Operation Mode khi session đã được bắt đầu (StartedAt != null)
+        bool canFai  = !_work.IsViewMode && hasProd && _work.ActiveSession?.StartedAt.HasValue == true;
 
         Add("Chọn Job",       "ClipboardList",       "jobs",      always: true);
-        Add("Chọn OP",        "PlaylistEdit",        "ops",       when: _work.HasJob);
-        Add("Chọn sản phẩm",  "FormatListNumbered",  "products",  when: _work.HasOp);
-        Add("Xem bản vẽ",     "FileImageOutline",    "drawing",   when: _work.HasOp);
-        Add("Hướng dẫn gá",   "Wrench",              "fixture",   when: _work.HasOp);
-        Add("Hướng dẫn CW",   "FileDocumentOutline", "routecard", when: _work.HasOp);
-        Add("Xem G-code",     "Download",            "gcode",     when: _work.HasOp);
-        Add("Bảng đo",        "ClipboardTextOutline","fai",       when: _work.HasProduct);
+        Add("Chọn OP",        "PlaylistEdit",        "ops",       when: hasJob);
+        Add("Chọn sản phẩm",  "FormatListNumbered",  "products",  when: hasOp);
+        Add("Xem bản vẽ",     "FileImageOutline",    "drawing",   when: hasOp);
+        Add("Hướng dẫn gá",   "Wrench",              "fixture",   when: hasOp);
+        Add("Hướng dẫn CW",   "FileDocumentOutline", "routecard", when: hasOp);
+        Add("Xem G-code",     "Download",            "gcode",     when: hasOp);
+        Add("Bảng đo",        "ClipboardTextOutline","fai",       when: canFai);
         if (role is "QC Inspector" or "Engineer" or "Administrator")
         {
-            Add("Lịch sử đo", "ChartBar",   "history", when: _work.HasProduct);
-            Add("Tạo NCR",    "AlertCircle","ncr",     when: _work.HasProduct);
+            Add("Lịch sử đo", "ChartBar",   "history", when: hasProd && !_work.IsViewMode);
+            Add("Tạo NCR",    "AlertCircle","ncr",     when: hasProd && !_work.IsViewMode);
         }
         if (role is "Administrator")
         {
