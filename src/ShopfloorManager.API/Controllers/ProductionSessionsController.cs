@@ -36,22 +36,12 @@ public class ProductionSessionsController(IMediator mediator) : ControllerBase
             : BadRequest(ApiResponse<List<ProductWithSessionDto>>.Fail(result.Errors));
     }
 
-    /// <summary>Operator chọn sản phẩm — tạo session (Claimed).</summary>
+    /// <summary>Operator bấm "Bắt đầu" — tạo session và bắt đầu gia công ngay.</summary>
     [HttpPost("production-sessions")]
-    public async Task<IActionResult> Claim([FromBody] ClaimSessionRequest request)
+    public async Task<IActionResult> Begin([FromBody] BeginSessionRequest request)
     {
-        var result = await mediator.Send(new ClaimSessionCommand(
+        var result = await mediator.Send(new BeginSessionCommand(
             request.ProductId, request.PartOpId, request.MachineCode, UserId));
-        return result.IsSuccess
-            ? Ok(ApiResponse<ProductionSessionDto>.Ok(result.Value))
-            : BadRequest(ApiResponse<ProductionSessionDto>.Fail(result.Errors));
-    }
-
-    /// <summary>Bấm "Bắt đầu" — ghi nhận thời gian bắt đầu gia công.</summary>
-    [HttpPut("production-sessions/{id:int}/start")]
-    public async Task<IActionResult> Start(int id)
-    {
-        var result = await mediator.Send(new StartSessionCommand(id));
         return result.IsSuccess
             ? Ok(ApiResponse<ProductionSessionDto>.Ok(result.Value))
             : BadRequest(ApiResponse<ProductionSessionDto>.Fail(result.Errors));
@@ -91,4 +81,4 @@ public class ProductionSessionsController(IMediator mediator) : ControllerBase
     }
 }
 
-public record ClaimSessionRequest(int ProductId, int PartOpId, string MachineCode);
+public record BeginSessionRequest(int ProductId, int PartOpId, string MachineCode);

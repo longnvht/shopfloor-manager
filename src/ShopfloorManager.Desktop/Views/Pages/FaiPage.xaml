@@ -276,7 +276,7 @@
                                  kb:KeyboardBehavior.Mode="NumPad"
                                  FontSize="26" FontWeight="Bold"
                                  TextAlignment="Center"
-                                 IsReadOnly="{Binding IsInputLocked, Mode=OneWay}"
+                                 IsEnabled="{Binding IsInputEnabled, Mode=OneWay}"
                                  MinHeight="64">
                             <TextBox.InputBindings>
                                 <KeyBinding Key="Return" Command="{Binding ConfirmCommand}"/>

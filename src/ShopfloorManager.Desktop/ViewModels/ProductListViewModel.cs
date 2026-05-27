@@ -73,43 +73,43 @@ public partial class ProductListViewModel : Base.ViewModelBase
     [RelayCommand(CanExecute = nameof(CanSelectProduct))]
     private async Task SelectProductAsync()
     {
-        if (SelectedProduct is null || Op is null) return;
+        if (SelectedProduct is null) return;
 
         if (IsViewMode)
         {
-            // View Mode: chỉ chọn để xem, không tạo session
             _timer?.Dispose();
             OnProductSelected?.Invoke(SelectedProduct);
             return;
         }
 
-        if (!SelectedProduct.IsAvailable)
+        // Resume: đây là session inprogress của chính mình → navigate thẳng
+        if (SelectedProduct.StatusCode == "inprogress"
+            && SelectedProduct.SessionId == _work.ActiveSession?.Id)
         {
-            ErrorMessage = $"Sản phẩm {SelectedProduct.SerialNumber} đang được sử dụng ({SelectedProduct.DisplayStatus}).";
+            _timer?.Dispose();
+            OnProductSelected?.Invoke(SelectedProduct);
             return;
         }
 
-        IsBusy = true; ClearError();
-        try
+        // Inprogress bởi máy/session khác → locked
+        if (SelectedProduct.StatusCode == "inprogress")
         {
-            var result = await _api.PostAsync<object, ProductionSessionDto>(
-                "/api/v1/production-sessions",
-                new { productId = SelectedProduct.ProductId, partOpId = Op.Id, machineCode = _settings.MachineCode });
-
-            if (result?.Success == true)
-            {
-                _work.SetProduct(SelectedProduct, result.Data);
-                _timer?.Dispose();
-                OnProductSelected?.Invoke(SelectedProduct);
-            }
-            else
-            {
-                ErrorMessage = result?.Error ?? "Không thể chọn sản phẩm.";
-                await LoadAsync();
-            }
+            ErrorMessage = $"Sản phẩm {SelectedProduct.SerialNumber} đang được gia công trên máy {SelectedProduct.MachineCode}.";
+            return;
         }
-        catch (Exception ex) { ErrorMessage = $"Lỗi: {ex.Message}"; }
-        finally { IsBusy = false; }
+
+        // Hoàn thành → locked
+        if (SelectedProduct.StatusCode == "complete")
+        {
+            ErrorMessage = $"Sản phẩm {SelectedProduct.SerialNumber} đã hoàn thành.";
+            return;
+        }
+
+        // Available (hoặc claimed legacy) → chỉ set WorkContext, không gọi API
+        _work.SetProduct(SelectedProduct, null);
+        _timer?.Dispose();
+        OnProductSelected?.Invoke(SelectedProduct);
+        await Task.CompletedTask;
     }
 
     private bool CanSelectProduct() => SelectedProduct is not null;

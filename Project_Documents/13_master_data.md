@@ -35,14 +35,40 @@ Các bảng dữ liệu nền tảng (lookup/reference data) mà tất cả modu
   - Khi Desktop MES khởi động: load config theo `pc_name = Environment.MachineName`.
 
 ### 2.3 OP Types
-- Loại công đoạn sản xuất (ví dụ: `CNC_TURNING`, `CNC_MILLING`, `CMM_INSPECTION`).
+- Loại công đoạn sản xuất.
 - Liên kết với `mes_menu_op_types` để xác định menu nào hiện trên Desktop MES cho từng OP type.
 - Khi thêm OP type mới → phải cấu hình `mes_menu_op_types` tương ứng.
 
+**Seed hiện tại (9 loại):**
+
+| Code | Tên |
+|---|---|
+| TURN | Turning (tiện) |
+| MILL | Milling (phay) |
+| CNC | CNC Machining |
+| GRIND | Grinding (mài) |
+| WIRE | Wire EDM |
+| INSP | Inspection (kiểm tra) |
+| HT | Heat Treatment |
+| CLEAN | Cleaning |
+| COAT | Coating |
+
+**Legacy reference:** Vinam-MES cũ có 42 loại cụ thể hơn (MLA=Medium Lathe, LLA=Long Lathe, 5MI=5-axis Mill, WED=Wirecut, GDM=Gun Drilling, ASS=Assembly, QPQ/MLK/XYL=surface treatments...). Các loại mới được cộng gộp vào nhóm trên khi import hoặc seed thêm nếu cần.
+
 ### 2.4 Dimension Categories
-- Phương pháp đo kiểm: `LIN`, `ANG`, `THD`, `GEO`, `SFC`.
+- Phương pháp đo kiểm nhóm theo dụng cụ sử dụng: `LIN`, `ANG`, `THD`, `GEO`, `SFC`.
 - Liên kết với `gage_types` để filter gage phù hợp khi đo.
 - Thêm mới khi có phương pháp đo mới, không sửa code cũ (data-driven).
+
+**Mapping từ legacy `gagetypefix` (48 loại cụ thể) sang category mới:**
+
+| Category | Legacy codes |
+|---|---|
+| `LIN` | CAL, MIC, BOR, DPG, HEG, LHG |
+| `ANG` | ANG |
+| `THD` | PLG, RIG, RGA, IPG, ETG, IGT, THG, PDG, PGA, GMT |
+| `GEO` | CMM, IND, PPM, RAD, VIS |
+| `SFC` | SRM, SRT |
 
 ### 2.5 Fixture Management
 Phân cấp quản lý đồ gá:

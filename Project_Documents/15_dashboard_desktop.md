@@ -3,7 +3,7 @@
 > Màn hình hiển thị ngay sau khi đăng nhập thành công.
 > Thiết kế tối ưu cho màn hình cảm ứng shop floor.
 > 
-> **Implement status**: ✅ Done (2026-05-22) — `DashboardPage.xaml` + `DashboardViewModel.cs`
+> **Implement status**: ✅ Done (2026-05-26) — `DashboardPage.xaml` + `DashboardViewModel.cs`
 > **Target**: 10-inch 16:9, ~1280×720
 
 ---
@@ -67,13 +67,19 @@ Dashboard là **trung tâm điều hướng** của Desktop MES. Không dùng na
 ### 1. Top Bar
 
 ```
-┌────────────────────────────────────────────────────┐
-│ 🔶 SHOPFLOOR MANAGER          [Đăng xuất] 14:32:05 │
-└────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│ 🔶 SHOPFLOOR MANAGER    [OP MODE / CHẾ ĐỘ XEM]  [Đăng xuất] HH:mm │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
-- Nền `Primary (#6D3B1A)`, text trắng
+- Nền `Primary (#6D3B1A)` khi Operation Mode, gray (`#90A4AE`) khi View Mode
 - Đồng hồ thời gian thực cập nhật mỗi giây
+- **Toggle chip MODE** — luôn visible (kể cả forced View_Mode):
+  - Operation Mode: transparent/BrandPrimary border, text "VIEW" (dim)
+  - View Mode: orange `#FF8F00` background, text "VIEW MODE" (bright)
+  - `CanSwitchMode` — `false` khi forced View Mode (IncomingSession từ người khác + role không phải Leader/Admin):
+    - `CanSwitchMode=true`: `Cursor=Hand`, click → `ToggleModeCommand`
+    - `CanSwitchMode=false`: `Opacity=0.4`, `Cursor=Arrow` — chip visible nhưng inactive
 - Nút Đăng xuất — nhỏ, góc phải
 
 ---
@@ -112,7 +118,23 @@ Dashboard là **trung tâm điều hướng** của Desktop MES. Không dùng na
 
 ---
 
-### 4. Work Info Card *(Thẻ quan trọng nhất — clickable)*
+### 4. Work Info Card *(Thẻ quan trọng nhất — clickable, mode-aware)*
+
+**Mode-aware context**: Card đọc context đúng theo mode hiện tại:
+- Operation Mode → `CurrentJob / CurrentOp / CurrentProduct`
+- View Mode → `ViewJob / ViewOp / ViewProduct`
+
+Helpers `CtxJob/CtxOp/CtxProduct` trong `DashboardViewModel` xử lý việc này.
+
+**Mutual exclusion buttons** (tại mỗi thời điểm chỉ 1 nút visible):
+
+| Điều kiện | Nút hiển thị |
+|---|---|
+| `!HasWork && !CanForceFinish` | **Chọn Job** |
+| `CanNavigate && !CanForceFinish` | **Tiếp tục →** |
+| `CanStart` (IsWip + !StartedAt + OperationMode) | **Bắt đầu** |
+| `CanStop && !CanForceFinish` | **Kết thúc** |
+| `CanForceFinish` | **Kết thúc phiên [Tên A]** |
 
 #### 4a. Khi chưa có công việc
 
@@ -232,16 +254,19 @@ Mỗi shortcut là 1 nút vuông (~130×130px):
 
 | Shortcut | Icon | Điều kiện hiển thị | Hành động |
 |---|---|---|---|
-| **Bắt đầu FAI** | ⚙️ | Có session open (WIP) | → FAIPage |
-| **Tiếp tục FAI** | 📊 | Có dims chưa đo trong session | → FAIPage |
-| **Xem bản vẽ** | 📐 | Có OP được chọn + có file DRW | → DocumentViewer (DRW) |
-| **Hướng dẫn gá đặt** | 🔩 | Có OP được chọn + có file FXT | → DocumentViewer (FXT) |
-| **Hướng dẫn công việc** | 📋 | Có OP được chọn + có file RTC | → DocumentViewer (RTC) |
-| **Load G-code** | 💾 | Có OP được chọn + có file GCD | → DocumentViewer (GCD) / Download |
-| **Chọn Job** | 📌 | Chưa có job, hoặc muốn đổi | → JobListPage |
-| **Lịch sử đo** | 📈 | Có product được chọn | → MeasureHistory |
-| **Tạo NCR** | ⚠️ | QC / Engineer + có product | → NCR Dialog |
-| **Bảng đo** | 🔢 | Có dims đã đo | → MeasureValueList |
+| **Chọn Job** | 📌 | Luôn visible | → JobListPage |
+| **Chọn OP** | ▶ | Có Job | → OperationPage |
+| **Chọn sản phẩm** | 🔢 | Có OP | → ProductListPage |
+| **Xem bản vẽ** | 📐 | Có OP | → DocumentViewer (DRW) |
+| **Hướng dẫn gá** | 🔩 | Có OP | → DocumentViewer (FXT) |
+| **Hướng dẫn CW** | 📋 | Có OP | → DocumentViewer (RTC) |
+| **Xem G-code** | 💾 | Có OP | → DocumentViewer (GCD) |
+| **Bảng đo** | ⚙️ | **Operation Mode** + có Product + **session đã Start** | → FAIPage |
+| **Lịch sử đo** | 📈 | Có product + Operation Mode (QC/Engineer/Admin) | → MeasureHistory |
+| **Tạo NCR** | ⚠️ | Có product + Operation Mode (QC/Engineer/Admin) | → NCR Dialog |
+| **Cài đặt** | ⚙ | Role Administrator | → Settings page |
+
+**Note**: Trong View Mode, shortcuts "Chọn Job/OP/Sản phẩm" vẫn hiển thị và dùng ViewJob/ViewOp context. "Bảng đo" bị ẩn hoàn toàn trong View Mode.
 
 #### Phân nhóm theo Role
 
@@ -279,28 +304,42 @@ Dashboard
 
 ## State management
 
-Dashboard cần duy trì **Work Context** — trạng thái công việc hiện tại của operator:
+`WorkContext` là **singleton** trong DI — tất cả pages chia sẻ cùng 1 instance. Có 2 slot độc lập:
 
 ```csharp
-public class WorkContext
+public partial class WorkContext : ObservableObject
 {
-    public JobSummaryDto?      CurrentJob     { get; set; }
-    public PartOpDto?          CurrentOp      { get; set; }
-    public ProductWithSessionDto? CurrentProduct { get; set; }
-    public ProductionSessionDto?  ActiveSession  { get; set; }
+    // ── Operation Mode slot ──────────────────────────────────────────
+    [ObservableProperty] private JobSummaryDto?          _currentJob;
+    [ObservableProperty] private PartOpDto?              _currentOp;
+    [ObservableProperty] private ProductWithSessionDto?  _currentProduct;
+    [ObservableProperty] private ProductionSessionDto?   _activeSession;
     
-    // Timer
-    public DateTimeOffset? SessionStartedAt { get; set; }
+    // ── View Mode slot — hoàn toàn độc lập ──────────────────────────
+    [ObservableProperty] private JobSummaryDto?         _viewJob;
+    [ObservableProperty] private PartOpDto?             _viewOp;
+    [ObservableProperty] private ProductWithSessionDto? _viewProduct;
+    
+    [ObservableProperty] private AppMode _mode = AppMode.Operation;
     
     // Computed
     public bool HasJob     => CurrentJob is not null;
     public bool HasOp      => CurrentOp is not null;
     public bool HasProduct => CurrentProduct is not null;
     public bool IsWip      => ActiveSession?.Status == "open";
+    public bool HasViewJob     => ViewJob is not null;
+    public bool HasViewOp      => ViewOp is not null;
+    public bool HasViewProduct => ViewProduct is not null;
+    public bool IsOperationMode => Mode == AppMode.Operation;
+    public bool IsViewMode      => Mode == AppMode.View;
 }
 ```
 
-`WorkContext` là **singleton** trong DI — tất cả pages chia sẻ cùng 1 instance. Khi operator chọn job/op/product ở bất kỳ page nào, WorkContext được cập nhật và Dashboard tự refresh.
+**Dual context rules:**
+- Toggle mode KHÔNG clear view context — `OnModeChanged` chỉ notify computed properties
+- View context chỉ clear khi `Clear()` (logout)
+- `DashboardViewModel` dùng helpers: `CtxJob = IsViewMode ? ViewJob : CurrentJob` (tương tự CtxOp, CtxProduct)
+- `MainViewModel.NavigateTo*` gọi đúng slot theo mode: `IsViewMode ? SetViewJob(job) : SetJob(job)`
 
 ---
 
@@ -367,8 +406,22 @@ Tối ưu cho **1920×1080** và **1280×800** (shop floor tablet/PC):
 - `_productsCreated` / `_productsCompleted` = đếm trong session
 
 **WorkInfo card states** dùng `Visibility` binding:
-- `HasWork=false` → Empty state (Chọn Job button)
-- `HasWork=true` → hiện các column Job/OP/Serial tùy available
-- `HasSession=false` → "Tiếp tục" button (navigate)
+- `ShowSelectJobButton=true` (`!HasWork && !CanForceFinish`) → "Chọn Job" button
+- `ShowNavigateButton=true` (`CanNavigate && !CanForceFinish`) → "Tiếp tục →" button
 - `CanStart=true` → "Bắt đầu" button cam (PUT /start)
-- `CanStop=true` → "Kết thúc" button đỏ + timer (PUT /complete)
+- `ShowStopButton=true` (`CanStop && !CanForceFinish`) → "Kết thúc" button đỏ + timer (PUT /complete)
+- `CanForceFinish=true` → "Kết thúc phiên [Tên A]" button + banner tên người đang giữ session
+
+Tại mọi thời điểm, nhiều nhất 1 nút action visible — các điều kiện loại trừ nhau.
+
+**View Mode notes** (implement thực tế):
+- Toggle chip MODE luôn visible bất kể forced/voluntary — user luôn thấy đang ở mode nào
+- Khi forced View Mode (máy đang bị dùng bởi người khác, role Operator): chip mờ, không thể click
+- Work Info card đọc ViewJob/Op/Product khi View Mode → user thấy thông tin đang browse
+- Shortcuts cập nhật theo ViewJob/Op/Product khi View Mode
+- FAI shortcut ẩn hoàn toàn trong View Mode (kể cả khi ViewProduct != null)
+
+**FAI TextBox locked state:**
+- Khi dimension đã đo (`IsInputLocked=true`): TextBox `IsEnabled=false` (disabled hoàn toàn — grayed out, không nhận focus, NumPad không mở)
+- `IsInputEnabled = !IsInputLocked` — property riêng với `[NotifyPropertyChangedFor]` để bind XAML
+- Dùng `IsEnabled` thay `IsReadOnly` để có visual feedback rõ ràng hơn (grayed out vs chỉ không gõ được)

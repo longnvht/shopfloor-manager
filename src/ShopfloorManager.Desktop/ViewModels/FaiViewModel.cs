@@ -28,6 +28,7 @@ public partial class FaiViewModel : Base.ViewModelBase
     [NotifyPropertyChangedFor(nameof(ShowNumericInput))]
     [NotifyPropertyChangedFor(nameof(ShowTextInput))]
     [NotifyPropertyChangedFor(nameof(IsInputLocked))]
+    [NotifyPropertyChangedFor(nameof(IsInputEnabled))]
     [NotifyCanExecuteChangedFor(nameof(ConfirmCommand))]
     [NotifyCanExecuteChangedFor(nameof(SetPassCommand))]
     [NotifyCanExecuteChangedFor(nameof(SetFailCommand))]
@@ -45,6 +46,7 @@ public partial class FaiViewModel : Base.ViewModelBase
     public bool ShowNumericInput => SelectedDimension is { IsTextType: false };
     public bool ShowTextInput    => SelectedDimension is { IsTextType: true };
     public bool IsInputLocked    => SelectedDimension?.IsMeasured == true;
+    public bool IsInputEnabled   => !IsInputLocked;
 
     public Action? OnBack { get; set; }
     public Action<NcrTriggerArgs>? OnDimensionFail { get; set; }

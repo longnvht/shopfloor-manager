@@ -46,11 +46,15 @@ public partial class MainViewModel : ViewModelBase
     {
         switch (target)
         {
-            case "jobs":     NavigateToJobs();      break;
-            case "ops":      NavigateToOps();       break;
-            case "products": NavigateToProducts();  break;
-            case "fai":      NavigateToFai();       break;
-            // document viewers & settings wired in future tasks
+            case "jobs":     NavigateToJobs();          break;
+            case "ops":      NavigateToOps();           break;
+            case "products": NavigateToProducts();      break;
+            case "fai":      NavigateToFai();           break;
+            case "gcode":
+            case "drawing":
+            case "fixture":
+            case "routecard":
+                NavigateToDocumentViewer(); break;
         }
     }
 
@@ -143,6 +147,20 @@ public partial class MainViewModel : ViewModelBase
         vm.OnDimensionFail = ShowNcrDialog;
         CurrentPage = vm;
         _ = vm.InitializeAsync();
+    }
+
+    // ===== Document Viewer =====
+
+    public void NavigateToDocumentViewer()
+    {
+        _keyboard.Hide();
+        var job = IsViewMode ? _browseJob ?? _work.ViewJob : _work.CurrentJob;
+        var op  = IsViewMode ? _browseOp  ?? _work.ViewOp  : _work.CurrentOp;
+        if (job is null || op is null) { NavigateToDashboard(); return; }
+        var vm = _sp.GetRequiredService<DocumentViewerViewModel>();
+        vm.OnBack = NavigateToDashboard;
+        CurrentPage = vm;
+        _ = vm.InitializeAsync(job, op);
     }
 
     private void ShowNcrDialog(NcrTriggerArgs args)

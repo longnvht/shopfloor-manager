@@ -74,10 +74,12 @@ public partial class DashboardViewModel : ViewModelBase
     // ── Work Info card ─────────────────────────────────────────────────
     public bool HasWork      => CtxJob is not null;
     public bool HasSession   => !_work.IsViewMode && _work.ActiveSession is not null;
-    public bool CanNavigate  => HasWork && _work.ActiveSession is null;
+    // "Tiếp tục" — có job/op nhưng chưa chọn product
+    public bool CanNavigate  => HasWork && !_work.HasProduct && _work.ActiveSession is null;
     public bool IsWip        => _work.IsWip;
-    public bool CanStart     => _work.IsWip && !(_work.ActiveSession?.StartedAt.HasValue == true) && _work.IsOperationMode;
-    public bool CanStop      => _work.IsWip &&   _work.ActiveSession?.StartedAt.HasValue == true  && _work.IsOperationMode;
+    // "Bắt đầu" — đã chọn product nhưng chưa có session active
+    public bool CanStart     => _work.HasProduct && !_work.IsWip && _work.IsOperationMode;
+    public bool CanStop      => _work.IsWip && _work.IsOperationMode;
 
     // ── Mutually exclusive button visibility ───────────────────────────────
     /// <summary>Hiện "Chọn Job" chỉ khi chưa có job VÀ không đang cần force-finish.</summary>
@@ -97,6 +99,12 @@ public partial class DashboardViewModel : ViewModelBase
         _work.IncomingSession is not null
         && _work.IncomingSession.ClaimedBy != _auth.UserId
         && _auth.Role is "Leader" or "Manager" or "Administrator";
+
+    /// <summary>Có thể toggle mode: false khi máy đang bị dùng bởi người khác VÀ role không phải Leader/Admin.</summary>
+    public bool CanSwitchMode =>
+        _work.IncomingSession is null
+        || _work.IncomingSession.ClaimedBy == _auth.UserId
+        || _auth.Role is "Leader" or "Manager" or "Administrator";
 
     /// <summary>Hiện nút "Kết thúc" bình thường — ẩn khi đang hiện ForceFinish.</summary>
     public bool ShowStopButton => CanStop && !CanForceFinish;
@@ -202,12 +210,14 @@ public partial class DashboardViewModel : ViewModelBase
         OnPropertyChanged(nameof(IsOperationMode));
         OnPropertyChanged(nameof(IncomingOwnerName));
         OnPropertyChanged(nameof(CanForceFinish));
+        OnPropertyChanged(nameof(CanSwitchMode));
         OnPropertyChanged(nameof(ShowStopButton));
         OnPropertyChanged(nameof(ShowSelectJobButton));
         OnPropertyChanged(nameof(ShowNavigateButton));
         StartCommand.NotifyCanExecuteChanged();
         StopCommand.NotifyCanExecuteChanged();
         ForceFinishCommand.NotifyCanExecuteChanged();
+        ToggleModeCommand.NotifyCanExecuteChanged();
         RefreshShortcuts();
     }
 
@@ -226,11 +236,11 @@ public partial class DashboardViewModel : ViewModelBase
         }
         switch (_work.WorkState)
         {
-            case "empty":    NavigateTo?.Invoke("jobs");     break;
-            case "has-job":  NavigateTo?.Invoke("ops");      break;
-            case "has-op":   NavigateTo?.Invoke("products"); break;
-            case "wip":
-            case "complete": NavigateTo?.Invoke("products"); break;
+            case "empty":       NavigateTo?.Invoke("jobs");     break;
+            case "has-job":     NavigateTo?.Invoke("ops");      break;
+            case "has-op":      NavigateTo?.Invoke("products"); break;
+            case "has-product":
+            case "wip":         NavigateTo?.Invoke("products"); break;
         }
     }
 
@@ -240,18 +250,26 @@ public partial class DashboardViewModel : ViewModelBase
     [RelayCommand(CanExecute = nameof(CanStart))]
     private async Task StartAsync()
     {
-        if (_work.ActiveSession is null) return;
-        IsBusy = true;
+        if (_work.CurrentProduct is null || _work.CurrentOp is null) return;
+        IsBusy = true; ClearError();
         try
         {
-            var result = await _api.PutAsync<object, ProductionSessionDto>(
-                $"/api/v1/production-sessions/{_work.ActiveSession.Id}/start", new { });
-            if (result?.Data is not null)
+            var result = await _api.PostAsync<object, ProductionSessionDto>(
+                "/api/v1/production-sessions",
+                new { productId = _work.CurrentProduct.ProductId,
+                      partOpId  = _work.CurrentOp.Id,
+                      machineCode = _settings.MachineCode });
+            if (result?.Success == true && result.Data is not null)
             {
-                _work.SetProduct(_work.CurrentProduct!, result.Data);
+                _work.SetProduct(_work.CurrentProduct, result.Data);
                 RefreshWorkInfo();
             }
+            else
+            {
+                ErrorMessage = result?.Error ?? "Không thể bắt đầu phiên gia công.";
+            }
         }
+        catch (Exception ex) { ErrorMessage = $"Lỗi: {ex.Message}"; }
         finally { IsBusy = false; }
     }
 
@@ -306,7 +324,7 @@ public partial class DashboardViewModel : ViewModelBase
 
     // ── Mode toggle ────────────────────────────────────────────────────
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanSwitchMode))]
     private void ToggleMode()
     {
         _work.Mode = _work.IsViewMode ? AppMode.Operation : AppMode.View;
@@ -338,9 +356,11 @@ public partial class DashboardViewModel : ViewModelBase
         // FAI chỉ khả dụng trong Operation Mode khi session đã được bắt đầu (StartedAt != null)
         bool canFai  = !_work.IsViewMode && hasProd && _work.ActiveSession?.StartedAt.HasValue == true;
 
-        Add("Chọn Job",       "ClipboardList",       "jobs",      always: true);
-        Add("Chọn OP",        "PlaylistEdit",        "ops",       when: hasJob);
-        Add("Chọn sản phẩm",  "FormatListNumbered",  "products",  when: hasOp);
+        // Operation Mode + inprogress → hiển thị mờ, không cho thay đổi context
+        bool canChangeContext = _work.IsViewMode || !_work.IsWip;
+        Add("Chọn Job",       "ClipboardList",       "jobs",      always: true,  isEnabled: canChangeContext);
+        Add("Chọn OP",        "PlaylistEdit",        "ops",       when: hasJob,  isEnabled: canChangeContext);
+        Add("Chọn sản phẩm",  "FormatListNumbered",  "products",  when: hasOp,   isEnabled: canChangeContext);
         Add("Xem bản vẽ",     "FileImageOutline",    "drawing",   when: hasOp);
         Add("Hướng dẫn gá",   "Wrench",              "fixture",   when: hasOp);
         Add("Hướng dẫn CW",   "FileDocumentOutline", "routecard", when: hasOp);
@@ -358,11 +378,11 @@ public partial class DashboardViewModel : ViewModelBase
     }
 
     private void Add(string title, string icon, string target,
-        bool always = false, bool when = false)
+        bool always = false, bool when = false, bool isEnabled = true)
     {
         if (!always && !when) return;
         Shortcuts.Add(new ShortcutItem(title, icon,
-            new RelayCommand(() => NavigateTo?.Invoke(target))));
+            new RelayCommand(() => NavigateTo?.Invoke(target)), isEnabled));
     }
 
     public void Cleanup() => _timer?.Stop();

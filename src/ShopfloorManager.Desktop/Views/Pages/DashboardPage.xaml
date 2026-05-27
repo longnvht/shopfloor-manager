@@ -60,6 +60,7 @@
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Opacity" Value="0.4"/>
+                                <Setter Property="Cursor" Value="Arrow"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -93,10 +94,9 @@
                     <TextBlock Text="SHOPFLOOR MANAGER"
                                Foreground="White" FontWeight="Bold" FontSize="15"
                                VerticalAlignment="Center"/>
-                    <!-- Mode toggle chip — always visible, click to toggle -->
+                    <!-- Mode toggle chip — always visible, click to toggle (disabled when forced View Mode) -->
                     <Border CornerRadius="4" Padding="8,3"
-                            VerticalAlignment="Center" Margin="12,0,0,0"
-                            Cursor="Hand">
+                            VerticalAlignment="Center" Margin="12,0,0,0">
                         <Border.InputBindings>
                             <MouseBinding MouseAction="LeftClick" Command="{Binding ToggleModeCommand}"/>
                         </Border.InputBindings>
@@ -105,10 +105,16 @@
                                 <Setter Property="Background" Value="Transparent"/>
                                 <Setter Property="BorderBrush" Value="#60FFFFFF"/>
                                 <Setter Property="BorderThickness" Value="1"/>
+                                <Setter Property="Cursor" Value="Hand"/>
+                                <Setter Property="Opacity" Value="1"/>
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding IsViewMode, Mode=OneWay}" Value="True">
                                         <Setter Property="Background" Value="#FF8F00"/>
                                         <Setter Property="BorderBrush" Value="Transparent"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding CanSwitchMode, Mode=OneWay}" Value="False">
+                                        <Setter Property="Cursor" Value="Arrow"/>
+                                        <Setter Property="Opacity" Value="0.4"/>
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>

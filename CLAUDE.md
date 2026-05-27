@@ -283,7 +283,7 @@ CalibRequestStatus:Pending=0, Approved=1, Completed=2, Cancelled=3
 
 ## Project Status
 
-*(cập nhật 2026-05-25)*
+*(cập nhật 2026-05-26)*
 
 | Phase | Status |
 |---|---|
@@ -347,20 +347,34 @@ CalibRequestStatus:Pending=0, Approved=1, Completed=2, Cancelled=3
 - ✅ NCR dialog: department chip + reason ComboBox + tùy chọn "Khác" (yêu cầu mô tả), POST `/api/v1/ncrs`
 - ✅ NcrReasons seed data: 15 lý do gắn DepartmentId (PROD×6, QC×3, ENG×5, null×1)
 - ✅ DragScrollBehavior: attached property `kb:DragScrollBehavior.Enabled` — drag-to-scroll trên JobList/OP/Product/FAI pages
-- ✅ Operation_Mode/View_Mode: AppMode enum trong WorkContext; login flow check active session → set mode + restore WorkContext nếu resume; View_Mode: navigation không ghi WorkContext, ProductListPage ẩn nút "Lựa chọn"
+- ✅ Operation_Mode/View_Mode: AppMode enum trong WorkContext; login flow check active session → set mode + restore WorkContext nếu resume; View_Mode: navigation không ghi WorkContext, ProductListPage hiện "Xem sản phẩm →" thay "Lựa chọn →"
 - ✅ session resume on login: GET /api/v1/machines/{code}/active-session → reconstruct minimal DTOs → SetJob/SetOp/SetProduct
-- ✅ force-finish session: PUT /api/v1/production-sessions/{id}/force-complete (role Leader/Manager/Admin); DashboardPage hiện "Kết thúc phiên" button + VIEW MODE badge
+- ✅ force-finish session: PUT /api/v1/production-sessions/{id}/force-complete (role Leader/Manager/Admin); DashboardPage hiện "Kết thúc phiên" button
 - ✅ ClaimedBy FK: ProductionSession.ClaimedBy → Users (thay shadow `CancelledByUserId`); ProductionSessionConfiguration Fluent API
 - ✅ Leader role: thêm vào AppConstants.Roles + DB seed (Id=7)
-- **Chưa implement:** manual mode toggle, DocumentViewer (PDF + G-code), Settings page
+- ✅ VIEW MODE toggle chip: luôn visible trên TitleBar (kể cả forced View_Mode), DataTrigger styling — Operation: BrandPrimary bg, View: gray; `ToggleModeCommand` trong DashboardViewModel
+- ✅ WorkContext dual context: `ViewJob/ViewOp/ViewProduct` slot hoàn toàn độc lập với `CurrentJob/Op/Product`; context giữ nguyên khi toggle (OnModeChanged KHÔNG clear view context, chỉ clear khi logout)
+- ✅ DashboardViewModel mode-aware: `CtxJob/CtxOp/CtxProduct` helpers đọc đúng slot theo mode; Work Info card hiển thị thông tin đúng khi toggle mode
+- ✅ View Mode context persistence: view context giữ nguyên khi toggle về Operation Mode rồi toggle lại
+- ✅ View Mode product selection: ProductListPage IsViewMode=true → chọn product, set ViewProduct, không tạo session
+- ✅ FAI one-time entry (IsInputLocked): dimension đã đo hiện giá trị cũ, lock re-entry; TextBox IsEnabled=false (disabled hoàn toàn), amber notice banner, CanConfirm/CanSetPass/CanSetFail guard
+- ✅ Work Info button mutual exclusion: ShowSelectJobButton + ShowNavigateButton gate on !CanForceFinish — tại một thời điểm chỉ 1 nút visible trong 5: SelectJob / Navigate / Start / Stop / ForceFinish
+- ✅ Non-admin users login: bỏ FirstLogin check trong LoginViewModel Desktop — Desktop không redirect đổi mật khẩu
+- ✅ FAI session started guard: NavigateToFai kiểm tra `_work.ActiveSession?.StartedAt.HasValue != true` → NavigateToDashboard; shortcut "Bảng đo" chỉ visible khi Operation Mode + session đã started
+- ✅ DocumentViewer — G-code text viewer: `DocumentViewerPage` + `DocumentViewerViewModel` + `GcodeViewerBehavior` (syntax highlight N/G/M/axis/feed/tool/comment); `HexToBrushConverter` cho badge màu; auto-select G-code doc; shortcuts "Xem G-code"/"Hướng dẫn CW"/"Xem bản vẽ"/"Hướng dẫn gá" đều route về DocumentViewer
+- ✅ Session constraint redesign: Claim = client-side only (WorkContext, không ghi DB); chỉ `BeginSession` ghi DB (tạo + start atomically); ràng buộc per-machine chỉ áp dụng khi inprogress (`started_at IS NOT NULL`)
+- ✅ Shortcut lock khi inprogress: Operation Mode + IsWip → "Chọn Job/OP/Sản phẩm" disabled (opacity 0.4), View Mode → re-enable
+- **Chưa implement:** DocumentViewer PDF viewer, Settings page
 
-**Ràng buộc ProductionSession (2 constraints cứng):**
-- Per-product: 1 product chỉ có 1 session open tại 1 thời điểm (không chọn ở 2 máy/OP cùng lúc)
-- Per-machine: 1 máy chỉ gia công 1 product tại 1 thời điểm (không claim thêm khi đang có session open)
+**Ràng buộc ProductionSession (thiết kế mới 2026-05-27):**
+- **Claim = client-side only**: chọn product → `_work.SetProduct(product, null)` — KHÔNG ghi DB
+- **Per-product inprogress**: block nếu product đã có session `open + started_at IS NOT NULL` ở máy khác
+- **Per-machine inprogress**: block nếu máy đã có session `open + started_at IS NOT NULL`
+- **BeginSession** (POST `/api/v1/production-sessions`): tạo session + set `started_at` ngay, check 2 constraints trên
 
-**FAI workflow (đã implement một phần):**
-1. Claim session → Dashboard hiện nút "Bắt đầu"
-2. Nút "Bắt đầu" → PUT start → timer chạy trên Dashboard
+**FAI workflow (đã implement):**
+1. Chọn product → `_work.SetProduct(product, null)` — Dashboard hiện nút "Bắt đầu"
+2. Nút "Bắt đầu" → POST `/api/v1/production-sessions` → tạo + start atomically → timer chạy
 3. Shortcut "Bảng đo" → FAIPage: dimension card grid → tap card → NumPad nhập số / PASS·FAIL cho text → confirm → auto-advance
 4. Khi tất cả dims đo xong → Dashboard nút "Kết thúc" → PUT complete
 5. Nếu Fail → NCR dialog (đã implement)
@@ -398,9 +412,11 @@ Session của người khác trên máy:
 ```
 
 **Mode toggle (manual):**
-- Radio button / toggle trên TitleBar: chỉ visible khi KHÔNG bị forced View_Mode
-- Operator có session của mình → có thể toggle sang View_Mode để browse hồ sơ → toggle về Operation_Mode, WorkContext còn nguyên
-- TitleBar màu khác khi View_Mode (neutral/gray thay vì BrandPrimary)
+- Toggle chip trên TitleBar: **luôn visible** (kể cả khi forced View_Mode — user vẫn thấy trạng thái hiện tại)
+- Operator có session của mình → có thể toggle sang View_Mode để browse hồ sơ → toggle về Operation_Mode, context cũ còn nguyên
+- TitleBar màu khác khi View_Mode: DataTrigger `IsViewMode=True` → gray background (không phải BrandPrimary)
+- View context độc lập: `WorkContext.ViewJob/ViewOp/ViewProduct` — hoàn toàn tách biệt với `CurrentJob/Op/Product`
+- `DashboardViewModel.CtxJob/CtxOp/CtxProduct` → computed helpers đọc đúng slot: `IsViewMode ? ViewJob : CurrentJob`
 
 **Phân quyền force-finish:**
 - Chỉ `Leader` và `Administrator` có button "Kết thúc thay"
@@ -410,14 +426,15 @@ Session của người khác trên máy:
 **API endpoints (✅ implemented):**
 - `GET /api/v1/machines/{machineCode}/active-session` — trả về `ActiveSessionDto?` đang active trên máy + thông tin user, dùng cho login check
 - `PUT /api/v1/production-sessions/{id}/force-complete` — Leader/Manager/Admin force-finish session của người khác
-- Claim: `POST /api/v1/production-sessions` nhận `ClaimSessionRequest(ProductId, PartOpId, MachineCode)`; server tự thêm `UserId` từ JWT
+- Begin: `POST /api/v1/production-sessions` nhận `BeginSessionRequest(ProductId, PartOpId, MachineCode)`; tạo + start atomically, check per-product/per-machine inprogress; server inject `UserId` từ JWT
 
 **Desktop changes:**
-- `WorkContext`: thêm `AppMode` enum (`Operation` | `View`) + `IsOperationMode` computed
-- `LoginViewModel`: sau login gọi active-session API, set mode + khôi phục WorkContext nếu resume
-- `MainViewModel`: mode-aware navigation — khi View_Mode, `OnJobOpened/OnOperationSelected/OnProductSelected` callbacks KHÔNG gọi `_work.SetJob/SetOp/SetProduct`; bỏ WorkContext guards khi View_Mode
-- `DashboardViewModel`: ẩn Work Info section khi View_Mode; hiện force-finish button khi View_Mode + có active session + role Leader/Admin
-- `DashboardPage.xaml`: thêm mode toggle (TitleBar) + visual indicator View_Mode
+- `WorkContext`: thêm `AppMode` enum (`Operation` | `View`) + `ViewJob/ViewOp/ViewProduct` slots + `HasViewJob/Op/Product` computed + `SetViewJob/Op/Product` + `ClearViewContext()`; `OnModeChanged` KHÔNG clear view context
+- `LoginViewModel`: sau login gọi active-session API, set mode + khôi phục WorkContext nếu resume; KHÔNG check FirstLogin
+- `MainViewModel`: mode-aware navigation — khi View_Mode gọi `_work.SetViewJob/Op/Product`; khi Operation Mode gọi `_work.SetJob/Op/Product`; `_browseJob/_browseOp` private state để truyền context giữa các pages trong View Mode
+- `DashboardViewModel`: `CtxJob/CtxOp/CtxProduct` helpers; `ToggleModeCommand`; Work Info hiển thị context đúng mode; `ShowSelectJobButton`, `ShowNavigateButton`, `ShowStopButton` mutual exclusion; shortcut "Bảng đo" guard `canFai`
+- `FaiViewModel`: `IsInputLocked`, `OnSelectedDimensionChanged` restore, `CanConfirm/CanSetPass/CanSetFail` guard
+- `DashboardPage.xaml`: toggle chip luôn visible (DataTrigger styling); button visibility bindings cập nhật
 
 **Desktop MES — kiến trúc quan trọng:**
 - KHÔNG kết nối DB trực tiếp — chỉ qua REST API
@@ -455,9 +472,26 @@ Session của người khác trên máy:
 - **DragScrollBehavior**: attached property `kb:DragScrollBehavior.Enabled="True"` trên outer `ScrollViewer` — nhận `PreviewMouseMove`, capture mouse khi drag > 8px, scroll bằng `ScrollToVerticalOffset`; state lưu per-instance qua DependencyProperty (không dùng static field)
 - **AppMode (Operation/View)**: `WorkContext.AppMode` quyết định behavior của `MainViewModel.NavigateTo*` — khi View_Mode KHÔNG gọi `_work.SetJob/SetOp/SetProduct`, bỏ qua WorkContext guards; DashboardViewModel ẩn Work Info section khi View_Mode
 - **Session resume**: sau login thành công, gọi `GET /api/v1/machines/{code}/active-session` trước khi navigate → nếu `session.ClaimedBy == auth.UserId` thì reconstruct minimal DTOs từ `ActiveSessionDto` rồi gọi `_work.SetJob/SetOp/SetProduct` → vào Dashboard với WorkContext đã restore
-- **ClaimSessionRequest**: Desktop POST body chỉ cần `ProductId, PartOpId, MachineCode` — server inject `UserId` từ JWT. Controller dùng `ClaimSessionRequest` record riêng (không dùng command trực tiếp) để tránh expose `UserId` field trong API contract
+- **BeginSessionRequest**: Desktop POST body chỉ cần `ProductId, PartOpId, MachineCode` — server inject `UserId` từ JWT. Controller dùng `BeginSessionRequest` record riêng để tránh expose `UserId` field trong API contract. `BeginSessionHandler` tạo session + set `started_at` atomically trong 1 transaction
 - **ProductionSessionConfiguration**: `HasForeignKey(s => s.ClaimedBy)` + `HasForeignKey(s => s.CancelledBy)` — map explicit int FK props thay shadow properties. Nếu thiếu config này, EF tạo shadow `ClaimedByUserId` và `CancelledByUserId`, khiến Include navigation luôn null
 - **Force-finish**: chỉ Leader/Admin; thực hiện từ máy đang có session đó; sau force-finish máy tự do, user có thể bắt đầu session mới
+- **Desktop FirstLogin**: Desktop app KHÔNG redirect đổi mật khẩu khi `FirstLogin=true` — LoginViewModel bỏ qua check đó và navigate thẳng MainViewModel. FirstLogin chỉ xử lý trên Web app.
+- **WorkContext dual context**: `ViewJob/ViewOp/ViewProduct` là slot độc lập cho View Mode. `OnModeChanged` KHÔNG gọi `ClearViewContext()` — view context giữ nguyên khi toggle; chỉ clear khi `Clear()` (logout). `DashboardViewModel.CtxJob/CtxOp/CtxProduct` đọc đúng slot dựa trên mode.
+- **FAI IsInputLocked**: `SelectedDimension?.IsMeasured == true` → lock mọi input. `OnSelectedDimensionChanged` restore giá trị đã đo vào InputValue. `CanConfirm/CanSetPass/CanSetFail` return `false` khi locked. FaiPage.xaml: TextBox `IsEnabled="{Binding IsInputEnabled}"` (disabled hoàn toàn — grayed out, không focus, NumPad không mở) + amber notice banner. `IsInputEnabled = !IsInputLocked` trong FaiViewModel với `[NotifyPropertyChangedFor]`.
+- **Work Info button mutual exclusion**: 5 nút không đồng thời: SelectJob (`ShowSelectJobButton = !HasWork && !CanForceFinish`), Navigate (`ShowNavigateButton = CanNavigate && !CanForceFinish`), Start (`CanStart`), Stop (`ShowStopButton = CanStop && !CanForceFinish`), ForceFinish (`CanForceFinish`). Tại mọi thời điểm, nhiều nhất 1 nút visible.
+- **FAI session started guard**: `NavigateToFai` check `_work.ActiveSession?.StartedAt.HasValue != true` → redirect Dashboard. Shortcut "Bảng đo" condition: `canFai = !_work.IsViewMode && hasProd && _work.ActiveSession?.StartedAt.HasValue == true`.
+- **DocumentViewer navigation**: `HandleDashboardNavigation` cases "gcode"/"drawing"/"fixture"/"routecard" → `NavigateToDocumentViewer()`; dùng browse job/op context (View Mode safe). API: `GET /api/v1/tech-documents?partOpId=&status=Approved` → list; `GET /api/v1/tech-documents/{id}/download-url` → string URL → `HttpClient.GetStringAsync`.
+- **GcodeViewerBehavior**: attached property `kb:GcodeViewerBehavior.Text` trên `RichTextBox` — parse G-code thành `FlowDocument` với colored `Run`s. Token colors: N=gray, G=blue #1565C0, M=purple #6A1B9A, X/Y/Z/I/J/K=orange #E65100, F/S=green #2E7D32, T/H/D=teal #00838F, O=red, comment(`;`/`(`)=gray. Limit 5000 dòng.
+- **HexToBrushConverter**: converter mới `string hex → SolidColorBrush`, dùng `ColorConverter.ConvertFromString`. Đăng ký trong App.xaml với key `HexToBrushConverter`.
+- **VIEW MODE toggle chip**: luôn visible trong TitleBar Dashboard. `DataTrigger IsViewMode=True` → orange bg `#FF8F00` + text "VIEW MODE"; `IsViewMode=False` → transparent/BrandPrimary bg + text "VIEW". `ToggleModeCommand(CanExecute = nameof(CanSwitchMode))` — disabled khi forced View Mode (IncomingSession từ người khác, role không phải Leader/Admin). XAML: `DataTrigger CanSwitchMode=False` → `Opacity=0.4` + `Cursor=Arrow`.
+- **CanSwitchMode**: `_work.IncomingSession is null || ClaimedBy == auth.UserId || role in Leader/Manager/Admin`. Notify trong `RefreshWorkInfo()` + `ToggleModeCommand.NotifyCanExecuteChanged()`.
+- **`FlowDocument.PageWidth/ColumnWidth`**: `double.PositiveInfinity` KHÔNG hợp lệ trong .NET 9 WPF (ArgumentException tại runtime) — dùng `100000.0` cho code viewer để tắt line-wrap. Thiếu 2 thuộc tính này → mỗi ký tự xuống 1 dòng riêng.
+- **MinIO presigned URL download**: KHÔNG dùng shared `HttpClient` singleton (đã có `Authorization: Bearer` header) — MinIO trả 400/403 vì presigned URL đã có auth sẵn trong query string. Luôn tạo `new System.Net.Http.HttpClient()` riêng (không header) để download file từ presigned URL.
+- **ProductList select flow (thiết kế mới)**: Claim = client-side only — `SelectProductAsync` không gọi API. Logic: (1) resume nếu `inprogress && SessionId == _work.ActiveSession?.Id`; (2) block nếu `inprogress` (máy khác); (3) block nếu `complete`; (4) còn lại → `_work.SetProduct(product, null)` + navigate. Không có bước POST claim nữa.
+- **BeginSession flow**: Khi bấm "Bắt đầu" trên Dashboard → `POST /api/v1/production-sessions` với `{productId, partOpId, machineCode}` → server tạo session + set `started_at` ngay → trả về `ProductionSessionDto` → `_work.SetProduct(currentProduct, session)`.
+- **CanNavigate/CanStart (thiết kế mới)**: `CanNavigate = HasWork && !HasProduct && ActiveSession == null` (có job/op nhưng chưa chọn product); `CanStart = HasProduct && !IsWip && IsOperationMode` (đã chọn product, chưa có session). Mutual exclusion đảm bảo chỉ 1 button visible.
+- **WorkState "has-product"**: thay thế "complete" — `HasProduct && !IsWip` → `"has-product"` (đã chọn sản phẩm, chưa bắt đầu gia công). `TapWorkInfo` case "has-product" → navigate to products.
+- **Shortcut disabled khi inprogress**: `canChangeContext = IsViewMode || !IsWip` — truyền `isEnabled: canChangeContext` vào `Add()` cho 3 shortcuts "Chọn Job/OP/Sản phẩm". `UtilBtn` ControlTemplate có `Trigger IsEnabled=False → Opacity=0.4 + Cursor=Arrow`. View Mode → re-enable (thao tác trên view context).
 
 ---
 

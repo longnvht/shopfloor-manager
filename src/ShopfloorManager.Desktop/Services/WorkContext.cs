@@ -40,7 +40,7 @@ public partial class WorkContext : ObservableObject
     public bool HasProduct => CurrentProduct is not null;
     public bool IsWip      => ActiveSession?.Status == "open";
 
-    /// <summary>empty | has-job | has-op | wip | complete</summary>
+    /// <summary>empty | has-job | has-op | has-product | wip</summary>
     public string WorkState
     {
         get
@@ -48,7 +48,7 @@ public partial class WorkContext : ObservableObject
             if (!HasJob)     return "empty";
             if (!HasOp)      return "has-job";
             if (!HasProduct) return "has-op";
-            return IsWip ? "wip" : "complete";
+            return IsWip ? "wip" : "has-product";
         }
     }
 

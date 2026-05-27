@@ -37,6 +37,7 @@
             <conv:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibilityConverter"/>
             <conv:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
             <conv:BoolToRedBrushConverter x:Key="BoolToRedBrushConverter"/>
+            <conv:HexToBrushConverter x:Key="HexToBrushConverter"/>
             <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
 
             <!-- ===== TOUCH-FRIENDLY GLOBAL STYLES ===== -->
@@ -85,6 +86,9 @@
             </DataTemplate>
             <DataTemplate DataType="{x:Type vm:FaiViewModel}">
                 <pages:FaiPage/>
+            </DataTemplate>
+            <DataTemplate DataType="{x:Type vm:DocumentViewerViewModel}">
+                <pages:DocumentViewerPage/>
             </DataTemplate>
         </ResourceDictionary>
     </Application.Resources>

@@ -52,14 +52,14 @@ public record ProductWithSessionDto(
     DateTimeOffset? StartedAt,
     DateTimeOffset? CompletedAt);
 
-// ===== CLAIM (operator chọn product) =====
+// ===== BEGIN (operator bấm "Bắt đầu" — tạo session và bắt đầu ngay) =====
 
-public record ClaimSessionCommand(int ProductId, int PartOpId, string MachineCode, int UserId)
+public record BeginSessionCommand(int ProductId, int PartOpId, string MachineCode, int UserId)
     : IRequest<Result<ProductionSessionDto>>;
 
-public class ClaimSessionCommandValidator : AbstractValidator<ClaimSessionCommand>
+public class BeginSessionCommandValidator : AbstractValidator<BeginSessionCommand>
 {
-    public ClaimSessionCommandValidator()
+    public BeginSessionCommandValidator()
     {
         RuleFor(x => x.ProductId).GreaterThan(0);
         RuleFor(x => x.PartOpId).GreaterThan(0);
@@ -67,58 +67,47 @@ public class ClaimSessionCommandValidator : AbstractValidator<ClaimSessionComman
     }
 }
 
-public class ClaimSessionHandler(IShopfloorDbContext db)
-    : IRequestHandler<ClaimSessionCommand, Result<ProductionSessionDto>>
+public class BeginSessionHandler(IShopfloorDbContext db)
+    : IRequestHandler<BeginSessionCommand, Result<ProductionSessionDto>>
 {
-    public async Task<Result<ProductionSessionDto>> Handle(ClaimSessionCommand req, CancellationToken ct)
+    public async Task<Result<ProductionSessionDto>> Handle(BeginSessionCommand req, CancellationToken ct)
     {
         var product = await db.Products.FindAsync([req.ProductId], ct);
         if (product is null)
             return Result.Fail("Sản phẩm không tồn tại.");
 
-        var existing = await db.ProductionSessions
+        // Ràng buộc per-product: không cho bắt đầu nếu product đang inprogress ở máy khác
+        var productInProgress = await db.ProductionSessions
             .FirstOrDefaultAsync(s => s.ProductId == req.ProductId
-                                   && s.Status == SessionStatus.Open, ct);
-        if (existing is not null)
-            return Result.Fail($"Sản phẩm đang được sử dụng trên máy {existing.MachineCode}.");
+                                   && s.Status == SessionStatus.Open
+                                   && s.StartedAt != null, ct);
+        if (productInProgress is not null)
+            return Result.Fail($"Sản phẩm đang được gia công trên máy {productInProgress.MachineCode}.");
 
+        // Ràng buộc per-machine: không cho bắt đầu nếu máy đang có session inprogress
+        var machineInProgress = await db.ProductionSessions
+            .FirstOrDefaultAsync(s => s.MachineCode == req.MachineCode
+                                   && s.Status == SessionStatus.Open
+                                   && s.StartedAt != null, ct);
+        if (machineInProgress is not null)
+            return Result.Fail($"Máy {req.MachineCode} đang gia công sản phẩm khác. Kết thúc phiên hiện tại trước.");
+
+        var now = DateTimeOffset.UtcNow;
         var session = new ProductionSession
         {
             ProductId   = req.ProductId,
             PartOpId    = req.PartOpId,
             MachineCode = req.MachineCode,
             Status      = SessionStatus.Open,
-            ClaimedAt   = DateTimeOffset.UtcNow,
+            ClaimedAt   = now,
+            StartedAt   = now,
             ClaimedBy   = req.UserId,
-            CreatedAt   = DateTimeOffset.UtcNow
+            CreatedAt   = now
         };
 
         db.ProductionSessions.Add(session);
         await db.SaveChangesAsync(ct);
         return Result.Ok(Mapper.Map(session, product.SerialNumber));
-    }
-}
-
-// ===== START (bấm "Bắt đầu") =====
-
-public record StartSessionCommand(int SessionId) : IRequest<Result<ProductionSessionDto>>;
-
-public class StartSessionHandler(IShopfloorDbContext db)
-    : IRequestHandler<StartSessionCommand, Result<ProductionSessionDto>>
-{
-    public async Task<Result<ProductionSessionDto>> Handle(StartSessionCommand req, CancellationToken ct)
-    {
-        var session = await db.ProductionSessions
-            .Include(s => s.Product)
-            .FirstOrDefaultAsync(s => s.Id == req.SessionId, ct);
-
-        if (session is null) return Result.Fail("Phiên gia công không tồn tại.");
-        if (session.Status != SessionStatus.Open) return Result.Fail("Phiên không ở trạng thái mở.");
-        if (session.StartedAt.HasValue) return Result.Fail("Phiên đã được bắt đầu.");
-
-        session.StartedAt = DateTimeOffset.UtcNow;
-        await db.SaveChangesAsync(ct);
-        return Result.Ok(Mapper.Map(session, session.Product.SerialNumber));
     }
 }
 
@@ -183,7 +172,7 @@ public class GetActiveSessionHandler(IShopfloorDbContext db)
     public async Task<Result<ActiveSessionDto?>> Handle(GetActiveSessionQuery req, CancellationToken ct)
     {
         var session = await db.ProductionSessions
-            .Where(s => s.MachineCode == req.MachineCode && s.Status == SessionStatus.Open)
+            .Where(s => s.MachineCode == req.MachineCode && s.Status == SessionStatus.Open && s.StartedAt != null)
             .Include(s => s.ClaimedByUser)
             .Include(s => s.Product).ThenInclude(p => p.Job).ThenInclude(j => j.PartRev).ThenInclude(r => r.Part)
             .Include(s => s.PartOp)

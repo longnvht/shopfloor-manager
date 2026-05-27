@@ -54,19 +54,26 @@ PartOP (Công đoạn)
 - OP kiểm tra cuối thường có các dimension đánh dấu `is_final`.
 - MeasureValue cho Final inspection lưu `is_final = true` + `final_op_id`.
 - Phân biệt rõ: đo ban đầu (FAI) vs đo cuối sau rework (FAI Final).
+- `IsFinal = true` → chỉ **QC Inspector** mới được nhập (Operator thấy nhưng disabled).
+- Legacy: 90,061/94,100 dimensions (96%) có `FinalDimension = 1` → FAI Final là flow rất phổ biến.
 
 ### 3.5 Dimension Category
 Mỗi dimension thuộc một category (phương pháp đo):
 
 | Code | Tên | Gage thường dùng |
 |---|---|---|
-| `LIN` | Linear | Thước cặp, panme |
-| `ANG` | Angular | Thước góc |
-| `THD` | Thread | Dưỡng ren, ring gauge |
-| `GEO` | Geometric | CMM, dial indicator |
-| `SFC` | Surface | Surface tester |
+| `LIN` | Linear | Thước cặp (CAL), panme (MIC), bore gage (BOR), depth gage (DPG), height gage (HEG) |
+| `ANG` | Angular | Thước góc (ANG) |
+| `THD` | Thread | Dưỡng ren (PLG/RIG), pitch diameter gage (PDG), taper gage (ETG/IGT), thread height gage (THG) |
+| `GEO` | Geometric | CMM, dial indicator (IND), profile projector (PPM), radius gage (RAD), visual (VIS) |
+| `SFC` | Surface | Surface roughness machine (SRM), surface roughness template (SRT) |
 
 Category quyết định gage type nào được chọn khi đo.
+
+**Tần suất sử dụng thực tế (từ dữ liệu legacy 94,100 dimensions):**
+PPM 34% · CAL 16% · CMM 7% · IND 6% · MIC 5% · VIS 4% · BOR 4% · DPG 4% · PLG 4% · SRM 4%
+
+→ GEO (PPM+CMM+IND+VIS) chiếm ~51%, LIN (CAL+MIC+BOR+DPG+HEG) chiếm ~35%, THD ~8%, SFC ~4%.
 
 ### 3.6 Lịch sử thay đổi Dimension
 - Mỗi khi thay đổi nominal/tolerance → tạo record trong `dimension_history`.
@@ -82,30 +89,71 @@ Category quyết định gage type nào được chọn khi đo.
 
 ## 4. Workflow FAI tại máy (Desktop MES)
 
+### 4.1 FAI lần đầu (First Article)
+
 ```
 Operator login → chọn Máy
   → Màn hình Monitor: chọn Job → chọn OP → chọn Product Serial
-      → Hiện danh sách Balloon Number (sorted)
+  → Claim session → Bắt đầu (ghi started_at)
+      → Hiện danh sách Balloon Number (sorted theo balloon_sort)
         Màu sắc: Xám=chưa đo | Xanh=Pass | Đỏ=Fail
-        Counter: "Complete: 5 / 20"
+        Counter: "5 / 20"
   → Chọn Balloon Number:
       → Hiện: Nominal, Tolerance (+/-), Category
-      → Chọn Gage (filter theo dimension.category_id = gage_type.category_id)
+      → Chọn Gage *(xem 4.3 — chưa implement, kế hoạch Phase 5)*
       → Nhập giá trị đo (bàn phím số cảm ứng)
-      → Hệ thống tính: min_value ≤ value ≤ max_value
-          Pass → Balloon xanh, chuyển balloon tiếp theo
-          Fail → Balloon đỏ, bắt buộc tạo NCR (→ xem 07_ncr.md)
+        → Kích thước số: nhập giá trị, hệ thống tính Pass/Fail tự động
+        → Kích thước text (is_text_type=true): chọn PASS / FAIL thủ công
+      → Kết quả:
+          Pass → Balloon xanh, tự động chuyển balloon tiếp theo
+          Fail → Balloon đỏ, hiện dialog NCR (→ xem 07_ncr.md)
+  → Tất cả đã đo → "Kết thúc" → ghi completed_at
 ```
 
-### FAI Final (sau rework)
+**Dimension đã đo (IsInputLocked):** Khi chọn lại balloon đã có kết quả → hiển thị giá trị cũ, lock toàn bộ input (không cho nhập lại). Mỗi lần đo là 1 record mới — không overwrite (giữ lịch sử).
+
+### 4.2 FAI Final (sau rework NCR)
+
 ```
-NCR đã xử lý xong → Inspector mở FAI Final
-  → Chọn Product Serial bị fail
-  → Đo lại các balloon đỏ
-  → Lưu với is_final = true + final_op_id
-  → Pass → balloon xanh, NCR đóng
-  → Fail lại → tạo NCR mới
+NCR đã xử lý xong (rework/repair hoàn tất)
+  → QC Inspector mở FAI Final cho Product Serial đó
+  → Chỉ hiển thị các balloon có trạng thái Fail (màu đỏ)
+  → Đo lại từng balloon:
+      → Nhập giá trị đo mới
+      → Lưu với is_final=true + final_op_id (OP kiểm tra cuối)
+      → Pass → balloon chuyển xanh, NCR liên quan đóng tự động
+      → Fail lại → tạo NCR mới, tiếp tục chu kỳ rework
 ```
+
+> **Trạng thái implement:** FAI Final chưa có trên Desktop — ⏳ kế hoạch Phase 4b. Schema database (`is_final`, `final_op_id` trong `measure_values`) đã sẵn sàng.
+
+**Phân quyền FAI Final:**
+- `IsFinal = true` dimensions → chỉ **QC Inspector** nhập được
+- Operator thấy dimension nhưng input bị disabled
+
+### 4.3 Gage Selection (Chọn dụng cụ đo)
+
+Mỗi kết quả đo nên ghi nhận dụng cụ nào đã dùng — phục vụ truy vết sau này khi gage bị thu hồi hoặc calibration lỗi.
+
+```
+Tap Balloon Number → Input Panel mở:
+  ① Chọn Gage (tùy chọn):
+       → GET /api/v1/gages?categoryId={dim.categoryId}&status=available
+       → Hiện danh sách: GageNo, GageName, GageType
+       → Filter: is_calibrated=true + status=available
+       → Nếu không có gage phù hợp → cảnh báo, vẫn cho nhập không chọn gage
+  ② Nhập giá trị
+  ③ Confirm → POST với gageId (null nếu không chọn)
+```
+
+**Rules:**
+- Filter theo `dimension.category_id` → chỉ show gage thuộc đúng loại (LIN/THD/GEO...)
+- Gage phải `is_calibrated = true` và `status = available`
+- Không bắt buộc (optional) — không block workflow nếu bỏ qua
+
+> **Trạng thái implement:** Gage selection chưa có trên Desktop (⏳ Phase 5). API endpoint `GET /api/v1/gages` cần implement. Hiện tại `measure_values.gage_id` lưu null.
+
+**Tầm quan trọng (từ legacy data):** Legacy Vinam-MES ghi `GageID` vào 100% trong 904,699 `measurevalue` records — được dùng để invalidate kết quả đo khi gage hỏng/hết hạn calibration.
 
 ---
 
@@ -222,3 +270,6 @@ Nội dung báo cáo:
 - **Tolerance = 0**: max = min = nominal — hiếm nhưng hợp lệ.
 - **Offline tại MES**: measure values queue local (SQLite) → sync khi có mạng.
 - **Value ngoài range rất xa**: cảnh báo "Có thể nhập sai" nếu ngoài ±10× tolerance, nhưng vẫn cho lưu.
+- **Precision**: Legacy Vinam-MES lưu `MeasureValue` dạng `FLOAT` → mất chính xác ở chữ số thập phân 4+. Hệ thống mới dùng `DECIMAL(14,4)` cho tất cả giá trị đo — cải thiện quan trọng khi migrate/import dữ liệu cũ.
+- **NominalDimension dạng text trong legacy**: Legacy lưu `NominalDimension` là `VARCHAR` chứa cả số lẫn ký tự (ví dụ `"72°"`, `"M10x1.5"`). Khi import → parse tách `is_text_type=true` và `nominal_text` thay vì ép sang số.
+- **Gage thu hồi/hỏng**: Nếu gage bị kết luận hỏng sau khi đã đo → cần xác định tất cả `measure_values` dùng `gage_id` đó trong khoảng thời gian → xem xét re-inspect. `gage_id` trong `measure_values` là key truy vết quan trọng (hiện để null — cần implement gage selection).
