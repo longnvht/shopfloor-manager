@@ -1,6 +1,8 @@
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using ShopfloorManager.Desktop.Behaviors;
 using ShopfloorManager.Desktop.Models;
 using ShopfloorManager.Desktop.Services;
 
@@ -22,18 +24,39 @@ public partial class DocumentViewerViewModel : Base.ViewModelBase
     [NotifyPropertyChangedFor(nameof(HasSelectedDoc))]
     [NotifyPropertyChangedFor(nameof(IsGcodeSelected))]
     [NotifyPropertyChangedFor(nameof(IsNonGcodeSelected))]
+    [NotifyPropertyChangedFor(nameof(IsPdfViewerVisible))]
     [NotifyPropertyChangedFor(nameof(SelectedDocLabel))]
+    [NotifyPropertyChangedFor(nameof(ShowTextViewer))]
+    [NotifyPropertyChangedFor(nameof(ShowToolpathViewer))]
     private TechDocDto? _selectedDocument;
 
     [ObservableProperty] private string  _gcodeText    = "";
-    [ObservableProperty] private bool    _isLoadingContent;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsPdfViewerVisible))]
+    private bool _isLoadingContent;
+
     [ObservableProperty] private string  _contentError = "";
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsPdfViewerVisible))]
+    private string? _pdfUrl;
     [ObservableProperty] private bool    _noDocuments;
 
-    public bool HasSelectedDoc     => SelectedDocument is not null;
-    public bool IsGcodeSelected    => SelectedDocument?.IsGcodeType == true;
-    public bool IsNonGcodeSelected => HasSelectedDoc && !IsGcodeSelected;
-    public string SelectedDocLabel => SelectedDocument?.DisplayName ?? "";
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowTextViewer))]
+    [NotifyPropertyChangedFor(nameof(ShowToolpathViewer))]
+    private bool _showToolpath;
+
+    [ObservableProperty] private List<ToolpathMove> _toolpathMoves = [];
+
+    public bool HasSelectedDoc      => SelectedDocument is not null;
+    public bool IsGcodeSelected     => SelectedDocument?.IsGcodeType == true;
+    public bool IsNonGcodeSelected  => HasSelectedDoc && !IsGcodeSelected;
+    public bool IsPdfViewerVisible  => IsNonGcodeSelected && PdfUrl is not null && !IsLoadingContent;
+    public string SelectedDocLabel  => SelectedDocument?.DisplayName ?? "";
+    public bool ShowTextViewer      => IsGcodeSelected && !ShowToolpath;
+    public bool ShowToolpathViewer  => IsGcodeSelected && ShowToolpath;
 
     public Action? OnBack { get; set; }
 
@@ -77,9 +100,13 @@ public partial class DocumentViewerViewModel : Base.ViewModelBase
 
     partial void OnSelectedDocumentChanged(TechDocDto? value)
     {
-        GcodeText = ""; ContentError = "";
+        ShowToolpath = false;
+        GcodeText = ""; ContentError = ""; PdfUrl = null;
+        ToolpathMoves = [];
         if (value?.IsGcodeType == true)
             _ = LoadGcodeAsync(value);
+        else if (value is not null)
+            _ = LoadPdfAsync(value);
     }
 
     private async Task LoadGcodeAsync(TechDocDto doc)
@@ -87,19 +114,34 @@ public partial class DocumentViewerViewModel : Base.ViewModelBase
         IsLoadingContent = true; ContentError = "";
         try
         {
-            // Lấy presigned download URL từ API
             var urlResp = await _api.GetAsync<string>($"/api/v1/tech-documents/{doc.Id}/download-url");
             if (urlResp?.Data is null) { ContentError = "Không lấy được đường dẫn tải file."; return; }
 
-            // Dùng HttpClient mới không có Bearer token — MinIO presigned URL đã có auth sẵn,
-            // Bearer token trong shared HttpClient sẽ gây lỗi 400/403 từ MinIO.
+            // MinIO presigned URL đã có auth — phải dùng HttpClient riêng không có Bearer header.
             using var client = new System.Net.Http.HttpClient();
             var content = await client.GetStringAsync(urlResp.Data);
-            GcodeText = content;
+            GcodeText     = content;
+            ToolpathMoves = GcodeToolpathParser.Parse(content);
         }
         catch (Exception ex) { ContentError = $"Không thể tải file: {ex.Message}"; }
         finally { IsLoadingContent = false; }
     }
+
+    private async Task LoadPdfAsync(TechDocDto doc)
+    {
+        IsLoadingContent = true; ContentError = "";
+        try
+        {
+            var urlResp = await _api.GetAsync<string>($"/api/v1/tech-documents/{doc.Id}/download-url");
+            if (urlResp?.Data is null) { ContentError = "Không lấy được đường dẫn tải file."; return; }
+            PdfUrl = urlResp.Data;
+        }
+        catch (Exception ex) { ContentError = $"Không thể tải file: {ex.Message}"; }
+        finally { IsLoadingContent = false; }
+    }
+
+    [RelayCommand] private void SetTextView()     => ShowToolpath = false;
+    [RelayCommand] private void SetToolpathView() => ShowToolpath = true;
 
     [RelayCommand]
     private void GoBack() => OnBack?.Invoke();

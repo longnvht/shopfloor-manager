@@ -4,6 +4,8 @@
              xmlns:md="http://materialdesigninxaml.net/winfx/xaml/themes"
              xmlns:models="clr-namespace:ShopfloorManager.Desktop.Models"
              xmlns:kb="clr-namespace:ShopfloorManager.Desktop.Behaviors"
+             xmlns:ctrl="clr-namespace:ShopfloorManager.Desktop.Controls"
+             xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
              Background="{StaticResource BrandBg}">
 
     <Grid>
@@ -193,33 +195,124 @@
                                TextAlignment="Center" Margin="0,8,0,0"/>
                 </StackPanel>
 
-                <!-- G-code viewer -->
+                <!-- G-code viewer (text + toolpath toggle) -->
                 <Grid Visibility="{Binding IsGcodeSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
 
-                    <!-- Viewer header -->
-                    <Border Grid.Row="0" Background="#F5F5F5" Padding="16,8"
+                    <!-- Viewer header with Text/Toolpath toggle -->
+                    <Border Grid.Row="0" Background="#F5F5F5" Padding="12,6"
                             BorderBrush="#E0E0E0" BorderThickness="0,0,0,1">
-                        <StackPanel Orientation="Horizontal">
-                            <md:PackIcon Kind="CodeBraces" Width="16" Height="16"
-                                         Foreground="{StaticResource BrandPrimary}"
-                                         VerticalAlignment="Center" Margin="0,0,6,0"/>
-                            <TextBlock Text="{Binding SelectedDocLabel, Mode=OneWay}"
-                                       FontSize="12" FontWeight="Medium"
-                                       Foreground="{StaticResource BrandText}"
-                                       VerticalAlignment="Center"/>
-                        </StackPanel>
+                        <Grid>
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <md:PackIcon Kind="CodeBraces" Width="16" Height="16"
+                                             Foreground="{StaticResource BrandPrimary}"
+                                             VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                <TextBlock Text="{Binding SelectedDocLabel, Mode=OneWay}"
+                                           FontSize="12" FontWeight="Medium"
+                                           Foreground="{StaticResource BrandText}"
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+
+                            <!-- Toggle chip: Text ↔ Toolpath -->
+                            <StackPanel Orientation="Horizontal"
+                                        HorizontalAlignment="Right" VerticalAlignment="Center">
+                                <!-- Text button -->
+                                <Border x:Name="TextTabBorder" CornerRadius="4,0,0,4"
+                                        BorderThickness="1,1,0,1" Padding="12,4"
+                                        Cursor="Hand">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="Background" Value="{StaticResource BrandPrimary}"/>
+                                            <Setter Property="BorderBrush" Value="{StaticResource BrandPrimary}"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding ShowToolpath}" Value="True">
+                                                    <Setter Property="Background" Value="White"/>
+                                                    <Setter Property="BorderBrush" Value="#BDBDBD"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                    <Border.InputBindings>
+                                        <MouseBinding MouseAction="LeftClick"
+                                                      Command="{Binding SetTextViewCommand}"/>
+                                    </Border.InputBindings>
+                                    <TextBlock Text="G-code" FontSize="11" FontWeight="Medium">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Foreground" Value="White"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding ShowToolpath}" Value="True">
+                                                        <Setter Property="Foreground" Value="{StaticResource BrandTextSecondary}"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </Border>
+
+                                <!-- Toolpath button -->
+                                <Border CornerRadius="0,4,4,0"
+                                        BorderThickness="1,1,1,1" Padding="12,4"
+                                        Cursor="Hand">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="Background" Value="White"/>
+                                            <Setter Property="BorderBrush" Value="#BDBDBD"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding ShowToolpath}" Value="True">
+                                                    <Setter Property="Background" Value="{StaticResource BrandPrimary}"/>
+                                                    <Setter Property="BorderBrush" Value="{StaticResource BrandPrimary}"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                    <Border.InputBindings>
+                                        <MouseBinding MouseAction="LeftClick"
+                                                      Command="{Binding SetToolpathViewCommand}"/>
+                                    </Border.InputBindings>
+                                    <StackPanel Orientation="Horizontal">
+                                        <md:PackIcon Kind="VectorPolyline" Width="13" Height="13"
+                                                     VerticalAlignment="Center" Margin="0,0,4,0">
+                                            <md:PackIcon.Style>
+                                                <Style TargetType="md:PackIcon">
+                                                    <Setter Property="Foreground" Value="{StaticResource BrandTextSecondary}"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding ShowToolpath}" Value="True">
+                                                            <Setter Property="Foreground" Value="White"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </md:PackIcon.Style>
+                                        </md:PackIcon>
+                                        <TextBlock Text="Toolpath" FontSize="11" FontWeight="Medium">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Foreground" Value="{StaticResource BrandTextSecondary}"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding ShowToolpath}" Value="True">
+                                                            <Setter Property="Foreground" Value="White"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </Grid>
                     </Border>
 
                     <!-- G-code text viewer -->
-                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
+                    <ScrollViewer Grid.Row="1"
+                                  VerticalScrollBarVisibility="Auto"
                                   HorizontalScrollBarVisibility="Auto"
                                   PanningMode="Both"
                                   kb:DragScrollBehavior.Enabled="True"
-                                  Background="White">
+                                  Background="White"
+                                  Visibility="{Binding ShowTextViewer, Converter={StaticResource BooleanToVisibilityConverter}}">
                         <RichTextBox IsReadOnly="True"
                                      BorderThickness="0"
                                      Background="Transparent"
@@ -229,21 +322,38 @@
                                      IsDocumentEnabled="False"
                                      kb:GcodeViewerBehavior.Text="{Binding GcodeText, Mode=OneWay}"/>
                     </ScrollViewer>
+
+                    <!-- Toolpath canvas -->
+                    <ctrl:ToolpathCanvasControl Grid.Row="1"
+                                               Moves="{Binding ToolpathMoves, Mode=OneWay}"
+                                               Visibility="{Binding ShowToolpathViewer, Converter={StaticResource BooleanToVisibilityConverter}}"/>
                 </Grid>
 
-                <!-- Non-G-code placeholder -->
-                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center"
-                            Visibility="{Binding IsNonGcodeSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
-                    <md:PackIcon Kind="FileOutline" Width="48" Height="48"
-                                 Foreground="#E8D5C4" HorizontalAlignment="Center"/>
-                    <TextBlock Text="{Binding SelectedDocLabel, Mode=OneWay}"
-                               FontSize="14" FontWeight="Medium"
-                               Foreground="{StaticResource BrandText}"
-                               HorizontalAlignment="Center" Margin="0,12,0,4"/>
-                    <TextBlock Text="Xem PDF chưa được hỗ trợ trong phiên bản này."
-                               FontSize="12" Foreground="{StaticResource BrandTextSecondary}"
-                               HorizontalAlignment="Center"/>
-                </StackPanel>
+                <!-- PDF viewer (DRW, RTC, FXT, TLS, CAM...) -->
+                <Grid Visibility="{Binding IsPdfViewerVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- PDF viewer header -->
+                    <Border Grid.Row="0" Background="#F5F5F5" Padding="12,6"
+                            BorderBrush="#E0E0E0" BorderThickness="0,0,0,1">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <md:PackIcon Kind="FilePdfBox" Width="16" Height="16"
+                                         Foreground="#6A1B9A"
+                                         VerticalAlignment="Center" Margin="0,0,6,0"/>
+                            <TextBlock Text="{Binding SelectedDocLabel, Mode=OneWay}"
+                                       FontSize="12" FontWeight="Medium"
+                                       Foreground="{StaticResource BrandText}"
+                                       VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- WebView2 renders PDF via Edge built-in viewer -->
+                    <wv2:WebView2 x:Name="PdfWebView" Grid.Row="1"
+                                  IsVisibleChanged="PdfWebView_IsVisibleChanged"/>
+                </Grid>
 
             </Grid>
         </Grid>

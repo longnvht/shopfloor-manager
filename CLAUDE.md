@@ -362,9 +362,10 @@ CalibRequestStatus:Pending=0, Approved=1, Completed=2, Cancelled=3
 - ✅ Non-admin users login: bỏ FirstLogin check trong LoginViewModel Desktop — Desktop không redirect đổi mật khẩu
 - ✅ FAI session started guard: NavigateToFai kiểm tra `_work.ActiveSession?.StartedAt.HasValue != true` → NavigateToDashboard; shortcut "Bảng đo" chỉ visible khi Operation Mode + session đã started
 - ✅ DocumentViewer — G-code text viewer: `DocumentViewerPage` + `DocumentViewerViewModel` + `GcodeViewerBehavior` (syntax highlight N/G/M/axis/feed/tool/comment); `HexToBrushConverter` cho badge màu; auto-select G-code doc; shortcuts "Xem G-code"/"Hướng dẫn CW"/"Xem bản vẽ"/"Hướng dẫn gá" đều route về DocumentViewer
+- ✅ DocumentViewer — PDF viewer: WebView2 (Microsoft.Web.WebView2 1.0.3967.48); Edge render PDF native; `IsPdfViewerVisible = IsNonGcodeSelected && PdfUrl != null && !IsLoadingContent`; `IsVisibleChanged` event khởi tạo WebView2 lần đầu + navigate; MinIO presigned URL navigated directly
 - ✅ Session constraint redesign: Claim = client-side only (WorkContext, không ghi DB); chỉ `BeginSession` ghi DB (tạo + start atomically); ràng buộc per-machine chỉ áp dụng khi inprogress (`started_at IS NOT NULL`)
 - ✅ Shortcut lock khi inprogress: Operation Mode + IsWip → "Chọn Job/OP/Sản phẩm" disabled (opacity 0.4), View Mode → re-enable
-- **Chưa implement:** DocumentViewer PDF viewer, Settings page
+- **Chưa implement:** Settings page
 
 **Ràng buộc ProductionSession (thiết kế mới 2026-05-27):**
 - **Claim = client-side only**: chọn product → `_work.SetProduct(product, null)` — KHÔNG ghi DB
@@ -487,6 +488,8 @@ Session của người khác trên máy:
 - **CanSwitchMode**: `_work.IncomingSession is null || ClaimedBy == auth.UserId || role in Leader/Manager/Admin`. Notify trong `RefreshWorkInfo()` + `ToggleModeCommand.NotifyCanExecuteChanged()`.
 - **`FlowDocument.PageWidth/ColumnWidth`**: `double.PositiveInfinity` KHÔNG hợp lệ trong .NET 9 WPF (ArgumentException tại runtime) — dùng `100000.0` cho code viewer để tắt line-wrap. Thiếu 2 thuộc tính này → mỗi ký tự xuống 1 dòng riêng.
 - **MinIO presigned URL download**: KHÔNG dùng shared `HttpClient` singleton (đã có `Authorization: Bearer` header) — MinIO trả 400/403 vì presigned URL đã có auth sẵn trong query string. Luôn tạo `new System.Net.Http.HttpClient()` riêng (không header) để download file từ presigned URL.
+- **WebView2 PDF viewer**: Dùng `Microsoft.Web.WebView2` (NuGet) — Edge runtime có sẵn trên Windows 10/11. PDF rendering native qua Edge PDF viewer (zoom/pan built-in). `EnsureCoreWebView2Async()` gọi một lần khi WebView2 lần đầu trở nên visible (dùng `IsVisibleChanged` event). Presigned URL navigate trực tiếp — MinIO auth trong query string, không cần header. `IsPdfViewerVisible = IsNonGcodeSelected && PdfUrl != null && !IsLoadingContent` — đảm bảo WebView2 chỉ visible sau khi loading xong (tránh airspace problem với WPF elements).
+- **WebView2 airspace problem**: Win32 control (WebView2) render trên WPF elements — WPF loading spinner sẽ bị che khuất. Giải pháp: chỉ set `IsPdfViewerVisible=true` sau khi loading xong, spinner đã ẩn trước khi WebView2 xuất hiện.
 - **ProductList select flow (thiết kế mới)**: Claim = client-side only — `SelectProductAsync` không gọi API. Logic: (1) resume nếu `inprogress && SessionId == _work.ActiveSession?.Id`; (2) block nếu `inprogress` (máy khác); (3) block nếu `complete`; (4) còn lại → `_work.SetProduct(product, null)` + navigate. Không có bước POST claim nữa.
 - **BeginSession flow**: Khi bấm "Bắt đầu" trên Dashboard → `POST /api/v1/production-sessions` với `{productId, partOpId, machineCode}` → server tạo session + set `started_at` ngay → trả về `ProductionSessionDto` → `_work.SetProduct(currentProduct, session)`.
 - **CanNavigate/CanStart (thiết kế mới)**: `CanNavigate = HasWork && !HasProduct && ActiveSession == null` (có job/op nhưng chưa chọn product); `CanStart = HasProduct && !IsWip && IsOperationMode` (đã chọn product, chưa có session). Mutual exclusion đảm bảo chỉ 1 button visible.

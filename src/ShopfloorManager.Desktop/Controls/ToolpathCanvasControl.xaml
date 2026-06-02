@@ -1,0 +1,25 @@
+<UserControl x:Class="ShopfloorManager.Desktop.Controls.ToolpathCanvasControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid x:Name="RootGrid" Background="#1E1E2E" ClipToBounds="True">
+
+        <!-- Toolpath canvas — transform applied from code-behind -->
+        <Canvas x:Name="DrawCanvas" IsHitTestVisible="False">
+            <Path x:Name="RapidPath" StrokeThickness="1"  Stroke="#FF9800"/>
+            <Path x:Name="CutPath"   StrokeThickness="1.5" Stroke="#42A5F5"/>
+        </Canvas>
+
+        <!-- Stats overlay (bottom-left, outside transform) -->
+        <TextBlock x:Name="InfoText"
+                   VerticalAlignment="Bottom" HorizontalAlignment="Left"
+                   Margin="8,0,0,8" Foreground="#445566"
+                   FontSize="11" FontFamily="Consolas"
+                   IsHitTestVisible="False"/>
+
+        <!-- Hint (top-right) -->
+        <TextBlock Text="Scroll: zoom  ·  Drag: pan  ·  Right-click: fit"
+                   VerticalAlignment="Top" HorizontalAlignment="Right"
+                   Margin="0,4,8,0" Foreground="#334455"
+                   FontSize="10" IsHitTestVisible="False"/>
+    </Grid>
+</UserControl>
