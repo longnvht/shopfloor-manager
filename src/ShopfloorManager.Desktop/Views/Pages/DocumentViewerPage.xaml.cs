@@ -25,8 +25,17 @@ public partial class DocumentViewerPage : UserControl
             if (!_webViewReady)
             {
                 await PdfWebView.EnsureCoreWebView2Async();
+
+                // Enable touch zoom (pinch) and scroll for the Edge PDF viewer.
+                // IsZoomControlEnabled: allows user to change zoom via keyboard / mouse wheel / pinch.
+                // IsPinchZoomEnabled:   enables 2-finger pinch-to-zoom gesture on touch screen.
+                var settings = PdfWebView.CoreWebView2.Settings;
+                settings.IsZoomControlEnabled = true;
+                settings.IsPinchZoomEnabled   = true;
+
                 _webViewReady = true;
             }
+            PdfWebView.ZoomFactor = 1.0;   // reset zoom khi chuyển tài liệu mới
             PdfWebView.Source = new Uri(vm.PdfUrl);
         }
         catch (Exception ex)

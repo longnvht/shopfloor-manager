@@ -3,10 +3,11 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <Grid x:Name="RootGrid" Background="#1E1E2E" ClipToBounds="True">
 
-        <!-- Toolpath canvas — transform applied from code-behind -->
+        <!-- Toolpath canvas — transform applied from code-behind.
+             Fill="Transparent" prevents MaterialDesignThemes implicit Path style from filling geometry. -->
         <Canvas x:Name="DrawCanvas" IsHitTestVisible="False">
-            <Path x:Name="RapidPath" StrokeThickness="1"  Stroke="#FF9800"/>
-            <Path x:Name="CutPath"   StrokeThickness="1.5" Stroke="#42A5F5"/>
+            <Path x:Name="RapidPath" Fill="Transparent" StrokeThickness="1"   Stroke="#FF9800"/>
+            <Path x:Name="CutPath"   Fill="Transparent" StrokeThickness="1.5" Stroke="#42A5F5"/>
         </Canvas>
 
         <!-- Stats overlay (bottom-left, outside transform) -->

@@ -350,9 +350,13 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- WebView2 renders PDF via Edge built-in viewer -->
+                    <!-- WebView2 renders PDF via Edge built-in viewer.
+                         Stylus flags prevent WPF from eating touch events (flick / press-hold)
+                         before they reach the underlying Win32 WebView2 window. -->
                     <wv2:WebView2 x:Name="PdfWebView" Grid.Row="1"
-                                  IsVisibleChanged="PdfWebView_IsVisibleChanged"/>
+                                  IsVisibleChanged="PdfWebView_IsVisibleChanged"
+                                  Stylus.IsFlicksEnabled="False"
+                                  Stylus.IsPressAndHoldEnabled="False"/>
                 </Grid>
 
             </Grid>

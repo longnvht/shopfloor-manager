@@ -163,7 +163,20 @@ public partial class ToolpathCanvasControl : System.Windows.Controls.UserControl
         _transform.Matrix = new Matrix(scale, 0, 0, scale,
             w / 2 - scale * cx,
             h / 2 - scale * cy);
+        UpdateStrokeThicknesses();
         _fitted = true;
+    }
+
+    // ── Stroke thickness compensation ─────────────────────────────────
+    // StrokeThickness lives in Canvas local space → gets scaled by RenderTransform.
+    // We keep strokes visually constant by dividing by the current scale.
+    private void UpdateStrokeThicknesses()
+    {
+        double s = Math.Sqrt(_transform.Matrix.M11 * _transform.Matrix.M11
+                           + _transform.Matrix.M12 * _transform.Matrix.M12);
+        if (s < 1e-9) return;
+        RapidPath.StrokeThickness = 1.0 / s;
+        CutPath.StrokeThickness   = 1.5 / s;
     }
 
     // ── Mouse: zoom (scroll wheel) ────────────────────────────────────
@@ -179,6 +192,7 @@ public partial class ToolpathCanvasControl : System.Windows.Controls.UserControl
             m.OffsetX * f + cursor.X * (1 - f),
             m.OffsetY * f + cursor.Y * (1 - f));
 
+        UpdateStrokeThicknesses();
         e.Handled = true;
     }
 
