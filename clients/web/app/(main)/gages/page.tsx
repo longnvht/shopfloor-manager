@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { api, type GageDto } from '@/lib/api-client'
 import { VATopbar, VAKpi, VACard, VABtn, VABadge, VASeg } from '@/components/va'
 import { va, type VaBadgeKind } from '@/lib/va-tokens'
+import { useAuthStore } from '@/stores/auth.store'
 
 const STATUS_META: Record<string, { label: string; kind: VaBadgeKind }> = {
   VALID:    { label: 'Hợp lệ',          kind: 'ok'      },
@@ -16,6 +17,9 @@ const STATUS_META: Record<string, { label: string; kind: VaBadgeKind }> = {
 type Filter = 'all' | 'valid' | 'borrowed' | 'due'
 
 export default function GagesPage() {
+  const { user } = useAuthStore()
+  const userId = user?.id ?? 0
+
   const [gages, setGages]   = useState<GageDto[]>([])
   const [filter, setFilter] = useState<Filter>('all')
   const [search, setSearch] = useState('')
@@ -49,21 +53,21 @@ export default function GagesPage() {
   }
 
   async function handleBorrow(gage: GageDto) {
-    // Simplified: borrow by current user (manager=1 for now, proper UI later)
-    const res = await api.gages.borrow({ gageId: gage.id, borrowerId: 1, managerId: 1 })
+    if (!userId) { alert('Chưa đăng nhập'); return }
+    const res = await api.gages.borrow({ gageId: gage.id, borrowerId: userId, managerId: userId })
     if (res.success) load()
     else alert(res.error ?? 'Lỗi mượn gage')
   }
 
   async function handleReturn(gage: GageDto) {
-    // Get active transaction id from gage — simplified lookup via reload
-    // For now just reload; proper return needs transaction id
+    if (!userId) { alert('Chưa đăng nhập'); return }
+    const token = localStorage.getItem('auth-token')
     const txRes = await fetch(`/api/v1/borrow-transactions?gageId=${gage.id}&status=0`, {
-      headers: { Authorization: `Bearer ${localStorage.getItem('auth-token')}` },
+      headers: { Authorization: `Bearer ${token}` },
     })
     const txData = await txRes.json()
     const tx = txData?.data?.[0]
-    if (!tx) { alert('Không tìm thấy giao dịch mượn'); return }
+    if (!tx) { alert('Không tìm thấy giao dịch mượn đang active'); return }
     const res = await api.gages.returnGage(tx.id)
     if (res.success) load()
     else alert(res.error ?? 'Lỗi trả gage')

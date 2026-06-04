@@ -1,23 +1,143 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { api, type NcrDto } from '@/lib/api-client'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { VATopbar, VABtn } from '@/components/va'
-import { va } from '@/lib/va-tokens'
+import { api, type NcrDto, type NcrDetailDto } from '@/lib/api-client'
+import { VATopbar, VABadge, VACard, VABtn } from '@/components/va'
+import { VASeg } from '@/components/va/seg'
+import { va, type VaBadgeKind } from '@/lib/va-tokens'
 
-const STATUS_LABELS: Record<string, { label: string; className: string }> = {
-  Open:   { label: 'Đang mở', className: 'bg-red-100 text-red-700' },
-  Closed: { label: 'Đã đóng', className: 'bg-green-100 text-green-700' },
+function ncrBadge(status: string): { label: string; kind: VaBadgeKind } {
+  return status === 'Open'
+    ? { label: 'Đang mở', kind: 'err'     }
+    : { label: 'Đã đóng', kind: 'ok'      }
 }
 
-export default function NcrsPage() {
-  const [ncrs, setNcrs] = useState<NcrDto[]>([])
-  const [total, setTotal] = useState(0)
-  const [page, setPage] = useState(1)
-  const [filter, setFilter] = useState('')
+const ACTION_LABEL: Record<string, string> = {
+  Open: 'Tạo', Approve: 'Chấp nhận', Rework: 'Sửa lại', Reject: 'Từ chối'
+}
+
+// ── NCR detail panel ───────────────────────────────────────────────────────
+function NcrDetail({ id, onClose }: { id: number; onClose: () => void }) {
+  const [detail, setDetail] = useState<NcrDetailDto | null>(null)
   const [loading, setLoading] = useState(true)
+  const [note, setNote]       = useState('')
+  const [saving, setSaving]   = useState(false)
+
+  useEffect(() => {
+    setLoading(true)
+    api.ncrs.get(id).then(res => {
+      if (res.success) setDetail(res.data)
+      setLoading(false)
+    })
+  }, [id])
+
+  async function handleAction(action: string) {
+    if (!note.trim() && action !== 'Approve') {
+      alert('Vui lòng nhập ghi chú')
+      return
+    }
+    setSaving(true)
+    const res = await api.ncrs.addAction(id, action, note.trim() || undefined)
+    if (res.success) {
+      setNote('')
+      // reload detail
+      const r2 = await api.ncrs.get(id)
+      if (r2.success) setDetail(r2.data)
+    } else {
+      alert(res.error ?? 'Lỗi')
+    }
+    setSaving(false)
+  }
+
+  if (loading) return <div style={{ padding: 24, fontSize: 12, color: va.text3 }}>Đang tải…</div>
+  if (!detail) return <div style={{ padding: 24, fontSize: 12, color: va.err }}>Không tải được NCR.</div>
+  const { ncr, logs } = detail
+  const badge = ncrBadge(ncr.status)
+
+  return (
+    <div className="va-scroll" style={{ flex: 1, overflow: 'auto', padding: 24, display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <h2 style={{ margin: 0, fontFamily: va.mono, fontSize: 22, fontWeight: 700, color: va.text }}>{ncr.ncrNumber}</h2>
+            <VABadge kind={badge.kind} dot>{badge.label}</VABadge>
+          </div>
+          <div style={{ fontSize: 12.5, color: va.text2, marginTop: 4 }}>
+            Job <strong>{ncr.jobNumber}</strong>
+            {ncr.serialNumber && <> · Serial <strong>{ncr.serialNumber}</strong></>}
+            {ncr.opNumber      && <> · OP {ncr.opNumber}</>}
+          </div>
+        </div>
+        <VABtn kind="ghost" onClick={onClose}>✕ Đóng</VABtn>
+      </div>
+
+      {/* Description */}
+      <VACard title="Mô tả sự không phù hợp">
+        <p style={{ fontSize: 13, color: va.text, lineHeight: 1.7, margin: 0 }}>{ncr.description}</p>
+        <div style={{ display: 'flex', gap: 20, marginTop: 12, fontSize: 11.5, color: va.text2 }}>
+          <span>Người tạo: <strong>{ncr.raisedBy}</strong></span>
+          <span>Ngày: <strong>{new Date(ncr.raisedAt).toLocaleDateString('vi-VN')}</strong></span>
+          {ncr.closedBy && <span>Đóng bởi: <strong>{ncr.closedBy}</strong></span>}
+        </div>
+      </VACard>
+
+      {/* Action logs */}
+      {logs.length > 0 && (
+        <VACard title="Lịch sử xử lý" pad={false}>
+          {logs.map((log, i) => (
+            <div key={log.id} style={{ padding: '12px 16px', borderBottom: i < logs.length - 1 ? `1px solid ${va.separator}` : 'none', display: 'flex', gap: 12 }}>
+              <div style={{ width: 28, height: 28, borderRadius: '50%', background: va.accentLt, color: va.primary, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 11, flexShrink: 0 }}>
+                {log.actionBy[0]}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 12.5, fontWeight: 600, color: va.text }}>
+                  <span style={{ color: va.accent }}>{ACTION_LABEL[log.action] ?? log.action}</span>
+                  {' · '}{log.actionBy}
+                </div>
+                {log.note && <div style={{ fontSize: 12, color: va.text2, marginTop: 2 }}>{log.note}</div>}
+                <div style={{ fontSize: 10.5, color: va.text3, marginTop: 2, fontFamily: va.mono }}>
+                  {new Date(log.actionAt).toLocaleString('vi-VN')}
+                </div>
+              </div>
+            </div>
+          ))}
+        </VACard>
+      )}
+
+      {/* Action form — chỉ hiện khi NCR còn mở */}
+      {ncr.status === 'Open' && (
+        <VACard title="Ra quyết định">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <textarea
+              value={note}
+              onChange={e => setNote(e.target.value)}
+              placeholder="Ghi chú xử lý…"
+              rows={3}
+              style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${va.border}`, fontSize: 13, fontFamily: va.font, resize: 'vertical', outline: 'none' }}
+            />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <VABtn kind="primary" style={{ flex: 1, justifyContent: 'center', background: va.ok,    borderColor: va.ok    }} onClick={() => handleAction('Approve')} disabled={saving}>✓ Chấp nhận</VABtn>
+              <VABtn kind="primary" style={{ flex: 1, justifyContent: 'center', background: va.warn,  borderColor: va.warn  }} onClick={() => handleAction('Rework')}  disabled={saving}>↩ Sửa lại</VABtn>
+              <VABtn kind="primary" style={{ flex: 1, justifyContent: 'center', background: va.err,   borderColor: va.err   }} onClick={() => handleAction('Reject')}  disabled={saving}>✕ Từ chối</VABtn>
+            </div>
+          </div>
+        </VACard>
+      )}
+    </div>
+  )
+}
+
+// ── Main page ──────────────────────────────────────────────────────────────
+type FilterType = '' | 'Open' | 'Closed'
+
+export default function NcrsPage() {
+  const [ncrs, setNcrs]     = useState<NcrDto[]>([])
+  const [total, setTotal]   = useState(0)
+  const [page, setPage]     = useState(1)
+  const [filter, setFilter] = useState<FilterType>('')
+  const [loading, setLoading] = useState(true)
+  const [selId, setSelId]   = useState<number | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -25,81 +145,86 @@ export default function NcrsPage() {
     if (res.success && res.data) {
       setNcrs(res.data)
       setTotal(res.pagination?.total ?? 0)
+      if (!selId && res.data.length > 0) setSelId(res.data[0].id)
     }
     setLoading(false)
-  }, [page, filter])
+  }, [page, filter]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { load() }, [load])
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: va.bg }}>
-      <VATopbar title="NCR · Báo cáo không phù hợp" breadcrumb="Chất lượng › Non-Conformance"
-        right={<VABtn kind="accent">+ Tạo NCR</VABtn>} />
-      <div className="va-scroll" style={{ flex: 1, overflow: 'auto', padding: 22 }}>
-      <div className="mb-6 flex items-center justify-between" style={{ display: 'none' }}>
-        <h1 className="text-2xl font-semibold">NCR — Non-Conformance Reports</h1>
-        <div className="flex gap-2">
-          {['', 'Open', 'Closed'].map(s => (
-            <Button key={s} size="sm"
-              variant={filter === s ? 'default' : 'outline'}
-              onClick={() => { setFilter(s); setPage(1) }}>
-              {s === '' ? 'Tất cả' : STATUS_LABELS[s].label}
-            </Button>
-          ))}
-        </div>
-      </div>
+      <VATopbar
+        title="NCR · Báo cáo không phù hợp"
+        breadcrumb="Chất lượng › Non-Conformance"
+        right={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <VASeg
+              value={filter}
+              onChange={v => { setFilter(v as FilterType); setPage(1) }}
+              options={[
+                { id: '',       label: 'Tất cả'  },
+                { id: 'Open',   label: 'Đang mở' },
+                { id: 'Closed', label: 'Đã đóng' },
+              ]}
+            />
+            <VABtn kind="accent">+ Tạo NCR</VABtn>
+          </div>
+        }
+      />
 
-      {loading ? (
-        <p className="text-muted-foreground">Đang tải...</p>
-      ) : ncrs.length === 0 ? (
-        <p className="text-muted-foreground">Không có NCR nào.</p>
-      ) : (
-        <div className="overflow-x-auto rounded-lg border">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50">
-              <tr>
-                <th className="px-4 py-3 text-left font-medium">NCR Number</th>
-                <th className="px-4 py-3 text-left font-medium">Job</th>
-                <th className="px-4 py-3 text-left font-medium">Mô tả</th>
-                <th className="px-4 py-3 text-left font-medium">Trạng thái</th>
-                <th className="px-4 py-3 text-left font-medium">Người tạo</th>
-                <th className="px-4 py-3 text-left font-medium">Ngày tạo</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {ncrs.map(ncr => {
-                const s = STATUS_LABELS[ncr.status] ?? { label: ncr.status, className: 'bg-gray-100 text-gray-600' }
-                return (
-                  <tr key={ncr.id} className="hover:bg-muted/30 transition-colors">
-                    <td className="px-4 py-3 font-mono font-medium">{ncr.ncrNumber}</td>
-                    <td className="px-4 py-3">{ncr.jobNumber}</td>
-                    <td className="px-4 py-3 text-muted-foreground max-w-xs truncate">{ncr.description}</td>
-                    <td className="px-4 py-3">
-                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${s.className}`}>
-                        {s.label}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">{ncr.raisedBy}</td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {new Date(ncr.raisedAt).toLocaleDateString('vi-VN')}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
+        {/* NCR list */}
+        <div className="va-scroll" style={{ width: 380, borderRight: `1px solid ${va.border}`, overflow: 'auto', background: va.surface, flexShrink: 0 }}>
+          {loading && <div style={{ padding: 16, fontSize: 12, color: va.text3 }}>Đang tải…</div>}
 
-      <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
-        <span>Tổng: {total} NCRs</span>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>← Trước</Button>
-          <span className="px-2 py-1">Trang {page}</span>
-          <Button variant="outline" size="sm" disabled={ncrs.length < 20} onClick={() => setPage(p => p + 1)}>Sau →</Button>
+          {!loading && ncrs.length === 0 && (
+            <div style={{ padding: 24, textAlign: 'center', fontSize: 12, color: va.text3 }}>Không có NCR nào.</div>
+          )}
+
+          {ncrs.map(ncr => {
+            const on    = ncr.id === selId
+            const badge = ncrBadge(ncr.status)
+            return (
+              <div key={ncr.id} className="va-clickable" onClick={() => setSelId(ncr.id)}
+                style={{ padding: '14px 18px', borderBottom: `1px solid ${va.separator}`, borderLeft: on ? `3px solid ${va.accent}` : '3px solid transparent', background: on ? va.accentBg : va.surface }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                  <span style={{ fontFamily: va.mono, fontSize: 13, fontWeight: 700, color: va.text }}>{ncr.ncrNumber}</span>
+                  <VABadge kind={badge.kind} dot>{badge.label}</VABadge>
+                  <span style={{ marginLeft: 'auto', fontSize: 10.5, color: va.text3, fontFamily: va.mono }}>
+                    {new Date(ncr.raisedAt).toLocaleDateString('vi-VN')}
+                  </span>
+                </div>
+                <div style={{ fontSize: 12.5, color: va.text, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {ncr.description}
+                </div>
+                <div style={{ fontSize: 11, color: va.text2, marginTop: 3 }}>
+                  Job <strong>{ncr.jobNumber}</strong>
+                  {ncr.serialNumber && <> · SN {ncr.serialNumber}</>}
+                  {' · '}{ncr.raisedBy}
+                </div>
+              </div>
+            )
+          })}
+
+          {/* Pagination */}
+          {total > 20 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 16px', borderTop: `1px solid ${va.separator}` }}>
+              <VABtn kind="ghost" style={{ height: 28 }} onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1}>←</VABtn>
+              <span style={{ fontSize: 11, color: va.text3, alignSelf: 'center' }}>{page} / {Math.ceil(total / 20)}</span>
+              <VABtn kind="ghost" style={{ height: 28 }} onClick={() => setPage(p => p + 1)} disabled={ncrs.length < 20}>→</VABtn>
+            </div>
+          )}
         </div>
+
+        {/* Detail */}
+        {selId
+          ? <NcrDetail key={selId} id={selId} onClose={() => setSelId(null)} />
+          : <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: va.text3, fontSize: 13 }}>
+              Chọn một NCR để xem chi tiết
+            </div>
+        }
       </div>
-      </div>{/* end scroll */}
     </div>
   )
 }

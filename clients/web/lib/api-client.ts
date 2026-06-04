@@ -125,6 +125,11 @@ export const api = {
       }),
   },
   users: {
+    list: (page = 1, search?: string) => {
+      const q = new URLSearchParams({ page: String(page), pageSize: '50' })
+      if (search) q.set('search', search)
+      return request<UserListDto[]>(`/api/v1/users?${q}`)
+    },
     changePassword: (currentPassword: string, newPassword: string) =>
       request<null>('/api/v1/users/me/change-password', {
         method: 'POST', body: JSON.stringify({ currentPassword, newPassword }),
@@ -218,6 +223,19 @@ export const api = {
     borrow:   (body: BorrowBody) => request<number>('/api/v1/borrow-transactions', { method: 'POST', body: JSON.stringify(body) }),
     returnGage: (id: number)  => request<null>(`/api/v1/borrow-transactions/${id}/return`, { method: 'PUT', body: '{}' }),
   },
+  techDocuments: {
+    list: (params?: { status?: string; fileTypeCode?: string; page?: number }) => {
+      const q = new URLSearchParams({ page: String(params?.page ?? 1), pageSize: '50' })
+      if (params?.status)       q.set('status', params.status)
+      if (params?.fileTypeCode) q.set('fileTypeCode', params.fileTypeCode)
+      return request<TechDocListDto[]>(`/api/v1/tech-documents?${q}`)
+    },
+    inspect: (id: number, action: 'approve' | 'reject', note?: string) =>
+      request<null>(`/api/v1/tech-documents/${id}/inspect`, {
+        method: 'PUT', body: JSON.stringify({ action, note }),
+      }),
+    downloadUrl: (id: number) => request<string>(`/api/v1/tech-documents/${id}/download-url`),
+  },
   planning: {
     items: (params?: { startDate?: string; endDate?: string; machineId?: number }) => {
       const q = new URLSearchParams()
@@ -305,6 +323,21 @@ export type CreatePlanningItemBody = {
   jobId: number; partOpId: number; machineId: number
   operatorId?: number; shiftId?: number
   startTime: string; endTime: string; note?: string
+}
+
+export type TechDocListDto = {
+  id: number; fileTypeCode: string; fileTypeName: string
+  partRevId: number | null; partOpId: number | null; jobId: number | null
+  description: string | null; revision: string | null; code: string | null
+  segment: string | null; machineType: string | null
+  status: string; createdByName: string; createdAt: string
+  storagePath?: string
+}
+
+export type UserListDto = {
+  id: number; userLogin: string; name: string; email: string | null
+  role: string | null; userType: string | null; position: string | null
+  isActive: boolean; firstLogin: boolean; createdAt: string
 }
 
 export type CompleteCalibBody = {
