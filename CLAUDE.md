@@ -4,7 +4,143 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Shopfloor Manager is an open-source factory management system for CNC machining shops, replacing a legacy WinForms (DevExpress) system. Solo project — 1 developer. Prioritize **simple and maintainable** over clever.
 
+**Quy mô mục tiêu:** 50–200 người / nhà máy gia công cơ khí
+
 ---
+
+## Hệ sinh thái
+
+```
+┌──────────────────────────────────────────────────────────┐
+│  Web App  (Next.js 16 — clients/web)                     │
+│  Văn phòng kỹ thuật / Quản lý                            │
+│  HR · Job · OP · Dimension · Tech Docs · Planning        │
+│  Gage · NCR · Dashboard · Reports                        │
+│  → Truy cập từ mọi PC/tablet qua browser                │
+└───────────────────────┬──────────────────────────────────┘
+                        │ REST API + SignalR
+┌───────────────────────▼──────────────────────────────────┐
+│  ASP.NET Core Web API (.NET 9) — src/ShopfloorManager.API│
+│  Business Logic · Auth · File Proxy · MQTT gateway       │
+└───┬──────────────────┬──────────────────┬────────────────┘
+    │                  │                  │
+PostgreSQL           MinIO           SignalR Hub
+(data only,       (file storage,    (real-time
+ no SP/logic)      thay FTP)         notifications)
+                                         │
+┌───────────────────────▼──────────────────────────────────┐
+│  Desktop App  (WPF .NET 9 — src/ShopfloorManager.Desktop)│
+│  Tại máy CNC — màn hình cảm ứng xưởng sản xuất          │
+│  FAI đo kiểm · NCR nhanh · Xem G-code/Drawing           │
+│  Chọn Job/OP/Serial · Session quản lý                    │
+│  → Cài đặt tại mỗi PC máy CNC (Windows)                 │
+└───────────────────────┬──────────────────────────────────┘
+                        │ MQTT (Mosquitto)
+┌───────────────────────▼──────────────────────────────────┐
+│  Mosquitto MQTT Broker                                   │
+│  Thu thập dữ liệu real-time từ máy CNC                   │
+│  (FANUC FOCAS / MTConnect → publish → API subscribe)     │
+└──────────────────────────────────────────────────────────┘
+```
+
+**Hệ thống cũ cần thay thế:**
+
+| Thành phần cũ | Thay thế | Ghi chú |
+|---|---|---|
+| ManageData WinForms (DevExpress) | Web App (Next.js) | Văn phòng kỹ thuật |
+| Vinam-MES WinForms (touchscreen) | Desktop App (WPF) | Tại máy CNC xưởng |
+| MySQL stored procedures | ASP.NET Core Application layer | Business logic 100% ở API |
+| FTP Server | MinIO | File storage |
+| MySQL DB | PostgreSQL | Database |
+| MDC_NetCore | MQTT pipeline tích hợp vào API | Thu thập dữ liệu máy |
+
+---
+
+## Triết lý xây dựng sản phẩm
+
+- **Self-hosted first**: Một lệnh `docker compose up` là chạy được trên Linux server nội bộ.
+- **Solo-developer friendly**: Không over-engineer. Chọn giải pháp đơn giản nhất đủ dùng.
+- **C# là ngôn ngữ duy nhất** (Phase 0–5): Không thêm Python cho đến khi có nhu cầu analytics cụ thể.
+- **Business logic 100% ở API**: Database chỉ lưu trữ — không stored procedures, không trigger.
+- **Thực dụng**: Giao diện rõ ràng cho người dùng nhà máy. Không fancy.
+- **Module hóa**: Mỗi tính năng là module độc lập.
+- **Mã nguồn mở**: Chỉ dùng thư viện MIT/Apache 2.0. Không dependency thương mại.
+- **Audit trail**: Mọi thay đổi ghi `created_by`, `updated_by`, `created_at`, `updated_at`.
+
+---
+
+## Tech Stack
+
+### Backend (.NET 9)
+
+| Layer | Công nghệ | License |
+|---|---|---|
+| API | ASP.NET Core Web API .NET 9 | MIT |
+| ORM | Entity Framework Core 9 | MIT |
+| Database | PostgreSQL 16 | OSS |
+| File Storage | MinIO | AGPL v3 |
+| Auth | JWT Bearer | MIT |
+| Real-time | SignalR | MIT |
+| MQTT | MQTTnet | MIT |
+| MQTT Broker | Mosquitto | EPL |
+| Excel | ClosedXML ✅ | MIT |
+| PDF | QuestPDF ✅ | MIT |
+| SPC/Math | MathNet.Numerics ✅ | MIT |
+| Email | MailKit | MIT |
+| Container | Docker + Docker Compose | Apache 2.0 |
+
+### Web Client (`clients/web`)
+
+| Layer | Công nghệ | Ghi chú |
+|---|---|---|
+| Framework | **Next.js 16** (App Router) + TypeScript | Hiện tại dùng v16.2.6 |
+| UI primitives | **@base-ui/react** (thay Radix) + shadcn CLI | shadcn generate components dùng Base UI |
+| Styling | Tailwind CSS v4 | |
+| Charts | Apache ECharts | Phase 5 — chưa cài |
+| Gantt | Frappe Gantt | Phase 5 — chưa cài |
+| Forms | React Hook Form + Zod | ✅ |
+| State | Zustand + TanStack Query v5 | ✅ |
+| G-code viewer | Monaco Editor | Phase 5 — chưa cài |
+
+### Desktop Client (`src/ShopfloorManager.Desktop`)
+
+| Layer | Công nghệ | Ghi chú |
+|---|---|---|
+| Framework | **WPF .NET 9** (Windows only) | MAUI không dùng |
+| UI | MaterialDesignThemes + CommunityToolkit.Mvvm | ✅ |
+| PDF viewer | Microsoft.Web.WebView2 | ✅ |
+| Virtual keyboard | Custom WPF (NumPad + QWERTY) | ✅ |
+
+### Không dùng
+
+- ❌ Python (Phase 0–5 — C# đủ cho mọi việc: MQTT, Excel, PDF, SPC)
+- ❌ DevExpress, Telerik, Syncfusion (thương mại)
+- ❌ .NET MAUI (đã chọn WPF)
+- ❌ MySQL Stored Procedures (business logic chuyển vào API)
+- ❌ FTP thuần (thay bằng MinIO)
+- ❌ Hardcode credential trong source code
+
+---
+
+## Cấu trúc repo
+
+```
+shopfloor-manager/
+├── src/                          # .NET solution (API + Desktop)
+│   ├── ShopfloorManager.API      # REST API — http://localhost:5066
+│   ├── ShopfloorManager.Desktop  # WPF touchscreen MES (Phase 4)
+│   ├── ShopfloorManager.Application
+│   ├── ShopfloorManager.Domain
+│   ├── ShopfloorManager.Infrastructure
+│   └── ShopfloorManager.Shared
+│
+├── clients/
+│   └── web/                      # Web app "Office" — Next.js 16 + React 19 + TypeScript
+│                                 # Tailwind CSS v4 + shadcn/ui + TanStack Query + Zustand
+│                                 # http://localhost:3000
+│
+└── Project_Documents/            # Tài liệu nghiệp vụ
+```
 
 ## Dev Commands
 
@@ -22,7 +158,12 @@ dotnet run --project ShopfloorManager.API
 # PostgreSQL:   localhost:5432  (shopfloor / dev_password / shopfloor_dev)
 # MQTT:         localhost:1883
 
-# Build solution
+# 3. Run Web app (office UI)
+cd clients/web
+npm run dev
+# Web: http://localhost:3000
+
+# Build solution (.NET)
 dotnet build src/ShopfloorManager.sln
 
 # Run tests
@@ -37,7 +178,40 @@ dotnet ef database update --project ShopfloorManager.Infrastructure --startup-pr
 
 ---
 
-## Architecture
+## Web App — `clients/web`
+
+**Next.js 16** (App Router) + **React 19** + **TypeScript** — Office UI cho Manager, QC, Engineer, Planner. Khác với Desktop MES (WPF touchscreen tại máy CNC).
+
+```
+clients/web/
+├── app/
+│   ├── (auth)/login/           # Login page
+│   └── (main)/                 # Authenticated layout
+│       ├── layout.tsx          # Shell: Navbar + main container
+│       ├── dashboard/          # Dashboard (placeholder)
+│       ├── jobs/               # Job list + detail + FAI + documents
+│       ├── parts/              # Part list + detail + documents
+│       └── ncrs/               # NCR list
+├── components/
+│   ├── ui/                     # shadcn components (Button, Card, Input, Label)
+│   ├── auth/login-form.tsx
+│   ├── jobs/create-job-dialog.tsx
+│   └── shared/navbar.tsx       # Top navigation bar
+├── lib/api-client.ts           # Typed API client (fetch + JWT)
+└── stores/auth.store.ts        # Zustand auth store (JWT in localStorage)
+```
+
+**Dependencies:** `@tanstack/react-query` · `zustand` · `zod` · `react-hook-form` · `shadcn/ui` (Base UI) · `tailwindcss v4` · `lucide-react`
+
+**Design system đang áp dụng:** Template VA warm industrial tại `D:\Temple\Shopfloor Manage` — sidebar navigation, màu sắc brown/orange, components: VASidebar, VATopbar, VABadge, VAKpi, VACard, VABtn.
+
+**Trạng thái:** Shell + auth + pages cơ bản đã có. Cần apply VA design system (sidebar thay navbar, VA tokens, redesign các trang).
+
+**Lưu ý quan trọng về Next.js 16:** Đọc `clients/web/AGENTS.md` — version này có breaking changes so với training data. Đọc docs trong `node_modules/next/dist/docs/` trước khi code.
+
+---
+
+## Architecture (.NET)
 
 Clean Architecture with 4 layers. **Dependency direction: API → Application → Domain ← Infrastructure**.
 
@@ -283,7 +457,7 @@ CalibRequestStatus:Pending=0, Approved=1, Completed=2, Cancelled=3
 
 ## Project Status
 
-*(cập nhật 2026-05-26)*
+*(cập nhật 2026-06-04)*
 
 | Phase | Status |
 |---|---|
@@ -293,6 +467,7 @@ CalibRequestStatus:Pending=0, Approved=1, Completed=2, Cancelled=3
 | Phase 3 — Quality (Dimensions, FAI, NCR, SPC) | ✅ Done |
 | Phase 4 — Desktop MES (WPF, FAI at machine, SignalR) | ✅ Done |
 | Phase 5 — Advanced (Gage, Planning, MQTT pipeline, Dashboard) | ⏳ |
+| Phase 6 — Polish & Open Source (multi-factory, migration tool, docs) | ⏳ |
 
 **Phase 1 — ✅ Hoàn tất** (2026-05-20)
 - EF Core `ShopfloorDbContext` + 9 entities (User, Role, Department, UserType, Position, WorkStatus, Menu, RoleMenu, AuditLog)
@@ -499,6 +674,133 @@ Session của người khác trên máy:
 
 ---
 
+## Coding Conventions
+
+### Backend (C# / ASP.NET Core)
+
+- Controller: thin — chỉ gọi MediatR, không chứa business logic
+- Business logic 100% trong Application layer (MediatR handlers)
+- Validate ở handler (FluentValidation pipeline behavior)
+- Ghi migration sau mỗi thay đổi entity: `dotnet ef migrations add {Name}`
+- Swagger annotation cho mọi endpoint mới
+- Không hardcode credential, URL, port — dùng `appsettings.json` / env vars
+
+### Web Client (Next.js / TypeScript)
+
+- **Server Components mặc định** — chỉ `"use client"` khi cần interactivity (event handlers, hooks)
+- **Không dùng `any`** — type everything
+- **TanStack Query** cho server state (không dùng useState + useEffect để fetch)
+- **Zod** validate form input tại boundary — không validate ở giữa logic
+- **Không hardcode URL** — dùng `NEXT_PUBLIC_API_URL` từ env
+- **Next.js 16 có breaking changes** — đọc `clients/web/AGENTS.md` và `node_modules/next/dist/docs/` trước khi code
+
+```typescript
+// ✅ Server state với TanStack Query
+const { data: jobs } = useQuery({
+  queryKey: ['jobs', filters],
+  queryFn: () => api.jobs.list(filters),
+})
+
+// ✅ Form với Zod
+const schema = z.object({ value: z.number().min(0) })
+```
+
+### Desktop Client (WPF)
+
+- KHÔNG kết nối DB trực tiếp — chỉ qua REST API
+- JWT token lưu in-memory (không persist ra disk)
+- `HttpClient` + `IApiClient` phải là **singleton** — token share giữa mọi ViewModel
+- Trigger data load từ ViewModel (NavigateTo command), KHÔNG dùng `Loaded` event
+- `WorkContext` là singleton ObservableObject — state chia sẻ giữa tất cả pages
+- Touch target: Button `MinHeight=56`, TextBox `MinHeight=52`, DataGridRow `MinHeight=52`
+
+### Chung
+
+- Không comment WHAT — chỉ comment WHY khi logic không rõ ràng
+- Không thêm error handling cho tình huống không thể xảy ra
+- Không tạo abstraction sớm — đợi đến lần thứ 3 mới extract
+- Tham khảo code cũ (ManageData, Vinam-MES) để hiểu nghiệp vụ, **không copy**
+
+---
+
+## Mapping công nghệ cũ → mới
+
+| Cũ (WinForms) | Mới | Trạng thái |
+|---|---|---|
+| MySQL stored procedures | EF Core + MediatR handlers | ✅ |
+| DevExpress XtraGrid | TanStack Table + shadcn | Web — Phase 5 |
+| RDLC / DevExpress Report | QuestPDF | ✅ installed |
+| FTP (`FtpClient.cs`) | MinIO pre-signed URL | ✅ |
+| Outlook Interop | MailKit | ✅ |
+| Office Interop Excel | ClosedXML | ✅ installed |
+| FastColoredTextBox | Monaco Editor (web) / GcodeViewerBehavior (desktop) | ✅ desktop |
+| GanttChart library | Frappe Gantt | Phase 5 |
+| WinForms Timer (polling) | SignalR + TanStack Query refetch | Partial |
+| `BindingSource` + DataTable | TanStack Query + TypeScript types | Web — in progress |
+| `FormKeyboard` (virtual KB) | Custom WPF NumPad + QWERTY | ✅ |
+| PdfiumViewer | WebView2 (WPF) | ✅ |
+| `MySqlHelper.cs` static | EF Core Repositories | ✅ |
+
+---
+
+## Deploy Production
+
+```
+Nginx routing:
+  shopfloor.factory.local        → Web client (Next.js)
+  shopfloor.factory.local/api/*  → API backend
+  shopfloor.factory.local/hub/*  → SignalR
+
+Docker Compose:
+  docker compose -f docker-compose.yml up -d
+  (Cần .env từ .env.example)
+
+⚠️ clients/web/Dockerfile chưa có — cần tạo trước khi deploy web service.
+Desktop app: build riêng bằng dotnet publish, deploy thủ công lên từng PC CNC.
+```
+
+---
+
+## Roadmap
+
+| Phase | Scope | Trạng thái |
+|---|---|---|
+| 0 — Foundation | Infrastructure, DB scaffold, .NET | ✅ |
+| 1 — Auth & HR | JWT, users, roles, SignalR | ✅ |
+| 2 — Production Core | Jobs, Parts, OPs, Documents | ✅ |
+| 3 — Quality | Dimensions, FAI, NCR, SPC | ✅ |
+| 4 — Desktop MES | WPF, FAI tại máy, session management | ✅ |
+| 5 — Advanced | Gage, Planning, MQTT pipeline, Dashboard | ⏳ |
+| 6 — Polish & Open Source | Multi-factory, migration tool MySQL→PG, docs site, one-command setup | ⏳ |
+
+**Phase 6 chi tiết:**
+- Multi-factory support (FactoryId đã chuẩn bị trên Machine entity)
+- Migration tool: MySQL → PostgreSQL (C# console app, đọc từ DB cũ)
+- Documentation site
+- Docker polish, one-command setup
+- Python analytics service (cân nhắc nếu SPC nâng cao C# không đủ)
+
+---
+
+## Source Code Reference (cũ → mới)
+
+Khi implement tính năng, tham khảo business logic tại:
+
+| Tính năng | Source cũ (đọc để hiểu logic) |
+|---|---|
+| FAI đo kiểm | `Vinam-MES/FANUC/Forms/FormFAI.cs` |
+| Process Monitor | `Vinam-MES/FANUC/Forms/FormProcessMonitor.cs` |
+| NCR tại máy | `Vinam-MES/FANUC/Common/MySqlHelper.cs` (AddNCR, RenderNCRCode) |
+| Tech Documents | `ManageData/Common/Techdocuments/StoreTechdocuments.cs` |
+| Dimension import | `ManageData/Forms/FormUpdateDimension.cs` |
+| FAI Report | `ManageData/Forms/Report/DimensionFAI/FormReportFAI.cs` |
+| Planning Gantt | `ManageData/Forms/Planning/FormManagePlanning.cs` |
+| Dashboard | `ManageData/Common/Dashboard/StoreDashboard.cs` |
+
+**Không copy code cũ.** Chỉ tham khảo business logic.
+
+---
+
 ## Rules for Claude
 
 **Always ask before:**
@@ -537,6 +839,7 @@ Mỗi module có file tài liệu trong `Project_Documents/`. Trước khi imple
 | Dashboard, Reports, PDF/Excel | [`Project_Documents/11_dashboard_reports.md`](Project_Documents/11_dashboard_reports.md) |
 | CNC Data, MQTT, SignalR | [`Project_Documents/12_cnc_mqtt.md`](Project_Documents/12_cnc_mqtt.md) |
 | Master data (Machine, Factory...) | [`Project_Documents/13_master_data.md`](Project_Documents/13_master_data.md) |
+| Máy móc, MachineGroup, Epicor ResourceGroup | [`Project_Documents/17_machines_equipment.md`](Project_Documents/17_machines_equipment.md) |
 | Desktop MES (WPF, FAI at machine) | [`Project_Documents/14_desktop_mes.md`](Project_Documents/14_desktop_mes.md) |
 | Desktop MES — Dashboard UI | [`Project_Documents/15_dashboard_desktop.md`](Project_Documents/15_dashboard_desktop.md) |
 | Desktop MES — Design Language | [`Project_Documents/16_design_language.md`](Project_Documents/16_design_language.md) |
