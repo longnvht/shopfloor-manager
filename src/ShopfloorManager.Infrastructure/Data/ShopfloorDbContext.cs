@@ -51,6 +51,12 @@ public class ShopfloorDbContext(DbContextOptions<ShopfloorDbContext> options)
     public DbSet<CalibRequest>   CalibRequests   => Set<CalibRequest>();
     public DbSet<CalibRecord>    CalibRecords    => Set<CalibRecord>();
 
+    // ── Planning ──────────────────────────────────────────────
+    public DbSet<Shift>           Shifts           => Set<Shift>();
+    public DbSet<BreakTime>       BreakTimes       => Set<BreakTime>();
+    public DbSet<PlanningItem>    PlanningItems    => Set<PlanningItem>();
+    public DbSet<ShiftAssignment> ShiftAssignments => Set<ShiftAssignment>();
+
     // ── Phase 3: Quality ──────────────────────────────────────
     public DbSet<DimensionCategory> DimensionCategories => Set<DimensionCategory>();
     public DbSet<Dimension> Dimensions => Set<Dimension>();
@@ -105,6 +111,12 @@ public class ShopfloorDbContext(DbContextOptions<ShopfloorDbContext> options)
         modelBuilder.ApplyConfiguration(new CalibProcedureConfiguration());
         modelBuilder.ApplyConfiguration(new CalibRequestConfiguration());
         modelBuilder.ApplyConfiguration(new CalibRecordConfiguration());
+
+        // Planning
+        modelBuilder.ApplyConfiguration(new ShiftConfiguration());
+        modelBuilder.ApplyConfiguration(new BreakTimeConfiguration());
+        modelBuilder.ApplyConfiguration(new PlanningItemConfiguration());
+        modelBuilder.ApplyConfiguration(new ShiftAssignmentConfiguration());
 
         SeedStaticData(modelBuilder);
     }

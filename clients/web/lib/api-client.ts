@@ -207,6 +207,21 @@ export const api = {
     borrow:   (body: BorrowBody) => request<number>('/api/v1/borrow-transactions', { method: 'POST', body: JSON.stringify(body) }),
     returnGage: (id: number)  => request<null>(`/api/v1/borrow-transactions/${id}/return`, { method: 'PUT', body: '{}' }),
   },
+  planning: {
+    items: (params?: { startDate?: string; endDate?: string; machineId?: number }) => {
+      const q = new URLSearchParams()
+      if (params?.startDate) q.set('startDate', params.startDate)
+      if (params?.endDate)   q.set('endDate',   params.endDate)
+      if (params?.machineId) q.set('machineId', String(params.machineId))
+      return request<PlanningItemDto[]>(`/api/v1/planning?${q}`)
+    },
+    create: (body: CreatePlanningItemBody) =>
+      request<PlanningItemDto>('/api/v1/planning', { method: 'POST', body: JSON.stringify(body) }),
+    delete: (id: number) =>
+      request<null>(`/api/v1/planning/${id}`, { method: 'DELETE' }),
+    shifts:     () => request<ShiftDto[]>('/api/v1/shifts'),
+    breakTimes: () => request<BreakTimeDto[]>('/api/v1/break-times'),
+  },
   calibration: {
     vendors:        () => request<CalibVendorDto[]>('/api/v1/calib-vendors'),
     createVendor:   (body: { name: string; contact?: string; phone?: string; email?: string }) =>
@@ -261,6 +276,24 @@ export type CreateGageBody = {
 export type BorrowBody = {
   gageId: number; borrowerId: number; managerId: number
   expectedReturnDate?: string; useLocationId?: number; note?: string
+}
+
+export type PlanningItemDto = {
+  id: number; jobId: number; jobNumber: string
+  partOpId: number; opNumber: string; opTypeName: string | null
+  machineId: number; machineCode: string; machineName: string | null
+  operatorId: number | null; operatorName: string | null
+  shiftId: number | null; shiftName: string | null
+  startTime: string; endTime: string; note: string | null
+}
+
+export type ShiftDto     = { id: number; name: string; startTime: string; endTime: string }
+export type BreakTimeDto = { id: number; fromTime: string; toTime: string; label: string | null }
+
+export type CreatePlanningItemBody = {
+  jobId: number; partOpId: number; machineId: number
+  operatorId?: number; shiftId?: number
+  startTime: string; endTime: string; note?: string
 }
 
 export type CompleteCalibBody = {

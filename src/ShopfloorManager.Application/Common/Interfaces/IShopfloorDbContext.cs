@@ -48,6 +48,12 @@ public interface IShopfloorDbContext
     DbSet<CalibRequest>   CalibRequests   { get; }
     DbSet<CalibRecord>    CalibRecords    { get; }
 
+    // Planning
+    DbSet<Shift>           Shifts           { get; }
+    DbSet<BreakTime>       BreakTimes       { get; }
+    DbSet<PlanningItem>    PlanningItems    { get; }
+    DbSet<ShiftAssignment> ShiftAssignments { get; }
+
     // Phase 3 — Quality
     DbSet<DimensionCategory> DimensionCategories { get; }
     DbSet<Dimension> Dimensions { get; }
