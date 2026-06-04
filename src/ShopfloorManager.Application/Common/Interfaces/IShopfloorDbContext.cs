@@ -33,7 +33,8 @@ public interface IShopfloorDbContext
     DbSet<ProductionSession> ProductionSessions { get; }
 
     // Master Data
-    DbSet<Machine> Machines { get; }
+    DbSet<Machine>      Machines      { get; }
+    DbSet<MachineEvent> MachineEvents { get; }
 
     // Gage Management
     DbSet<GageType>         GageTypes         { get; }

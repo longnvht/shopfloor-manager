@@ -36,7 +36,8 @@ public class ShopfloorDbContext(DbContextOptions<ShopfloorDbContext> options)
     public DbSet<ProductionSession> ProductionSessions => Set<ProductionSession>();
 
     // ── Master Data ───────────────────────────────────────────
-    public DbSet<Machine> Machines => Set<Machine>();
+    public DbSet<Machine>      Machines      => Set<Machine>();
+    public DbSet<MachineEvent> MachineEvents => Set<MachineEvent>();
 
     // ── Gage Management ───────────────────────────────────────
     public DbSet<GageType>          GageTypes          => Set<GageType>();
@@ -98,6 +99,16 @@ public class ShopfloorDbContext(DbContextOptions<ShopfloorDbContext> options)
 
         // Master Data
         modelBuilder.ApplyConfiguration(new MachineConfiguration());
+        modelBuilder.Entity<MachineEvent>(b => {
+            b.Property(e => e.Id).UseIdentityByDefaultColumn();
+            b.Property(e => e.TmMode).HasMaxLength(20);
+            b.Property(e => e.AtMode).HasMaxLength(20);
+            b.Property(e => e.RunMode).HasMaxLength(20);
+            b.Property(e => e.Alarm).HasMaxLength(100);
+            b.Property(e => e.AlarmMessage).HasMaxLength(500);
+            b.HasOne(e => e.Machine).WithMany()
+                .HasForeignKey(e => e.MachineId).OnDelete(DeleteBehavior.Restrict);
+        });
 
         // Gage Management
         modelBuilder.ApplyConfiguration(new GageTypeConfiguration());

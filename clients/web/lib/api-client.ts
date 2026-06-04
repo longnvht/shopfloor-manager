@@ -192,6 +192,12 @@ export const api = {
   opTypes: {
     list: () => request<{ id: number; code: string; name: string | null }[]>('/api/v1/op-types'),
   },
+  machines: {
+    list:       (activeOnly = true) => request<{ id: number; code: string; name: string; machineType: string | null }[]>(`/api/v1/machines?activeOnly=${activeOnly}`),
+    status:     () => request<unknown[]>('/api/v1/machines/status'),
+    statusLive: (code: string) => request<unknown>(`/api/v1/machines/${code}/status-live`),
+    events:     (code: string, date?: string) => request<unknown[]>(`/api/v1/machines/${code}/events${date ? `?date=${date}` : ''}`),
+  },
   gages: {
     list: (params?: { search?: string; statusCode?: string; isBorrowed?: boolean }) => {
       const q = new URLSearchParams()

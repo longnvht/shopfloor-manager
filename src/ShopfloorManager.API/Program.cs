@@ -10,6 +10,9 @@ using ShopfloorManager.API.Middleware;
 using ShopfloorManager.Application;
 using ShopfloorManager.Infrastructure;
 using ShopfloorManager.Infrastructure.Data;
+using ShopfloorManager.API.Hubs;
+using ShopfloorManager.API.Services;
+using ShopfloorManager.Infrastructure.Mqtt;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -57,6 +60,15 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 builder.Services.AddAuthorization();
 builder.Services.AddSignalR();
+builder.Services.AddMemoryCache();
+
+// MQTT Background Service
+builder.Services.Configure<MqttOptions>(o => {
+    o.Broker = builder.Configuration["Mqtt:Broker"] ?? "localhost";
+    o.Port   = int.TryParse(builder.Configuration["Mqtt:Port"], out var p) ? p : 1883;
+    o.Topic  = builder.Configuration["Mqtt:TopicCnc"] ?? "factory/cnc/#";
+});
+builder.Services.AddHostedService<MqttBackgroundService>();
 
 builder.Services.AddCors(options =>
     options.AddDefaultPolicy(policy =>
@@ -86,5 +98,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 app.MapHub<ShopfloorHub>("/hub/shopfloor");
+app.MapHub<MachineStatusHub>("/hub/machine-status");
 
 app.Run();
