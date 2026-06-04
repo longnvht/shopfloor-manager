@@ -117,13 +117,31 @@
                 <TextBlock Text="CẤU HÌNH MÁY" Style="{StaticResource SectionHead}"/>
                 <Border Style="{StaticResource Card}">
                     <StackPanel>
-                        <TextBlock Text="Mã máy (Machine Code)" Style="{StaticResource FieldLbl}"/>
-                        <TextBox Text="{Binding MachineCode, UpdateSourceTrigger=PropertyChanged}"
-                                 md:HintAssist.Hint="ví dụ: 3100L"
-                                 Margin="0,0,0,12"/>
-                        <TextBlock Text="Tên máy (Machine Name)" Style="{StaticResource FieldLbl}"/>
-                        <TextBox Text="{Binding MachineName, UpdateSourceTrigger=PropertyChanged}"
-                                 md:HintAssist.Hint="ví dụ: LONG LATHE MACHINE"/>
+                        <TextBlock Text="Chọn máy" Style="{StaticResource FieldLbl}"/>
+                        <ComboBox ItemsSource="{Binding Machines}"
+                                  SelectedItem="{Binding SelectedMachine}"
+                                  md:HintAssist.Hint="-- Chọn mã máy --"
+                                  MinHeight="52" FontSize="15">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="{Binding Code}"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{StaticResource BrandText}"
+                                                   Width="110"/>
+                                        <TextBlock Text="{Binding Name}"
+                                                   Foreground="{StaticResource BrandTextSecondary}"
+                                                   FontSize="13"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+
+                        <!-- Display selected machine name -->
+                        <TextBlock Margin="0,8,0,0" FontSize="12"
+                                   Foreground="{StaticResource BrandTextSecondary}"
+                                   Text="{Binding SelectedMachineName, Mode=OneWay}"
+                                   Visibility="{Binding SelectedMachineName, Converter={StaticResource StringToVisibilityConverter}}"/>
                     </StackPanel>
                 </Border>
 

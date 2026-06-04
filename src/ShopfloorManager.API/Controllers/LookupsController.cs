@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ShopfloorManager.API.Common;
 using ShopfloorManager.Application.Lookups;
+using ShopfloorManager.Application.MasterData;
 
 namespace ShopfloorManager.API.Controllers;
 
@@ -105,6 +106,16 @@ public class LookupsController(IMediator mediator) : ControllerBase
             .Select(c => new { c.Id, c.Code, c.Name, c.Description })
             .ToListAsync();
         return Ok(ApiResponse<object>.Ok(items));
+    }
+
+    // ── Machines ──────────────────────────────────────────────
+
+    [HttpGet("api/v1/machines")]
+    [ProducesResponseType(typeof(ApiResponse<List<MachineDto>>), 200)]
+    public async Task<IActionResult> GetMachines([FromQuery] bool activeOnly = true)
+    {
+        var result = await mediator.Send(new GetMachinesQuery(activeOnly));
+        return Ok(ApiResponse<List<MachineDto>>.Ok(result.Value));
     }
 
     // ── FileTypes ─────────────────────────────────────────────

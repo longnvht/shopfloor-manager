@@ -32,6 +32,9 @@ public interface IShopfloorDbContext
     // Phase 4 — Desktop MES
     DbSet<ProductionSession> ProductionSessions { get; }
 
+    // Master Data
+    DbSet<Machine> Machines { get; }
+
     // Phase 3 — Quality
     DbSet<DimensionCategory> DimensionCategories { get; }
     DbSet<Dimension> Dimensions { get; }
