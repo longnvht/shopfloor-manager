@@ -46,7 +46,7 @@ export type JobDto = {
   id: number; jobNumber: string
   partRevId: number; partNumber: string; revCode: string
   routingRevId: number; routingRevCode: string
-  runQty: number | null; shipBy: string | null; isComplete: boolean; createdAt: string
+  runQty: number | null; completedCount: number; shipBy: string | null; isComplete: boolean; createdAt: string
 }
 
 export type PartOpDto = {

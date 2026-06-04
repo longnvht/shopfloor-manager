@@ -9,13 +9,13 @@ import { useAuthStore } from '@/stores/auth.store'
 // live: false → phase 5/6, shows "SOON"
 const VA_NAV = [
   { group: 'Tổng quan', items: [
-    { id: 'dashboard', label: 'Dashboard',    ico: '▦', href: '/dashboard',   live: true  },
+    { id: 'dashboard', label: 'Dashboard',          ico: '▦', href: '/dashboard',   live: true  },
   ]},
   { group: 'Sản xuất', items: [
-    { id: 'jobs',      label: 'Job & Part',   ico: '◫', href: '/jobs',        live: true  },
-    { id: 'routing',   label: 'Routing & OP', ico: '⊟', href: '/routing',     live: true  },
-    { id: 'planning',  label: 'Lập kế hoạch', ico: '▤', href: '/planning',    live: true  },
-    { id: 'cnc',       label: 'CNC Live',     ico: '◈', href: '/cnc',         live: true  },
+    { id: 'parts',     label: 'Chi tiết kỹ thuật',  ico: '⊟', href: '/parts',       live: true  },
+    { id: 'jobs',      label: 'Lệnh SX & Sản phẩm', ico: '◫', href: '/jobs',        live: true  },
+    { id: 'planning',  label: 'Lập kế hoạch',        ico: '▤', href: '/planning',    live: true  },
+    { id: 'cnc',       label: 'CNC Live',            ico: '◈', href: '/cnc',         live: true  },
   ]},
   { group: 'Chất lượng', items: [
     { id: 'fai',       label: 'FAI & Đo kiểm',ico: '◉', href: '/fai',         live: true  },
