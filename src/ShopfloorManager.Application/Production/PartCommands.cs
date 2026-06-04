@@ -162,6 +162,28 @@ public class GetRoutingRevsQueryHandler(IShopfloorDbContext db)
 }
 
 /// <summary>
+/// Lấy tất cả RoutingRevs của một PartRev (tự tìm qua Routing).
+/// Không cần biết trước RoutingId — frontend gọi endpoint này thay vì hardcode routingId=1.
+/// </summary>
+public record GetRoutingRevsByPartRevQuery(int PartRevId) : IRequest<Result<List<RoutingRevDto>>>;
+
+public class GetRoutingRevsByPartRevQueryHandler(IShopfloorDbContext db)
+    : IRequestHandler<GetRoutingRevsByPartRevQuery, Result<List<RoutingRevDto>>>
+{
+    public async Task<Result<List<RoutingRevDto>>> Handle(GetRoutingRevsByPartRevQuery req, CancellationToken ct)
+    {
+        var items = await db.RoutingRevs
+            .Include(r => r.PartOps)
+            .Where(r => r.Routing.PartRevId == req.PartRevId)
+            .OrderByDescending(r => r.CreatedAt)
+            .Select(r => new RoutingRevDto(r.Id, r.RoutingId, r.RevCode, r.ChangeNote,
+                r.IsActive, r.IsReleased, r.CreatedAt, r.PartOps.Count))
+            .ToListAsync(ct);
+        return Result.Ok(items);
+    }
+}
+
+/// <summary>
 /// Tạo RoutingRev mới — copy toàn bộ PartOps từ RoutingRev đang active.
 /// </summary>
 public record AddRoutingRevCommand(int RoutingId, string RevCode, string? ChangeNote, int? RequesterId)

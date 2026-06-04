@@ -58,10 +58,18 @@ public class PartsController(IMediator mediator) : ControllerBase
             : BadRequest(ApiResponse<PartRevDto>.Fail(result.Errors));
     }
 
-    /// <summary>Lấy danh sách RoutingRevs của một PartRev.</summary>
+    /// <summary>
+    /// Lấy danh sách RoutingRevs của một PartRev.
+    /// Khi không truyền routingId (hoặc =0), tự tìm qua PartRevId.
+    /// </summary>
     [HttpGet("revisions/{partRevId:int}/routing-revs")]
-    public async Task<IActionResult> GetRoutingRevs(int partRevId, [FromQuery] int routingId)
+    public async Task<IActionResult> GetRoutingRevs(int partRevId, [FromQuery] int routingId = 0)
     {
+        if (routingId == 0)
+        {
+            var r2 = await mediator.Send(new GetRoutingRevsByPartRevQuery(partRevId));
+            return Ok(ApiResponse<List<RoutingRevDto>>.Ok(r2.Value));
+        }
         var result = await mediator.Send(new GetRoutingRevsQuery(routingId));
         return Ok(ApiResponse<List<RoutingRevDto>>.Ok(result.Value));
     }

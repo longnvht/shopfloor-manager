@@ -4,19 +4,19 @@ import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { api, type PartRevDto, type RoutingRevDto, type PartOpDto } from '@/lib/api-client'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { VATopbar, VABadge, VACard, VABtn } from '@/components/va'
+import { va } from '@/lib/va-tokens'
 
 export default function PartDetailPage() {
   const { id } = useParams<{ id: string }>()
   const partId = Number(id)
 
-  const [revs, setRevs]               = useState<PartRevDto[]>([])
+  const [revs,        setRevs]       = useState<PartRevDto[]>([])
   const [selectedRev, setSelectedRev] = useState<PartRevDto | null>(null)
   const [routingRevs, setRoutingRevs] = useState<RoutingRevDto[]>([])
-  const [selectedRR, setSelectedRR]   = useState<RoutingRevDto | null>(null)
-  const [ops, setOps]                 = useState<PartOpDto[]>([])
-  const [loading, setLoading]         = useState(true)
+  const [selectedRR,  setSelectedRR]  = useState<RoutingRevDto | null>(null)
+  const [ops,         setOps]         = useState<PartOpDto[]>([])
+  const [loading,     setLoading]     = useState(true)
 
   useEffect(() => {
     api.parts.revisions(partId).then(res => {
@@ -31,7 +31,8 @@ export default function PartDetailPage() {
 
   useEffect(() => {
     if (!selectedRev) return
-    api.parts.routingRevs(selectedRev.id, 1).then(res => {
+    setRoutingRevs([]); setSelectedRR(null); setOps([])
+    api.parts.routingRevs(selectedRev.id).then(res => {
       if (res.success && res.data) {
         setRoutingRevs(res.data)
         const active = res.data.find(r => r.isActive) ?? res.data[0]
@@ -47,135 +48,111 @@ export default function PartDetailPage() {
     })
   }, [selectedRR])
 
-  if (loading) return <p className="text-muted-foreground">Đang tải...</p>
-
   const partNumber = revs[0]?.partNumber ?? `Part #${partId}`
 
-  // Build URL params for documents page
-  const docBaseParams = (extra: Record<string, string>) =>
-    new URLSearchParams({ partNumber, ...extra }).toString()
-
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <Link href="/parts" className="text-muted-foreground hover:text-foreground">← Parts</Link>
-        <span className="text-muted-foreground">/</span>
-        <h1 className="text-2xl font-semibold font-mono">{partNumber}</h1>
-      </div>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: va.bg }}>
+      <VATopbar
+        title={loading ? '…' : partNumber}
+        breadcrumb={`Sản xuất › Chi tiết kỹ thuật › ${partNumber}`}
+        right={
+          <Link href="/parts">
+            <VABtn kind="ghost">← Quay lại</VABtn>
+          </Link>
+        }
+      />
 
-      {/* PartRev selector */}
-      <Card>
-        <CardHeader><CardTitle>Drawing Revisions</CardTitle></CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-2">
-            {revs.map(rev => (
-              <button key={rev.id}
-                onClick={() => setSelectedRev(rev)}
-                className={`rounded-md border px-3 py-1.5 text-sm transition-colors ${
-                  selectedRev?.id === rev.id
-                    ? 'border-primary bg-primary text-primary-foreground'
-                    : 'hover:bg-muted'
-                }`}>
-                Rev {rev.revCode}
-                {rev.isActive && <span className="ml-1 text-xs opacity-70">(active)</span>}
-              </button>
-            ))}
-          </div>
-          {selectedRev?.description && (
-            <p className="mt-2 text-sm text-muted-foreground">{selectedRev.description}</p>
-          )}
-
-          {/* Part-level documents (DRW, CAD) */}
-          {selectedRev && (
-            <div className="mt-3 flex gap-2">
-              <Link href={`/parts/${id}/documents?partRevId=${selectedRev.id}&${docBaseParams({ revCode: selectedRev.revCode })}`}>
-                <Button size="sm" variant="outline">
-                  Bản vẽ / CAD (Rev {selectedRev.revCode})
-                </Button>
-              </Link>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* RoutingRev selector */}
-      {routingRevs.length > 0 && (
-        <Card>
-          <CardHeader><CardTitle>Routing Revisions</CardTitle></CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-2">
-              {routingRevs.map(rr => (
-                <button key={rr.id}
-                  onClick={() => setSelectedRR(rr)}
-                  className={`rounded-md border px-3 py-1.5 text-sm transition-colors ${
-                    selectedRR?.id === rr.id
-                      ? 'border-primary bg-primary text-primary-foreground'
-                      : 'hover:bg-muted'
-                  }`}>
-                  {rr.revCode}
-                  <span className="ml-1 text-xs opacity-70">({rr.opCount} OPs)</span>
-                  {rr.isActive && <span className="ml-1 text-xs opacity-70">(active)</span>}
-                </button>
-              ))}
-            </div>
-            {selectedRR?.changeNote && (
-              <p className="mt-2 text-sm text-muted-foreground">{selectedRR.changeNote}</p>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Operations list */}
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            Operations
-            {selectedRR && <span className="ml-2 text-sm font-normal text-muted-foreground">(Routing {selectedRR.revCode})</span>}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {ops.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Chưa có operation nào.</p>
-          ) : (
-            <table className="w-full text-sm">
-              <thead><tr className="border-b">
-                <th className="pb-2 text-left font-medium">OP</th>
-                <th className="pb-2 text-left font-medium">Loại</th>
-                <th className="pb-2 text-left font-medium">Mô tả</th>
-                <th className="pb-2 text-right font-medium">Setup (h)</th>
-                <th className="pb-2 text-right font-medium">Prod (h)</th>
-                <th className="pb-2 text-center font-medium">Trạng thái</th>
-                <th className="pb-2 text-center font-medium">Tài liệu</th>
-              </tr></thead>
-              <tbody className="divide-y">
-                {ops.map(op => (
-                  <tr key={op.id} className="hover:bg-muted/20">
-                    <td className="py-2 font-mono font-medium">{op.opNumber}</td>
-                    <td className="py-2 text-muted-foreground">{op.opTypeName ?? '—'}</td>
-                    <td className="py-2 text-muted-foreground max-w-xs truncate">{op.description ?? '—'}</td>
-                    <td className="py-2 text-right">{op.setupTime ?? '—'}</td>
-                    <td className="py-2 text-right">{op.prodTime ?? '—'}</td>
-                    <td className="py-2 text-center">
-                      <span className={`rounded-full px-2 py-0.5 text-xs ${
-                        op.isComplete ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
-                      }`}>
-                        {op.isComplete ? 'Done' : 'Active'}
-                      </span>
-                    </td>
-                    <td className="py-2 text-center">
-                      <Link href={`/parts/${id}/documents?opId=${op.id}&opNumber=${op.opNumber}&${docBaseParams({ revCode: selectedRev?.revCode ?? '' })}`}>
-                        <Button size="sm" variant="ghost" className="h-7 text-xs">
-                          Tài liệu →
-                        </Button>
-                      </Link>
-                    </td>
-                  </tr>
+      <div className="va-scroll" style={{ flex: 1, overflow: 'auto', padding: 22, display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {loading ? (
+          <div style={{ fontSize: 12, color: va.text3 }}>Đang tải…</div>
+        ) : (
+          <>
+            {/* Drawing Revisions */}
+            <VACard title="Drawing Revisions" sub={`${revs.length} revision`}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: selectedRev ? 12 : 0 }}>
+                {revs.map(rev => (
+                  <div key={rev.id} className="va-clickable" onClick={() => setSelectedRev(rev)}
+                    style={{ padding: '6px 12px', borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: 'pointer', background: selectedRev?.id === rev.id ? va.primary : va.surface2, color: selectedRev?.id === rev.id ? '#fff' : va.text, border: `1px solid ${selectedRev?.id === rev.id ? va.primary : va.border}` }}>
+                    Rev {rev.revCode}{rev.isActive ? ' ★' : ''}
+                  </div>
                 ))}
-              </tbody>
-            </table>
-          )}
-        </CardContent>
-      </Card>
+                {revs.length === 0 && <span style={{ fontSize: 12, color: va.text3 }}>Chưa có revision.</span>}
+              </div>
+              {selectedRev?.description && (
+                <div style={{ fontSize: 12, color: va.text2, marginBottom: 10 }}>{selectedRev.description}</div>
+              )}
+              {selectedRev && (
+                <Link href={`/parts/${id}/documents?partRevId=${selectedRev.id}&partNumber=${encodeURIComponent(partNumber)}&revCode=${selectedRev.revCode}`}>
+                  <VABtn kind="ghost" style={{ height: 28, fontSize: 11 }}>Bản vẽ / CAD (Rev {selectedRev.revCode})</VABtn>
+                </Link>
+              )}
+            </VACard>
+
+            {/* Routing Revisions */}
+            {routingRevs.length > 0 && (
+              <VACard title="Routing Revisions" sub={`${routingRevs.length} revision`}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {routingRevs.map(rr => (
+                    <div key={rr.id} className="va-clickable" onClick={() => setSelectedRR(rr)}
+                      style={{ padding: '6px 12px', borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: 'pointer', background: selectedRR?.id === rr.id ? va.accent : va.surface2, color: selectedRR?.id === rr.id ? '#fff' : va.text, border: `1px solid ${selectedRR?.id === rr.id ? va.accent : va.border}` }}>
+                      {rr.revCode}
+                      <span style={{ fontWeight: 400, opacity: 0.75, marginLeft: 4 }}>({rr.opCount} OP{rr.isActive ? ' · Active' : ''})</span>
+                    </div>
+                  ))}
+                </div>
+                {selectedRR?.changeNote && (
+                  <div style={{ fontSize: 11, color: va.text3, marginTop: 6 }}>{selectedRR.changeNote}</div>
+                )}
+              </VACard>
+            )}
+
+            {/* Operations */}
+            <VACard
+              title="Operations"
+              sub={selectedRR ? `Routing ${selectedRR.revCode} · ${ops.length} OP` : ''}
+              pad={false}
+              style={{ flex: 1, minHeight: 200 }}
+            >
+              {ops.length === 0 ? (
+                <div style={{ padding: 16, fontSize: 12, color: va.text3 }}>Chưa có operation nào.</div>
+              ) : (
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
+                  <thead>
+                    <tr style={{ background: va.surface2 }}>
+                      {['OP', 'Loại', 'Mô tả', 'Setup (h)', 'Prod (h)', 'Trạng thái', 'Tài liệu'].map((h, i) => (
+                        <th key={i} style={{ textAlign: 'left', padding: '9px 14px', fontSize: 9.5, color: va.text2, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.6, borderBottom: `1px solid ${va.border}` }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ops.map(op => (
+                      <tr key={op.id} className="va-row va-clickable">
+                        <td style={{ padding: '10px 14px', borderBottom: `1px solid ${va.separator}` }}>
+                          <span style={{ fontFamily: va.mono, fontWeight: 700, color: va.text }}>{op.opNumber}</span>
+                        </td>
+                        <td style={{ padding: '10px 14px', borderBottom: `1px solid ${va.separator}`, color: va.text2 }}>{op.opTypeName ?? '—'}</td>
+                        <td style={{ padding: '10px 14px', borderBottom: `1px solid ${va.separator}`, color: va.text2, maxWidth: 200 }}>
+                          <span style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{op.description ?? '—'}</span>
+                        </td>
+                        <td style={{ padding: '10px 14px', borderBottom: `1px solid ${va.separator}`, fontFamily: va.mono, color: va.text2 }}>{op.setupTime ?? '—'}</td>
+                        <td style={{ padding: '10px 14px', borderBottom: `1px solid ${va.separator}`, fontFamily: va.mono, color: va.text2 }}>{op.prodTime ?? '—'}</td>
+                        <td style={{ padding: '10px 14px', borderBottom: `1px solid ${va.separator}` }}>
+                          <VABadge kind={op.isComplete ? 'ok' : 'neutral'}>{op.isComplete ? 'Done' : 'Active'}</VABadge>
+                        </td>
+                        <td style={{ padding: '10px 14px', borderBottom: `1px solid ${va.separator}` }}>
+                          <Link href={`/parts/${id}/documents?opId=${op.id}&opNumber=${op.opNumber}&partNumber=${encodeURIComponent(partNumber)}&revCode=${selectedRev?.revCode ?? ''}`}>
+                            <VABtn kind="ghost" style={{ height: 26, fontSize: 11, padding: '0 8px' }}>Tài liệu →</VABtn>
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </VACard>
+          </>
+        )}
+      </div>
     </div>
   )
 }

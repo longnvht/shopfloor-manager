@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, type CSSProperties } from 'react'
 import Link from 'next/link'
-import { api, type JobDto, type JobDetailDto } from '@/lib/api-client'
+import { useRouter } from 'next/navigation'
+import { api, type JobDto, type JobDetailDto, type PartOpDto } from '@/lib/api-client'
 import { VATopbar, VABadge, VACard, VABtn } from '@/components/va'
 import { va } from '@/lib/va-tokens'
 import { CreateJobDialog } from '@/components/jobs/create-job-dialog'
@@ -31,18 +32,60 @@ function progressColor(job: JobDto) {
   return va.accent
 }
 
+// ── FAI OP selector modal ──────────────────────────────────────────────────
+function FaiOpModal({ job, ops, onClose }: { job: JobDto; ops: PartOpDto[]; onClose: () => void }) {
+  const router = useRouter()
+  const overlay: React.CSSProperties = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }
+  const box: React.CSSProperties = { background: va.surface, borderRadius: 12, padding: 24, width: 400, maxHeight: '80vh', overflow: 'auto', boxShadow: va.shadowLg }
+  return (
+    <div style={overlay} onClick={e => e.target === e.currentTarget && onClose()}>
+      <div style={box}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: va.text }}>Chọn OP để xem FAI</div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: va.text3 }}>✕</button>
+        </div>
+        {ops.filter(o => !o.forJobOnly).map(op => (
+          <div key={op.id} className="va-clickable va-row" onClick={() => { router.push(`/jobs/${job.id}/fai?opId=${op.id}`); onClose() }}
+            style={{ padding: '12px 14px', borderBottom: `1px solid ${va.separator}`, display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ fontFamily: va.mono, fontWeight: 700, color: va.text, minWidth: 40 }}>{op.opNumber}</span>
+            <span style={{ fontSize: 12.5, color: va.text2, flex: 1 }}>{op.opTypeName ?? ''} {op.description ? `· ${op.description}` : ''}</span>
+            <span style={{ fontSize: 11, color: va.accent, fontWeight: 600 }}>FAI →</span>
+          </div>
+        ))}
+        {ops.filter(o => !o.forJobOnly).length === 0 && (
+          <div style={{ fontSize: 12, color: va.text3 }}>Không có OP nào.</div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── Job detail panel ───────────────────────────────────────────────────────
 function JobDetail({ job: jobSummary }: { job: JobDto }) {
   const [detail, setDetail] = useState<JobDetailDto | null>(null)
   const [loading, setLoading] = useState(true)
+  const [showFaiPicker, setShowFaiPicker] = useState(false)
+  const [generating, setGenerating] = useState(false)
 
-  useEffect(() => {
+  const loadDetail = useCallback(() => {
     setLoading(true); setDetail(null)
     api.jobs.get(jobSummary.id).then(res => {
       if (res.success) setDetail(res.data)
       setLoading(false)
     })
   }, [jobSummary.id])
+
+  useEffect(() => { loadDetail() }, [loadDetail])
+
+  async function handleGenerateProducts() {
+    if (!jobSummary.runQty) { alert('Job chưa có RunQty'); return }
+    if (!confirm(`Tạo ${jobSummary.runQty} serial products cho ${jobSummary.jobNumber}?`)) return
+    setGenerating(true)
+    const res = await api.jobs.generateProducts(jobSummary.id, jobSummary.runQty)
+    if (res.success) loadDetail()
+    else alert(res.error ?? 'Lỗi tạo products')
+    setGenerating(false)
+  }
 
   const s = jobStatus(jobSummary)
   const pct = progressPct(jobSummary)
@@ -106,14 +149,21 @@ function JobDetail({ job: jobSummary }: { job: JobDto }) {
             title={`Sản phẩm — ${detail.products.length} serial`}
             pad={false}
             right={
-              <Link href={`/jobs/${jobSummary.id}/fai`}>
-                <VABtn kind="accent" style={{ height: 28, fontSize: 11 }}>FAI Sheet</VABtn>
-              </Link>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {detail.products.length === 0 && jobSummary.runQty && (
+                  <VABtn kind="ghost" style={{ height: 28, fontSize: 11 }} onClick={handleGenerateProducts} disabled={generating}>
+                    {generating ? 'Đang tạo…' : `+ Tạo ${jobSummary.runQty} serials`}
+                  </VABtn>
+                )}
+                <VABtn kind="accent" style={{ height: 28, fontSize: 11 }} onClick={() => setShowFaiPicker(true)}>FAI Sheet</VABtn>
+              </div>
             }
           >
             {detail.products.length === 0 ? (
               <div style={{ padding: 16, fontSize: 12, color: va.text3 }}>
-                Chưa có serial. <span className="va-clickable" style={{ color: va.primary, fontWeight: 600 }}>Tạo products →</span>
+                Chưa có serial. {jobSummary.runQty
+                  ? <span className="va-clickable" style={{ color: va.primary, fontWeight: 600 }} onClick={handleGenerateProducts}>Tạo {jobSummary.runQty} products →</span>
+                  : 'Job chưa có RunQty.'}
               </div>
             ) : (
               <div style={{ padding: 14, display: 'flex', flexWrap: 'wrap', gap: 7 }}>
@@ -150,6 +200,15 @@ function JobDetail({ job: jobSummary }: { job: JobDto }) {
             </VACard>
           )}
         </>
+      )}
+
+      {/* FAI OP picker modal */}
+      {showFaiPicker && detail && (
+        <FaiOpModal
+          job={jobSummary}
+          ops={detail.operations}
+          onClose={() => setShowFaiPicker(false)}
+        />
       )}
     </div>
   )

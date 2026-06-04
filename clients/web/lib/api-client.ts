@@ -179,8 +179,9 @@ export const api = {
       request<PartRevDto[]>(`/api/v1/parts/${partId}/revisions`),
     addRevision: (partId: number, body: { revCode: string; description?: string }) =>
       request<PartRevDto>(`/api/v1/parts/${partId}/revisions`, { method: 'POST', body: JSON.stringify(body) }),
-    routingRevs: (partRevId: number, routingId: number) =>
-      request<RoutingRevDto[]>(`/api/v1/parts/revisions/${partRevId}/routing-revs?routingId=${routingId}`),
+    // routingId optional — omit to auto-discover via PartRevId (no hardcode needed)
+    routingRevs: (partRevId: number, routingId?: number) =>
+      request<RoutingRevDto[]>(`/api/v1/parts/revisions/${partRevId}/routing-revs${routingId ? `?routingId=${routingId}` : ''}`),
     addRoutingRev: (body: { routingId: number; revCode: string; changeNote?: string }) =>
       request<RoutingRevDto>('/api/v1/parts/routing-revs', { method: 'POST', body: JSON.stringify(body) }),
   },

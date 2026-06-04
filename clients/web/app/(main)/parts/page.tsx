@@ -52,7 +52,7 @@ function PartDetail({ part }: { part: PartDto }) {
   useEffect(() => {
     if (!selRev) return
     setRoutingRevs([]); setSelRR(null); setOps([])
-    api.parts.routingRevs(selRev.id, 1).then(res => {
+    api.parts.routingRevs(selRev.id).then(res => {
       if (res.success && res.data) {
         setRoutingRevs(res.data)
         const active = res.data.find(r => r.isActive) ?? res.data[0]
