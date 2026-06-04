@@ -291,7 +291,7 @@ CalibRequestStatus:Pending=0, Approved=1, Completed=2, Cancelled=3
 | Phase 1 — Auth & HR (JWT, users, roles, SignalR) | ✅ Done |
 | Phase 2 — Production Core (Jobs, Parts, OPs, Documents) | ✅ Done |
 | Phase 3 — Quality (Dimensions, FAI, NCR, SPC) | ✅ Done |
-| Phase 4 — Desktop MES (WPF, FAI at machine, SignalR) | 🔄 In progress |
+| Phase 4 — Desktop MES (WPF, FAI at machine, SignalR) | ✅ Done |
 | Phase 5 — Advanced (Gage, Planning, MQTT pipeline, Dashboard) | ⏳ |
 
 **Phase 1 — ✅ Hoàn tất** (2026-05-20)
@@ -365,7 +365,7 @@ CalibRequestStatus:Pending=0, Approved=1, Completed=2, Cancelled=3
 - ✅ DocumentViewer — PDF viewer: WebView2 (Microsoft.Web.WebView2 1.0.3967.48); Edge render PDF native; `IsPdfViewerVisible = IsNonGcodeSelected && PdfUrl != null && !IsLoadingContent`; `IsVisibleChanged` event khởi tạo WebView2 lần đầu + navigate; MinIO presigned URL navigated directly
 - ✅ Session constraint redesign: Claim = client-side only (WorkContext, không ghi DB); chỉ `BeginSession` ghi DB (tạo + start atomically); ràng buộc per-machine chỉ áp dụng khi inprogress (`started_at IS NOT NULL`)
 - ✅ Shortcut lock khi inprogress: Operation Mode + IsWip → "Chọn Job/OP/Sản phẩm" disabled (opacity 0.4), View Mode → re-enable
-- **Chưa implement:** Settings page
+- ✅ Settings page (Admin): ApiBaseUrl, MachineCode, MachineName — edit + test connection + save to `local.json`; URL đổi → cần restart app
 
 **Ràng buộc ProductionSession (thiết kế mới 2026-05-27):**
 - **Claim = client-side only**: chọn product → `_work.SetProduct(product, null)` — KHÔNG ghi DB
@@ -480,6 +480,7 @@ Session của người khác trên máy:
 - **WorkContext dual context**: `ViewJob/ViewOp/ViewProduct` là slot độc lập cho View Mode. `OnModeChanged` KHÔNG gọi `ClearViewContext()` — view context giữ nguyên khi toggle; chỉ clear khi `Clear()` (logout). `DashboardViewModel.CtxJob/CtxOp/CtxProduct` đọc đúng slot dựa trên mode.
 - **FAI IsInputLocked**: `SelectedDimension?.IsMeasured == true` → lock mọi input. `OnSelectedDimensionChanged` restore giá trị đã đo vào InputValue. `CanConfirm/CanSetPass/CanSetFail` return `false` khi locked. FaiPage.xaml: TextBox `IsEnabled="{Binding IsInputEnabled}"` (disabled hoàn toàn — grayed out, không focus, NumPad không mở) + amber notice banner. `IsInputEnabled = !IsInputLocked` trong FaiViewModel với `[NotifyPropertyChangedFor]`.
 - **Work Info button mutual exclusion**: 5 nút không đồng thời: SelectJob (`ShowSelectJobButton = !HasWork && !CanForceFinish`), Navigate (`ShowNavigateButton = CanNavigate && !CanForceFinish`), Start (`CanStart`), Stop (`ShowStopButton = CanStop && !CanForceFinish`), ForceFinish (`CanForceFinish`). Tại mọi thời điểm, nhiều nhất 1 nút visible.
+- **Settings page**: `SettingsViewModel` + `SettingsPage.xaml` — chỉ Administrator; đọc/ghi `local.json` tại `AppContext.BaseDirectory`; `MachineCode`/`MachineName` áp dụng ngay (in-memory `AppSettings`); `ApiBaseUrl` áp dụng sau restart (HttpClient singleton đã tạo với URL cũ); TestConnection dùng `GET {url}/api/v1/auth/login` với `new HttpClient()` riêng (không share singleton)
 - **FAI session started guard**: `NavigateToFai` check `_work.ActiveSession?.StartedAt.HasValue != true` → redirect Dashboard. Shortcut "Bảng đo" condition: `canFai = !_work.IsViewMode && hasProd && _work.ActiveSession?.StartedAt.HasValue == true`.
 - **DocumentViewer navigation**: `HandleDashboardNavigation` cases "gcode"/"drawing"/"fixture"/"routecard" → `NavigateToDocumentViewer()`; dùng browse job/op context (View Mode safe). API: `GET /api/v1/tech-documents?partOpId=&status=Approved` → list; `GET /api/v1/tech-documents/{id}/download-url` → string URL → `HttpClient.GetStringAsync`.
 - **GcodeViewerBehavior**: attached property `kb:GcodeViewerBehavior.Text` trên `RichTextBox` — parse G-code thành `FlowDocument` với colored `Run`s. Token colors: N=gray, G=blue #1565C0, M=purple #6A1B9A, X/Y/Z/I/J/K=orange #E65100, F/S=green #2E7D32, T/H/D=teal #00838F, O=red, comment(`;`/`(`)=gray. Limit 5000 dòng.

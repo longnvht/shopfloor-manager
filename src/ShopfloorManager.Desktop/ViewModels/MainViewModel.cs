@@ -55,6 +55,7 @@ public partial class MainViewModel : ViewModelBase
             case "fixture":
             case "routecard":
                 NavigateToDocumentViewer(); break;
+            case "settings": NavigateToSettings();      break;
         }
     }
 
@@ -161,6 +162,17 @@ public partial class MainViewModel : ViewModelBase
         vm.OnBack = NavigateToDashboard;
         CurrentPage = vm;
         _ = vm.InitializeAsync(job, op);
+    }
+
+    // ===== Settings =====
+
+    public void NavigateToSettings()
+    {
+        _keyboard.Hide();
+        var vm = _sp.GetRequiredService<SettingsViewModel>();
+        vm.OnBack = NavigateToDashboard;
+        vm.Initialize();
+        CurrentPage = vm;
     }
 
     private void ShowNcrDialog(NcrTriggerArgs args)

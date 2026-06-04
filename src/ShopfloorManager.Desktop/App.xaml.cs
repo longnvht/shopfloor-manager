@@ -70,6 +70,7 @@ public partial class App : Application
         services.AddTransient<DashboardViewModel>();
         services.AddTransient<FaiViewModel>();
         services.AddTransient<DocumentViewerViewModel>();
+        services.AddTransient<SettingsViewModel>();
 
         // Views
         services.AddTransient<LoginWindow>();
