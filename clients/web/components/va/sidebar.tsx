@@ -1,7 +1,7 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
-import { LogOut } from 'lucide-react'
 import { va } from '@/lib/va-tokens'
 import { useAuthStore } from '@/stores/auth.store'
 
@@ -39,6 +39,9 @@ export function VASidebar() {
   const pathname  = usePathname()
   const router    = useRouter()
   const { user, logout } = useAuthStore()
+  // Avoid Zustand persist hydration mismatch — only render user info after mount
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => { setMounted(true) }, [])
 
   function handleNav(href: string) {
     router.push(href)
@@ -116,33 +119,33 @@ export function VASidebar() {
         ))}
       </div>
 
-      {/* User footer */}
+      {/* User footer — only render after client hydration to avoid Zustand persist mismatch */}
       <div style={{
         padding: 14, borderTop: '1px solid rgba(255,255,255,0.08)',
         display: 'flex', alignItems: 'center', gap: 10,
       }}>
-        <div suppressHydrationWarning style={{
+        <div style={{
           width: 32, height: 32, borderRadius: '50%',
           background: va.accentLt, color: va.primary,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontWeight: 600, fontSize: 12, flexShrink: 0,
         }}>
-          {user ? initials(user.name) : ''}
+          {mounted && user ? initials(user.name) : ''}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div suppressHydrationWarning style={{ fontSize: 12, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {user?.name ?? ''}
+          <div style={{ fontSize: 12, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {mounted ? (user?.name ?? '—') : ''}
           </div>
-          <div suppressHydrationWarning style={{ fontSize: 10, color: va.accentLt }}>
-            {user?.role ?? ''}
+          <div style={{ fontSize: 10, color: va.accentLt }}>
+            {mounted ? (user?.role ?? '') : ''}
           </div>
         </div>
         <button
           onClick={handleLogout}
           title="Đăng xuất"
-          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.5)', lineHeight: 1, padding: '4px', display: 'flex', alignItems: 'center' }}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.5)', fontSize: 14, padding: 2 }}
         >
-          <LogOut size={14} />
+          ⏻
         </button>
       </div>
     </div>
