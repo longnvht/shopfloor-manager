@@ -46,7 +46,7 @@ public class GageConfiguration : IEntityTypeConfiguration<Gage>
     public void Configure(EntityTypeBuilder<Gage> b)
     {
         b.HasIndex(g => g.GageNo).IsUnique();
-        b.HasQueryFilter(g => !g.IsDeleted);
+        b.HasQueryFilter(g => g.DeletedAt == null);
 
         b.Property(g => g.GageNo).HasMaxLength(30).IsRequired();
         b.Property(g => g.SerialNo).HasMaxLength(50);
