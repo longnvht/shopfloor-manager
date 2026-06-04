@@ -185,27 +185,54 @@ dotnet ef database update --project ShopfloorManager.Infrastructure --startup-pr
 ```
 clients/web/
 ├── app/
-│   ├── (auth)/login/           # Login page
-│   └── (main)/                 # Authenticated layout
-│       ├── layout.tsx          # Shell: Navbar + main container
-│       ├── dashboard/          # Dashboard (placeholder)
-│       ├── jobs/               # Job list + detail + FAI + documents
-│       ├── parts/              # Part list + detail + documents
-│       └── ncrs/               # NCR list
+│   ├── (auth)/login/
+│   └── (main)/                    # Authenticated layout — VASidebar + VATopbar shell
+│       ├── layout.tsx             # Shell: VASidebar 224px + flex-1 content
+│       ├── dashboard/             # Dashboard KPI (placeholder Phase 5)
+│       ├── jobs/                  # Job list + [id] detail + [id]/fai + [id]/documents
+│       ├── parts/                 # Part list + [id] detail + [id]/documents
+│       ├── routing/               # Routing & Operations (part list + OP flow)
+│       ├── planning/              # Gantt chart tuần (mock data)
+│       ├── cnc/                   # CNC Live — machine status + gauges (mock data)
+│       ├── fai/                   # FAI Dimension Sheet matrix (mock data)
+│       ├── ncrs/                  # NCR list + detail
+│       ├── gages/                 # Gage management (mock data)
+│       ├── calibration/           # Calibration requests (mock data)
+│       ├── documents/             # Tech documents approval (mock data)
+│       ├── hr/                    # HR + user management (mock data)
+│       └── master/                # Master data tabs: machines/op-types/dim-cats
 ├── components/
-│   ├── ui/                     # shadcn components (Button, Card, Input, Label)
+│   ├── va/                        # VA design system components
+│   │   ├── sidebar.tsx            # VASidebar — 224px nâu, nav groups, user footer
+│   │   ├── topbar.tsx             # VATopbar — breadcrumb + serif title + search
+│   │   ├── badge.tsx              # VABadge (ok/warn/err/neutral/primary/running)
+│   │   ├── kpi.tsx                # VAKpi card với trend indicator
+│   │   ├── card.tsx               # VACard với header slot
+│   │   ├── btn.tsx                # VABtn (primary/accent/ghost)
+│   │   ├── seg.tsx                # VASeg segmented control
+│   │   └── index.ts               # Barrel export
+│   ├── ui/                        # shadcn components (Button, Card, Input...)
 │   ├── auth/login-form.tsx
 │   ├── jobs/create-job-dialog.tsx
-│   └── shared/navbar.tsx       # Top navigation bar
-├── lib/api-client.ts           # Typed API client (fetch + JWT)
-└── stores/auth.store.ts        # Zustand auth store (JWT in localStorage)
+│   └── parts/create-part-dialog.tsx
+├── lib/
+│   ├── api-client.ts              # Typed API client (fetch + JWT)
+│   └── va-tokens.ts               # VA design tokens (colors, shadows, fonts)
+└── stores/auth.store.ts           # Zustand auth store (JWT in localStorage)
 ```
 
-**Dependencies:** `@tanstack/react-query` · `zustand` · `zod` · `react-hook-form` · `shadcn/ui` (Base UI) · `tailwindcss v4` · `lucide-react`
+**Dependencies:** `@tanstack/react-query` · `zustand` · `zod` · `react-hook-form` · `@base-ui/react` (shadcn CLI) · `tailwindcss v4` · `lucide-react`
 
-**Design system đang áp dụng:** Template VA warm industrial tại `D:\Temple\Shopfloor Manage` — sidebar navigation, màu sắc brown/orange, components: VASidebar, VATopbar, VABadge, VAKpi, VACard, VABtn.
+**Design system — VA warm industrial** (từ template `D:\Temple\Shopfloor Manage`):
+- Sidebar 224px nâu `#6D3B1A`, accent cam `#F57C00`, nền kem `#FFF8F0`
+- Fonts: Inter (body) + Fraunces (serif title) + JetBrains Mono (numbers/code)
+- Components: `VASidebar`, `VATopbar`, `VABadge`, `VAKpi`, `VACard`, `VABtn`, `VASeg`
+- Inline styles với `va.*` tokens — không dùng Tailwind bên trong VA components
 
-**Trạng thái:** Shell + auth + pages cơ bản đã có. Cần apply VA design system (sidebar thay navbar, VA tokens, redesign các trang).
+**Trang dùng API thật:** `/jobs`, `/jobs/[id]`, `/parts`, `/ncrs`
+**Trang dùng mock data (chờ Phase 5 API):** `/routing`, `/planning`, `/cnc`, `/fai`, `/gages`, `/calibration`, `/documents`, `/hr`, `/master`
+
+**Dev server:** `cd clients/web && npm run dev` → http://localhost:3000
 
 **Lưu ý quan trọng về Next.js 16:** Đọc `clients/web/AGENTS.md` — version này có breaking changes so với training data. Đọc docs trong `node_modules/next/dist/docs/` trước khi code.
 
@@ -457,7 +484,7 @@ CalibRequestStatus:Pending=0, Approved=1, Completed=2, Cancelled=3
 
 ## Project Status
 
-*(cập nhật 2026-06-04)*
+*(cập nhật 2026-06-04 — Web App VA design system complete)*
 
 | Phase | Status |
 |---|---|
@@ -770,8 +797,16 @@ Desktop app: build riêng bằng dotnet publish, deploy thủ công lên từng 
 | 2 — Production Core | Jobs, Parts, OPs, Documents | ✅ |
 | 3 — Quality | Dimensions, FAI, NCR, SPC | ✅ |
 | 4 — Desktop MES | WPF, FAI tại máy, session management | ✅ |
-| 5 — Advanced | Gage, Planning, MQTT pipeline, Dashboard | ⏳ |
+| **Web UI** | VA design system + 18 routes (clients/web) | ✅ |
+| 5 — Advanced | Gage, Planning, MQTT pipeline, Dashboard web | ⏳ |
 | 6 — Polish & Open Source | Multi-factory, migration tool MySQL→PG, docs site, one-command setup | ⏳ |
+
+**Web UI — ✅ Hoàn tất** (2026-06-04)
+- VA warm industrial design system: tokens, sidebar, topbar, badge, kpi, card, btn, seg
+- 18 routes: dashboard, jobs, parts, routing, planning, cnc, fai, ncr, gages, calibration, documents, hr, master
+- 4 trang kết nối API thật (jobs, parts, ncrs); 9 trang dùng mock data chờ Phase 5
+- Fonts: Inter + Fraunces + JetBrains Mono (next/font/google)
+- Theme: override shadcn CSS vars → VA palette, `.va-scroll`/`.va-row`/`.va-clickable` utilities
 
 **Phase 6 chi tiết:**
 - Multi-factory support (FactoryId đã chuẩn bị trên Machine entity)
