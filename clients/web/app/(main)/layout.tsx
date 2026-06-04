@@ -1,11 +1,13 @@
 import type { ReactNode } from 'react'
-import { Navbar } from '@/components/shared/navbar'
+import { VASidebar } from '@/components/va/sidebar'
 
 export default function MainLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-svh bg-background">
-      <Navbar />
-      <main className="container mx-auto px-4 py-6">{children}</main>
+    <div className="flex h-full overflow-hidden">
+      <VASidebar />
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+        {children}
+      </div>
     </div>
   )
 }

@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { api, type JobDto } from '@/lib/api-client'
+import { VATopbar, VABadge, VABtn } from '@/components/va'
+import { va } from '@/lib/va-tokens'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -29,8 +31,14 @@ export default function JobsPage() {
   useEffect(() => { loadJobs() }, [loadJobs])
 
   return (
-    <div>
-      <div className="mb-6 flex items-center justify-between">
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: va.bg }}>
+      <VATopbar
+        title="Job & Part"
+        breadcrumb="Sản xuất › Quản lý đơn hàng"
+        right={<VABtn kind="primary" onClick={() => setShowCreate(true)}>+ Tạo Job</VABtn>}
+      />
+      <div className="va-scroll" style={{ flex: 1, overflow: 'auto', padding: 22 }}>
+      <div className="mb-6 flex items-center justify-between" style={{ display: 'none' }}>
         <h1 className="text-2xl font-semibold">Jobs</h1>
         <Button onClick={() => setShowCreate(true)}>+ Tạo Job</Button>
       </div>
@@ -91,6 +99,7 @@ export default function JobsPage() {
       </div>
 
       <CreateJobDialog open={showCreate} onClose={() => setShowCreate(false)} onCreated={loadJobs} />
+      </div>{/* end scroll */}
     </div>
   )
 }
