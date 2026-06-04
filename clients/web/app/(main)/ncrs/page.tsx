@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { api, type NcrDto } from '@/lib/api-client'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { VATopbar, VABtn } from '@/components/va'
+import { va } from '@/lib/va-tokens'
 
 const STATUS_LABELS: Record<string, { label: string; className: string }> = {
   Open:   { label: 'Đang mở', className: 'bg-red-100 text-red-700' },
@@ -30,8 +32,11 @@ export default function NcrsPage() {
   useEffect(() => { load() }, [load])
 
   return (
-    <div>
-      <div className="mb-6 flex items-center justify-between">
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: va.bg }}>
+      <VATopbar title="NCR · Báo cáo không phù hợp" breadcrumb="Chất lượng › Non-Conformance"
+        right={<VABtn kind="accent">+ Tạo NCR</VABtn>} />
+      <div className="va-scroll" style={{ flex: 1, overflow: 'auto', padding: 22 }}>
+      <div className="mb-6 flex items-center justify-between" style={{ display: 'none' }}>
         <h1 className="text-2xl font-semibold">NCR — Non-Conformance Reports</h1>
         <div className="flex gap-2">
           {['', 'Open', 'Closed'].map(s => (
@@ -94,6 +99,7 @@ export default function NcrsPage() {
           <Button variant="outline" size="sm" disabled={ncrs.length < 20} onClick={() => setPage(p => p + 1)}>Sau →</Button>
         </div>
       </div>
+      </div>{/* end scroll */}
     </div>
   )
 }

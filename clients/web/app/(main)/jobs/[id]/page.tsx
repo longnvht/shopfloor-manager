@@ -6,6 +6,8 @@ import Link from 'next/link'
 import { api, type JobDetailDto } from '@/lib/api-client'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { VATopbar } from '@/components/va'
+import { va } from '@/lib/va-tokens'
 
 export default function JobDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -30,8 +32,13 @@ export default function JobDetailPage() {
   const forJobOnlyOps = job.operations.filter(o => o.forJobOnly)
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-3">
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: va.bg }}>
+      <VATopbar
+        title={job.jobNumber}
+        breadcrumb={`Sản xuất › Jobs › ${job.partNumber} Rev ${job.revCode}`}
+      />
+      <div className="va-scroll" style={{ flex: 1, overflow: 'auto', padding: 22 }}>
+      <div className="flex items-center gap-3 mb-4" style={{ display: 'none' }}>
         <Link href="/jobs" className="text-muted-foreground hover:text-foreground">← Jobs</Link>
         <span className="text-muted-foreground">/</span>
         <h1 className="text-2xl font-semibold">{job.jobNumber}</h1>
@@ -163,6 +170,7 @@ export default function JobDetailPage() {
           )}
         </CardContent>
       </Card>
+      </div>{/* end scroll */}
     </div>
   )
 }

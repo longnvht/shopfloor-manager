@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { CreatePartDialog } from '@/components/parts/create-part-dialog'
+import { VATopbar, VABtn } from '@/components/va'
+import { va } from '@/lib/va-tokens'
 
 export default function PartsPage() {
   const [parts, setParts] = useState<PartDto[]>([])
@@ -29,8 +31,11 @@ export default function PartsPage() {
   useEffect(() => { load() }, [load])
 
   return (
-    <div>
-      <div className="mb-6 flex items-center justify-between">
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: va.bg }}>
+      <VATopbar title="Parts & Routing" breadcrumb="Sản xuất › Quản lý chi tiết"
+        right={<VABtn kind="primary" onClick={() => setShowCreate(true)}>+ Tạo Part</VABtn>} />
+      <div className="va-scroll" style={{ flex: 1, overflow: 'auto', padding: 22 }}>
+      <div className="mb-6 flex items-center justify-between" style={{ display: 'none' }}>
         <h1 className="text-2xl font-semibold">Parts</h1>
         <Button onClick={() => setShowCreate(true)}>+ Thêm Part</Button>
       </div>
@@ -88,6 +93,7 @@ export default function PartsPage() {
       </div>
 
       <CreatePartDialog open={showCreate} onClose={() => setShowCreate(false)} onCreated={load} />
+      </div>{/* end scroll */}
     </div>
   )
 }

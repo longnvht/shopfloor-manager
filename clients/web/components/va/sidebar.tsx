@@ -13,20 +13,20 @@ const VA_NAV = [
   ]},
   { group: 'Sản xuất', items: [
     { id: 'jobs',      label: 'Job & Part',   ico: '◫', href: '/jobs',        live: true  },
-    { id: 'routing',   label: 'Routing & OP', ico: '⊟', href: '/routing',     live: false },
-    { id: 'planning',  label: 'Lập kế hoạch', ico: '▤', href: '/planning',    live: false },
-    { id: 'cnc',       label: 'CNC Live',     ico: '◈', href: '/cnc',         live: false },
+    { id: 'routing',   label: 'Routing & OP', ico: '⊟', href: '/routing',     live: true  },
+    { id: 'planning',  label: 'Lập kế hoạch', ico: '▤', href: '/planning',    live: true  },
+    { id: 'cnc',       label: 'CNC Live',     ico: '◈', href: '/cnc',         live: true  },
   ]},
   { group: 'Chất lượng', items: [
-    { id: 'fai',       label: 'FAI & Đo kiểm',ico: '◉', href: '/fai',         live: false },
+    { id: 'fai',       label: 'FAI & Đo kiểm',ico: '◉', href: '/fai',         live: true  },
     { id: 'ncr',       label: 'NCR',          ico: '⊘', href: '/ncrs',        live: true  },
-    { id: 'gage',      label: 'Dụng cụ đo',   ico: '⊡', href: '/gages',       live: false },
-    { id: 'calib',     label: 'Hiệu chuẩn',   ico: '⟲', href: '/calibration', live: false },
+    { id: 'gage',      label: 'Dụng cụ đo',   ico: '⊡', href: '/gages',       live: true  },
+    { id: 'calib',     label: 'Hiệu chuẩn',   ico: '⟲', href: '/calibration', live: true  },
   ]},
   { group: 'Hệ thống', items: [
-    { id: 'docs',      label: 'Tài liệu KT',  ico: '◰', href: '/documents',   live: false },
-    { id: 'hr',        label: 'Nhân sự',      ico: '◌', href: '/hr',          live: false },
-    { id: 'master',    label: 'Master data',  ico: '⊞', href: '/master',      live: false },
+    { id: 'docs',      label: 'Tài liệu KT',  ico: '◰', href: '/documents',   live: true  },
+    { id: 'hr',        label: 'Nhân sự',      ico: '◌', href: '/hr',          live: true  },
+    { id: 'master',    label: 'Master data',  ico: '⊞', href: '/master',      live: true  },
   ]},
 ]
 
