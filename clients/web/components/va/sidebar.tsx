@@ -1,5 +1,6 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { va } from '@/lib/va-tokens'
 import { useAuthStore } from '@/stores/auth.store'
@@ -38,6 +39,9 @@ export function VASidebar() {
   const pathname  = usePathname()
   const router    = useRouter()
   const { user, logout } = useAuthStore()
+  // Avoid Zustand persist hydration mismatch — only render user info after mount
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => { setMounted(true) }, [])
 
   function handleNav(href: string) {
     router.push(href)
@@ -115,7 +119,7 @@ export function VASidebar() {
         ))}
       </div>
 
-      {/* User footer */}
+      {/* User footer — only render after client hydration to avoid Zustand persist mismatch */}
       <div style={{
         padding: 14, borderTop: '1px solid rgba(255,255,255,0.08)',
         display: 'flex', alignItems: 'center', gap: 10,
@@ -126,14 +130,14 @@ export function VASidebar() {
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontWeight: 600, fontSize: 12, flexShrink: 0,
         }}>
-          {user ? initials(user.name) : '?'}
+          {mounted && user ? initials(user.name) : ''}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 12, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {user?.name ?? '—'}
+            {mounted ? (user?.name ?? '—') : ''}
           </div>
           <div style={{ fontSize: 10, color: va.accentLt }}>
-            {user?.role ?? ''}
+            {mounted ? (user?.role ?? '') : ''}
           </div>
         </div>
         <button
