@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ShopfloorManager.API.Common;
 using ShopfloorManager.Application.Production;
+using ShopfloorManager.Shared;
 using ShopfloorManager.Domain.Entities;
 using ShopfloorManager.Shared.Constants;
 
@@ -15,6 +16,16 @@ namespace ShopfloorManager.API.Controllers;
 public class ProductionSessionsController(IMediator mediator) : ControllerBase
 {
     private int UserId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0");
+
+    /// <summary>Tổng hợp theo ngày cho 1 máy: số SP hoàn thành, thời gian hoạt động, pass/fail rate.</summary>
+    [HttpGet("machines/{machineCode}/daily-summary")]
+    [ProducesResponseType(typeof(ApiResponse<DailySummaryDto>), 200)]
+    public async Task<IActionResult> GetDailySummary(string machineCode, [FromQuery] DateOnly? date = null)
+    {
+        var queryDate = date ?? DateOnly.FromDateTime(DateTime.UtcNow);
+        var result = await mediator.Send(new GetDailySummaryQuery(machineCode, queryDate));
+        return Ok(ApiResponse<DailySummaryDto>.Ok(result.Value));
+    }
 
     /// <summary>Lấy session đang mở trên máy (để kiểm tra khi login).</summary>
     [HttpGet("machines/{machineCode}/active-session")]

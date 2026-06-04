@@ -12,7 +12,7 @@ public record JobDto(
     int Id, string JobNumber,
     int PartRevId, string PartNumber, string RevCode,
     int RoutingRevId, string RoutingRevCode,
-    int? RunQty, DateOnly? ShipBy, bool IsComplete,
+    int? RunQty, int CompletedCount, DateOnly? ShipBy, bool IsComplete,
     DateTimeOffset CreatedAt);
 
 public record JobDetailDto(
@@ -52,7 +52,8 @@ public class GetJobsQueryHandler(IShopfloorDbContext db)
             .Select(j => new JobDto(j.Id, j.JobNumber,
                 j.PartRevId, j.PartRev.Part.PartNumber, j.PartRev.RevCode,
                 j.RoutingRevId, j.RoutingRev.RevCode,
-                j.RunQty, j.ShipBy, j.IsComplete, j.CreatedAt))
+                j.RunQty, j.Products.Count(p => p.IsComplete),
+                j.ShipBy, j.IsComplete, j.CreatedAt))
             .ToListAsync(ct);
 
         return Result.Ok(new PagedResult<JobDto>(items, req.Page, req.PageSize, total));
@@ -165,7 +166,7 @@ public class CreateJobCommandHandler(IShopfloorDbContext db)
         return Result.Ok(new JobDto(job.Id, job.JobNumber,
             partRev.Id, partRev.Part.PartNumber, partRev.RevCode,
             routingRev.Id, routingRev.RevCode,
-            job.RunQty, job.ShipBy, job.IsComplete, job.CreatedAt));
+            job.RunQty, 0, job.ShipBy, job.IsComplete, job.CreatedAt));
     }
 }
 

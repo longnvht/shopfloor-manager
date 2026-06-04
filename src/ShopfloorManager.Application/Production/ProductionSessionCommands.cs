@@ -4,6 +4,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using ShopfloorManager.Application.Common.Interfaces;
 using ShopfloorManager.Domain.Entities;
+using ShopfloorManager.Domain.Enums;
 
 namespace ShopfloorManager.Application.Production;
 
@@ -266,6 +267,57 @@ public class GetProductsWithSessionHandler(IShopfloorDbContext db)
         )).ToList();
 
         return Result.Ok(result);
+    }
+}
+
+// ===== QUERY: Daily summary cho 1 máy =====
+
+public record DailySummaryDto(
+    int CompletedCount,
+    int TotalActiveMinutes,
+    int PassCount,
+    int FailCount);
+
+public record GetDailySummaryQuery(string MachineCode, DateOnly Date)
+    : IRequest<Result<DailySummaryDto>>;
+
+public class GetDailySummaryQueryHandler(IShopfloorDbContext db)
+    : IRequestHandler<GetDailySummaryQuery, Result<DailySummaryDto>>
+{
+    public async Task<Result<DailySummaryDto>> Handle(GetDailySummaryQuery req, CancellationToken ct)
+    {
+        var startUtc = req.Date.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+        var endUtc   = startUtc.AddDays(1);
+
+        var sessions = await db.ProductionSessions
+            .Where(s => s.MachineCode == req.MachineCode
+                     && s.Status == SessionStatus.Complete
+                     && s.CompletedAt >= startUtc
+                     && s.CompletedAt < endUtc)
+            .ToListAsync(ct);
+
+        var completedCount      = sessions.Count;
+        var totalActiveMinutes  = (int)sessions
+            .Where(s => s.StartedAt.HasValue && s.CompletedAt.HasValue)
+            .Sum(s => (s.CompletedAt!.Value - s.StartedAt!.Value).TotalMinutes);
+
+        int passCount = 0, failCount = 0;
+        if (sessions.Count > 0)
+        {
+            var productIds = sessions.Select(s => s.ProductId).ToHashSet();
+            var partOpIds  = sessions.Select(s => s.PartOpId).ToHashSet();
+
+            passCount = await db.MeasureValues
+                .CountAsync(m => productIds.Contains(m.ProductId)
+                              && partOpIds.Contains(m.PartOpId)
+                              && m.Result == MeasureResult.Pass, ct);
+            failCount = await db.MeasureValues
+                .CountAsync(m => productIds.Contains(m.ProductId)
+                              && partOpIds.Contains(m.PartOpId)
+                              && m.Result == MeasureResult.Fail, ct);
+        }
+
+        return Result.Ok(new DailySummaryDto(completedCount, totalActiveMinutes, passCount, failCount));
     }
 }
 

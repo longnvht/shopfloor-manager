@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Windows.Media;
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -23,6 +24,9 @@ public partial class DashboardViewModel : ViewModelBase
     private TimeSpan  _totalActiveTime = TimeSpan.Zero;
     private int       _productsCreated   = 0;
     private int       _productsCompleted = 0;
+
+    // ── Daily summary (OEE data) ───────────────────────────────────────
+    private DailySummaryDto? _dailySummary;
 
     // ── Timer ──────────────────────────────────────────────────────────
     private DispatcherTimer? _timer;
@@ -119,6 +123,56 @@ public partial class DashboardViewModel : ViewModelBase
 
     [ObservableProperty] private string _elapsedTime = "00:00";
 
+    // ── OEE — Availability (từ in-memory session timing) ─────────────
+    public double AvailabilityPct
+    {
+        get
+        {
+            var uptime = (DateTimeOffset.Now - _appStartTime).TotalMinutes;
+            if (uptime < 1) return 0;
+            var active = (_totalActiveTime + CurrentActiveSpan).TotalMinutes;
+            return Math.Min(100, active / uptime * 100);
+        }
+    }
+
+    public SolidColorBrush AvailabilityBrush => OeeBrush(AvailabilityPct);
+
+    // ── OEE — Quality (từ daily summary) ─────────────────────────────
+    public double QualityPct    => _dailySummary?.QualityPct ?? 0;
+    public bool   HasQualityData => (_dailySummary?.TotalMeasured ?? 0) > 0;
+    public SolidColorBrush QualityBrush => OeeBrush(QualityPct);
+
+    // ── Job Progress ──────────────────────────────────────────────────
+    public double JobProgressPct
+    {
+        get
+        {
+            var job = CtxJob;
+            if (job is null || job.RunQty is null or 0) return 0;
+            return Math.Min(100, job.CompletedCount * 100.0 / job.RunQty.Value);
+        }
+    }
+
+    public string JobProgressText
+    {
+        get
+        {
+            var job = CtxJob;
+            if (job is null) return string.Empty;
+            if (job.RunQty is null) return $"{job.CompletedCount} sp";
+            return $"{job.CompletedCount}/{job.RunQty} sp";
+        }
+    }
+
+    public bool HasJobProgress => CtxJob is not null;
+
+    private static SolidColorBrush OeeBrush(double pct) => pct switch
+    {
+        >= 80 => new SolidColorBrush(Color.FromRgb(0x2E, 0x7D, 0x32)),  // green
+        >= 60 => new SolidColorBrush(Color.FromRgb(0xF5, 0x7F, 0x17)),  // amber
+        _     => new SolidColorBrush(Color.FromRgb(0xC6, 0x28, 0x28)),  // red
+    };
+
     private TimeSpan CurrentActiveSpan
     {
         get
@@ -151,6 +205,24 @@ public partial class DashboardViewModel : ViewModelBase
     {
         RefreshWorkInfo();
         StartClock();
+        _ = LoadDailySummaryAsync();
+    }
+
+    private async Task LoadDailySummaryAsync()
+    {
+        try
+        {
+            var result = await _api.GetAsync<DailySummaryDto>(
+                $"/api/v1/machines/{_settings.MachineCode}/daily-summary");
+            if (result?.Success == true && result.Data is not null)
+            {
+                _dailySummary = result.Data;
+                OnPropertyChanged(nameof(QualityPct));
+                OnPropertyChanged(nameof(QualityBrush));
+                OnPropertyChanged(nameof(HasQualityData));
+            }
+        }
+        catch { /* non-critical — dashboard still works without it */ }
     }
 
     // ── Clock / stats update ───────────────────────────────────────────
@@ -170,6 +242,8 @@ public partial class DashboardViewModel : ViewModelBase
         OnPropertyChanged(nameof(IdleTimeDisplay));
         OnPropertyChanged(nameof(WorkDuration));
         OnPropertyChanged(nameof(OperatorIdleDisplay));
+        OnPropertyChanged(nameof(AvailabilityPct));
+        OnPropertyChanged(nameof(AvailabilityBrush));
         UpdateElapsed();
     }
 
@@ -214,6 +288,9 @@ public partial class DashboardViewModel : ViewModelBase
         OnPropertyChanged(nameof(ShowStopButton));
         OnPropertyChanged(nameof(ShowSelectJobButton));
         OnPropertyChanged(nameof(ShowNavigateButton));
+        OnPropertyChanged(nameof(JobProgressPct));
+        OnPropertyChanged(nameof(JobProgressText));
+        OnPropertyChanged(nameof(HasJobProgress));
         StartCommand.NotifyCanExecuteChanged();
         StopCommand.NotifyCanExecuteChanged();
         ForceFinishCommand.NotifyCanExecuteChanged();
@@ -291,6 +368,7 @@ public partial class DashboardViewModel : ViewModelBase
                 OnPropertyChanged(nameof(ProductsCompletedDisplay));
                 _work.ClearProduct();
                 RefreshWorkInfo();
+                _ = LoadDailySummaryAsync();
             }
         }
         finally { IsBusy = false; }

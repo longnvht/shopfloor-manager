@@ -7,6 +7,7 @@ public record JobSummaryDto(
     string RevCode,
     string? RoutingRevCode,
     int? RunQty,
+    int CompletedCount,
     DateOnly? ShipBy,
     bool IsComplete,
     DateTimeOffset CreatedAt)

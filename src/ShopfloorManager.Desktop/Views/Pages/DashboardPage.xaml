@@ -40,6 +40,14 @@
             <Setter Property="HorizontalAlignment" Value="Right"/>
         </Style>
 
+        <!-- OEE metric tile: big % + label + thin bar -->
+        <Style x:Key="OeeLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="{StaticResource BrandTextSecondary}"/>
+            <Setter Property="Margin" Value="0,0,0,2"/>
+        </Style>
+
         <!-- Utility button -->
         <Style x:Key="UtilBtn" TargetType="Button">
             <Setter Property="Width" Value="120"/>
@@ -203,30 +211,81 @@
 
                     <Separator Background="#F5E6D3" Margin="0,0,0,10"/>
 
-                    <!-- Stats grid -->
+                    <!-- OEE metrics: Availability + Quality side by side -->
+                    <Grid Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="8"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Availability tile -->
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="AVAILABILITY" Style="{StaticResource OeeLabel}"/>
+                            <TextBlock FontSize="22" FontWeight="Bold" Margin="0,0,0,4"
+                                       Foreground="{Binding AvailabilityBrush, Mode=OneWay}">
+                                <Run Text="{Binding AvailabilityPct, Mode=OneWay, StringFormat='{}{0:F0}'}"/>
+                                <Run Text="%" FontSize="14"/>
+                            </TextBlock>
+                            <ProgressBar Value="{Binding AvailabilityPct, Mode=OneWay}"
+                                         Maximum="100" Height="6"
+                                         Foreground="{Binding AvailabilityBrush, Mode=OneWay}"
+                                         Background="#E8D5C4" BorderThickness="0"/>
+                            <TextBlock Text="{Binding ActiveTimeDisplay, Mode=OneWay}"
+                                       FontSize="10" FontFamily="Consolas"
+                                       Foreground="{StaticResource BrandTextSecondary}"
+                                       Margin="0,3,0,0"/>
+                        </StackPanel>
+
+                        <Border Grid.Column="1" Background="#F5E6D3" Width="1" Margin="0,0,0,0"/>
+
+                        <!-- Quality tile -->
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="QUALITY" Style="{StaticResource OeeLabel}"/>
+                            <TextBlock FontSize="22" FontWeight="Bold" Margin="0,0,0,4">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Foreground" Value="{StaticResource BrandTextSecondary}"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding HasQualityData, Mode=OneWay}" Value="True">
+                                                <Setter Property="Foreground" Value="{Binding QualityBrush, Mode=OneWay}"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                                <Run Text="{Binding QualityPct, Mode=OneWay, StringFormat='{}{0:F0}'}"/>
+                                <Run Text="%" FontSize="14"/>
+                            </TextBlock>
+                            <ProgressBar Value="{Binding QualityPct, Mode=OneWay}"
+                                         Maximum="100" Height="6"
+                                         Foreground="{Binding QualityBrush, Mode=OneWay}"
+                                         Background="#E8D5C4" BorderThickness="0"
+                                         Visibility="{Binding HasQualityData, Mode=OneWay,
+                                             Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                            <TextBlock Text="Chưa có dữ liệu hôm nay"
+                                       FontSize="10" Foreground="{StaticResource BrandTextSecondary}"
+                                       Margin="0,3,0,0"
+                                       Visibility="{Binding HasQualityData, Mode=OneWay,
+                                           Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <Separator Background="#F5E6D3" Margin="0,0,0,8"/>
+
+                    <!-- Compact stats row -->
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
                         <Grid.RowDefinitions>
-                            <RowDefinition Height="24"/>
-                            <RowDefinition Height="24"/>
-                            <RowDefinition Height="24"/>
-                            <RowDefinition Height="24"/>
+                            <RowDefinition Height="22"/>
+                            <RowDefinition Height="22"/>
                         </Grid.RowDefinitions>
-
-                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Thời gian mở máy" Style="{StaticResource StatLabel}"/>
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Mở máy" Style="{StaticResource StatLabel}"/>
                         <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding UptimeDisplay, Mode=OneWay}" Style="{StaticResource StatValue}" FontFamily="Consolas"/>
-
-                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Thời gian hoạt động" Style="{StaticResource StatLabel}"/>
-                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding ActiveTimeDisplay, Mode=OneWay}" Style="{StaticResource StatValue}" FontFamily="Consolas" Foreground="{StaticResource BrandAccent}"/>
-
-                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Thời gian chờ" Style="{StaticResource StatLabel}"/>
-                        <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding IdleTimeDisplay, Mode=OneWay}" Style="{StaticResource StatValue}" FontFamily="Consolas" Foreground="{StaticResource BrandTextSecondary}"/>
-
-                        <TextBlock Grid.Row="3" Grid.Column="0" Text="SP hoàn thành" Style="{StaticResource StatLabel}"/>
-                        <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding ProductsCompletedDisplay, Mode=OneWay}" Style="{StaticResource StatValue}" FontSize="16" Foreground="#2E7D32"/>
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="SP hoàn thành hôm nay" Style="{StaticResource StatLabel}"/>
+                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding ProductsCompletedDisplay, Mode=OneWay}" Style="{StaticResource StatValue}" FontSize="15" Foreground="#2E7D32"/>
                     </Grid>
                 </StackPanel>
             </Border>
@@ -285,13 +344,17 @@
         <!-- ══════════════ WORK INFO CARD ══════════════ -->
         <Border Grid.Row="2" Style="{StaticResource Card}" Margin="12,4">
             <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
                 <!-- Left: Work Info -->
-                <Grid Grid.Column="0">
+                <Grid Grid.Row="0" Grid.Column="0">
                     <!-- EMPTY STATE -->
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
                                 Visibility="{Binding HasWork, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}">
@@ -365,8 +428,35 @@
                     </Grid>
                 </Grid>
 
+                <!-- Job Progress bar (Row 1, span 2 columns) -->
+                <Border Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                        BorderBrush="#F5E6D3" BorderThickness="0,1,0,0"
+                        Margin="0,10,0,-4" Padding="0,8,0,0"
+                        Visibility="{Binding HasJobProgress, Mode=OneWay,
+                            Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="TIẾN ĐỘ JOB" FontSize="10" FontWeight="Bold"
+                                       Foreground="{StaticResource BrandAccent}" Margin="0,0,0,4"/>
+                            <ProgressBar Value="{Binding JobProgressPct, Mode=OneWay}"
+                                         Maximum="100" Height="8"
+                                         Foreground="#2E7D32" Background="#E8D5C4"
+                                         BorderThickness="0"/>
+                        </StackPanel>
+                        <TextBlock Grid.Column="1"
+                                   Text="{Binding JobProgressText, Mode=OneWay}"
+                                   FontSize="13" FontWeight="SemiBold"
+                                   Foreground="{StaticResource BrandText}"
+                                   VerticalAlignment="Bottom" Margin="12,0,0,0"/>
+                    </Grid>
+                </Border>
+
                 <!-- Right: Action Buttons -->
-                <StackPanel Grid.Column="1" Orientation="Horizontal"
+                <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal"
                             VerticalAlignment="Center" Margin="16,0,0,0">
 
                     <!-- Chọn Job (chỉ hiện khi chưa có job và không đang force-finish) -->

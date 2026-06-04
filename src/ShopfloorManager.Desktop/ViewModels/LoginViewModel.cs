@@ -99,6 +99,7 @@ public partial class LoginViewModel : ViewModelBase
         var job = new JobSummaryDto(
             active.JobId, active.JobNumber, active.PartNumber,
             RevCode: "—", RoutingRevCode: null, RunQty: null,
+            CompletedCount: 0,
             ShipBy: null, IsComplete: false,
             CreatedAt: active.ClaimedAt);
 
