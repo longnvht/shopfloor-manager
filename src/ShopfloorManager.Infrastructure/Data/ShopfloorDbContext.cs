@@ -37,6 +37,7 @@ public class ShopfloorDbContext(DbContextOptions<ShopfloorDbContext> options)
 
     // ── Master Data ───────────────────────────────────────────
     public DbSet<Machine>      Machines      => Set<Machine>();
+    public DbSet<MachineGroup> MachineGroups => Set<MachineGroup>();
     public DbSet<MachineEvent> MachineEvents => Set<MachineEvent>();
 
     // ── Gage Management ───────────────────────────────────────
@@ -99,6 +100,11 @@ public class ShopfloorDbContext(DbContextOptions<ShopfloorDbContext> options)
 
         // Master Data
         modelBuilder.ApplyConfiguration(new MachineConfiguration());
+        modelBuilder.Entity<MachineGroup>(b => {
+            b.HasIndex(g => g.Code).IsUnique();
+            b.Property(g => g.Code).HasMaxLength(30).IsRequired();
+            b.Property(g => g.Name).HasMaxLength(100).IsRequired();
+        });
         modelBuilder.Entity<MachineEvent>(b => {
             b.Property(e => e.Id).UseIdentityByDefaultColumn();
             b.Property(e => e.TmMode).HasMaxLength(20);

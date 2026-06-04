@@ -26,3 +26,27 @@ public class GetMachinesQueryHandler(IShopfloorDbContext db)
         return Result.Ok(items);
     }
 }
+
+public record MachineGroupDto(int Id, string Code, string Name, int MachineCount);
+
+public record GetMachineGroupsQuery : IRequest<Result<List<MachineGroupDto>>>;
+
+public class GetMachineGroupsQueryHandler(IShopfloorDbContext db)
+    : IRequestHandler<GetMachineGroupsQuery, Result<List<MachineGroupDto>>>
+{
+    public async Task<Result<List<MachineGroupDto>>> Handle(GetMachineGroupsQuery _, CancellationToken ct)
+    {
+        var groups = await db.MachineGroups.OrderBy(g => g.Code)
+            .Select(g => new MachineGroupDto(g.Id, g.Code, g.Name, 0))
+            .ToListAsync(ct);
+
+        // Count machines per group via MachineType match
+        var counts = await db.Machines
+            .Where(m => m.MachineType != null && m.IsActive)
+            .GroupBy(m => m.MachineType!)
+            .Select(g => new { Code = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(g => g.Code, g => g.Count, ct);
+
+        return Result.Ok(groups.Select(g => g with { MachineCount = counts.GetValueOrDefault(g.Code, 0) }).ToList());
+    }
+}

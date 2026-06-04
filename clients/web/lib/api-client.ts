@@ -192,6 +192,11 @@ export const api = {
   opTypes: {
     list: () => request<{ id: number; code: string; name: string | null }[]>('/api/v1/op-types'),
   },
+  dashboard: {
+    overview:   () => request<unknown>('/api/v1/dashboard/overview'),
+    production: () => request<unknown>('/api/v1/dashboard/production'),
+    quality:    (days = 30) => request<unknown>(`/api/v1/dashboard/quality?days=${days}`),
+  },
   machines: {
     list:       (activeOnly = true) => request<{ id: number; code: string; name: string; machineType: string | null }[]>(`/api/v1/machines?activeOnly=${activeOnly}`),
     status:     () => request<unknown[]>('/api/v1/machines/status'),

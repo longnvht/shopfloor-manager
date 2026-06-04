@@ -118,6 +118,13 @@ public class LookupsController(IMediator mediator) : ControllerBase
         return Ok(ApiResponse<List<MachineDto>>.Ok(result.Value));
     }
 
+    [HttpGet("api/v1/machine-groups")]
+    public async Task<IActionResult> GetMachineGroups()
+    {
+        var result = await mediator.Send(new GetMachineGroupsQuery());
+        return Ok(ApiResponse<List<MachineGroupDto>>.Ok(result.Value));
+    }
+
     // ── FileTypes ─────────────────────────────────────────────
 
     [HttpGet("api/v1/tech-documents/file-types")]

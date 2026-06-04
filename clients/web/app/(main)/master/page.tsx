@@ -1,65 +1,83 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { api } from '@/lib/api-client'
 import { VATopbar, VACard, VABtn, VABadge } from '@/components/va'
 import { va } from '@/lib/va-tokens'
 
-const TABS = ['Máy móc', 'Loại OP', 'Dimension Category', 'Đồ gá', 'Loại tài liệu']
+const TABS = ['Máy móc', 'Nhóm máy', 'Loại OP', 'Dimension Category', 'Loại tài liệu']
 
-const MACHINES = [
-  { code: 'MC-01', name: 'Mazak QT-200',  type: 'CNC Turning', serial: 'QT200-8841', group: 'Khu CNC',   cnc: true,  travel: 'X300 Z550',       mqtt: true  },
-  { code: 'MC-02', name: 'DMG NEF-400',   type: 'CNC Turning', serial: 'NEF-22019',  group: 'Khu CNC',   cnc: true,  travel: 'X410 Z650',       mqtt: true  },
-  { code: 'MC-03', name: 'Doosan PUMA',   type: 'Grinding',    serial: 'PUMA-5521',  group: 'Khu Mài',   cnc: true,  travel: 'Ø350',             mqtt: true  },
-  { code: 'MC-04', name: 'Mori Seiki',    type: 'CNC Milling', serial: 'MS-NV5000',  group: 'Khu CNC',   cnc: true,  travel: 'X800 Y510 Z510',  mqtt: true  },
-  { code: 'MC-05', name: 'Mazak VTC',     type: 'CNC Milling', serial: 'VTC-800C',   group: 'Khu CNC',   cnc: true,  travel: 'X1530 Y760',      mqtt: true  },
-  { code: 'CMM-01',name: 'Zeiss Contura', type: 'CMM',         serial: 'CONT-9920',  group: 'Phòng CMM', cnc: false, travel: 'X700 Y1000 Z600', mqtt: false },
-]
-const OP_TYPES = [
-  { code: 'CNC_TURNING',    name: 'Tiện CNC',      mesMenu: 'FAI, G-code, Route' },
-  { code: 'CNC_MILLING',    name: 'Phay CNC',      mesMenu: 'FAI, G-code, Fixture' },
-  { code: 'GRINDING',       name: 'Mài',           mesMenu: 'FAI, Route' },
-  { code: 'CMM_INSPECTION', name: 'Đo CMM',        mesMenu: 'FAI, Drawing' },
-  { code: 'MANUAL_INSPECTION', name: 'Kiểm tra tay', mesMenu: 'FAI' },
-]
-const DIM_CATS = [
-  { code: 'LIN', name: 'Linear (kích thước thẳng)', gageTypes: 'Micrometer, Caliper'  },
-  { code: 'ANG', name: 'Angular (góc)',              gageTypes: 'Protractor'            },
-  { code: 'THD', name: 'Thread (ren)',               gageTypes: 'Ring/Plug Gauge'      },
-  { code: 'GEO', name: 'Geometric (hình học)',       gageTypes: 'Dial Indicator'        },
-  { code: 'SFC', name: 'Surface (bề mặt)',           gageTypes: 'Surface Tester'        },
-]
+type Machine = { id: number; code: string; name: string; machineType: string | null; isCnc: boolean }
+type MachineGroup = { id: number; code: string; name: string; machineCount: number }
+type OpType = { id: number; code: string; name: string | null }
+type DimCat = { id: number; code: string; name: string; description: string | null }
+type FileType = { id: number; code: string; name: string; folder: string; isPartNumber: boolean; isOpNumber: boolean; isJobNumber: boolean }
 
 const CodeTag = ({ c }: { c: string }) => (
   <span style={{ fontFamily: va.mono, fontSize: 11, fontWeight: 700, color: va.primary, background: va.surface2, padding: '2px 7px', borderRadius: 4, border: `1px solid ${va.border}` }}>{c}</span>
 )
-const td: React.CSSProperties = { padding: '11px 14px', borderBottom: `1px solid ${va.separator}` }
+const tdStyle: React.CSSProperties = { padding: '11px 14px', borderBottom: `1px solid ${va.separator}` }
+const thStyle = (stickyBg = va.surface2): React.CSSProperties => ({ position: 'sticky', top: 0, background: stickyBg, textAlign: 'left', padding: '10px 14px', fontSize: 9.5, color: va.text2, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.6, borderBottom: `1px solid ${va.border}`, zIndex: 1 })
 
 export default function MasterPage() {
   const [tab, setTab] = useState(0)
+  const [machines,   setMachines]   = useState<Machine[]>([])
+  const [groups,     setGroups]     = useState<MachineGroup[]>([])
+  const [opTypes,    setOpTypes]    = useState<OpType[]>([])
+  const [dimCats,    setDimCats]    = useState<DimCat[]>([])
+  const [fileTypes,  setFileTypes]  = useState<FileType[]>([])
+  const [loading,    setLoading]    = useState(true)
+
+  useEffect(() => {
+    Promise.all([
+      api.machines.list(false),
+      api.dashboard.overview(), // reuse for counts (workaround)
+      api.opTypes.list(),
+      fetch('/api/v1/dimension-categories', { headers: { Authorization: `Bearer ${localStorage.getItem('auth-token')}` } }).then(r => r.json()),
+      fetch('/api/v1/tech-documents/file-types', { headers: { Authorization: `Bearer ${localStorage.getItem('auth-token')}` } }).then(r => r.json()),
+      fetch('/api/v1/machine-groups', { headers: { Authorization: `Bearer ${localStorage.getItem('auth-token')}` } }).then(r => r.json()),
+    ]).then(([mRes, , otRes, dcJson, ftJson, mgJson]) => {
+      if (mRes.success)  setMachines(mRes.data as Machine[])
+      if (otRes.success) setOpTypes(otRes.data as OpType[])
+      if (dcJson.success) setDimCats(dcJson.data)
+      if (ftJson.success) setFileTypes(ftJson.data)
+      if (mgJson.success) setGroups(mgJson.data)
+      setLoading(false)
+    })
+  }, [])
 
   const tables = [
     // Machines
     <table key="machines" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
-      <thead>
-        <tr style={{ background: va.surface2 }}>
-          {['Mã máy', 'Tên máy', 'Loại', 'Serial', 'Nhóm', 'Hành trình', 'CNC', 'MQTT'].map((h, i) => (
-            <th key={i} style={{ position: 'sticky', top: 0, background: va.surface2, textAlign: 'left', padding: '10px 14px', fontSize: 9.5, color: va.text2, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.6, borderBottom: `1px solid ${va.border}`, zIndex: 1 }}>{h}</th>
-          ))}
-        </tr>
-      </thead>
+      <thead><tr style={{ background: va.surface2 }}>
+        {['Mã máy', 'Tên máy', 'Loại/Nhóm', 'CNC'].map((h, i) => <th key={i} style={thStyle()}>{h}</th>)}
+      </tr></thead>
       <tbody>
-        {MACHINES.map(m => (
+        {loading ? <tr><td colSpan={4} style={tdStyle}><span style={{ color: va.text3 }}>Đang tải…</span></td></tr>
+          : machines.map(m => (
           <tr key={m.code} className="va-row va-clickable">
-            <td style={td}><CodeTag c={m.code} /></td>
-            <td style={{ ...td, fontWeight: 500 }}>{m.name}</td>
-            <td style={{ ...td, color: va.text2 }}>{m.type}</td>
-            <td style={{ ...td, fontFamily: va.mono, color: va.text2 }}>{m.serial}</td>
-            <td style={{ ...td, color: va.text2 }}>{m.group}</td>
-            <td style={{ ...td, fontFamily: va.mono, fontSize: 11, color: va.text2 }}>{m.travel}</td>
-            <td style={td}>{m.cnc ? <VABadge kind="ok">CNC</VABadge> : <span style={{ color: va.text3, fontSize: 11 }}>—</span>}</td>
-            <td style={td}>{m.mqtt
-              ? <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: va.ok }}><span style={{ width: 6, height: 6, borderRadius: '50%', background: va.ok }} />kết nối</span>
-              : <span style={{ color: va.text3, fontSize: 11 }}>—</span>}</td>
+            <td style={tdStyle}><CodeTag c={m.code} /></td>
+            <td style={{ ...tdStyle, fontWeight: 500 }}>{m.name}</td>
+            <td style={{ ...tdStyle, color: va.text2 }}>{m.machineType ?? '—'}</td>
+            <td style={tdStyle}>{m.isCnc ? <VABadge kind="ok">CNC</VABadge> : <span style={{ color: va.text3 }}>—</span>}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>,
+
+    // Machine Groups
+    <table key="groups" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
+      <thead><tr style={{ background: va.surface2 }}>
+        {['Code', 'Tên nhóm', 'Số máy'].map((h, i) => <th key={i} style={thStyle()}>{h}</th>)}
+      </tr></thead>
+      <tbody>
+        {loading ? <tr><td colSpan={3} style={tdStyle}><span style={{ color: va.text3 }}>Đang tải…</span></td></tr>
+          : groups.length === 0 ? <tr><td colSpan={3} style={tdStyle}><span style={{ color: va.text3 }}>Chưa có nhóm máy. Cần seed từ legacy data.</span></td></tr>
+          : groups.map(g => (
+          <tr key={g.code} className="va-row va-clickable">
+            <td style={tdStyle}><CodeTag c={g.code} /></td>
+            <td style={{ ...tdStyle, fontWeight: 500 }}>{g.name}</td>
+            <td style={{ ...tdStyle, fontFamily: va.mono, color: va.text2 }}>{g.machineCount}</td>
           </tr>
         ))}
       </tbody>
@@ -67,19 +85,15 @@ export default function MasterPage() {
 
     // OP Types
     <table key="optypes" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
-      <thead>
-        <tr style={{ background: va.surface2 }}>
-          {['Code', 'Tên công đoạn', 'Menu MES hiển thị'].map((h, i) => (
-            <th key={i} style={{ position: 'sticky', top: 0, background: va.surface2, textAlign: 'left', padding: '10px 14px', fontSize: 9.5, color: va.text2, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.6, borderBottom: `1px solid ${va.border}`, zIndex: 1 }}>{h}</th>
-          ))}
-        </tr>
-      </thead>
+      <thead><tr style={{ background: va.surface2 }}>
+        {['Code', 'Tên công đoạn'].map((h, i) => <th key={i} style={thStyle()}>{h}</th>)}
+      </tr></thead>
       <tbody>
-        {OP_TYPES.map(o => (
+        {loading ? <tr><td colSpan={2} style={tdStyle}><span style={{ color: va.text3 }}>Đang tải…</span></td></tr>
+          : opTypes.map(o => (
           <tr key={o.code} className="va-row va-clickable">
-            <td style={td}><CodeTag c={o.code} /></td>
-            <td style={{ ...td, fontWeight: 500 }}>{o.name}</td>
-            <td style={{ ...td, color: va.text2 }}>{o.mesMenu}</td>
+            <td style={tdStyle}><CodeTag c={o.code} /></td>
+            <td style={{ ...tdStyle, fontWeight: 500 }}>{o.name ?? '—'}</td>
           </tr>
         ))}
       </tbody>
@@ -87,33 +101,40 @@ export default function MasterPage() {
 
     // Dimension Categories
     <table key="dimcats" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
-      <thead>
-        <tr style={{ background: va.surface2 }}>
-          {['Code', 'Tên phương pháp đo', 'Loại gage phù hợp'].map((h, i) => (
-            <th key={i} style={{ position: 'sticky', top: 0, background: va.surface2, textAlign: 'left', padding: '10px 14px', fontSize: 9.5, color: va.text2, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.6, borderBottom: `1px solid ${va.border}`, zIndex: 1 }}>{h}</th>
-          ))}
-        </tr>
-      </thead>
+      <thead><tr style={{ background: va.surface2 }}>
+        {['Code', 'Tên phương pháp đo', 'Mô tả'].map((h, i) => <th key={i} style={thStyle()}>{h}</th>)}
+      </tr></thead>
       <tbody>
-        {DIM_CATS.map(d => (
+        {loading ? <tr><td colSpan={3} style={tdStyle}><span style={{ color: va.text3 }}>Đang tải…</span></td></tr>
+          : dimCats.map(d => (
           <tr key={d.code} className="va-row va-clickable">
-            <td style={td}><CodeTag c={d.code} /></td>
-            <td style={{ ...td, fontWeight: 500 }}>{d.name}</td>
-            <td style={{ ...td, color: va.text2 }}>{d.gageTypes}</td>
+            <td style={tdStyle}><CodeTag c={d.code} /></td>
+            <td style={{ ...tdStyle, fontWeight: 500 }}>{d.name}</td>
+            <td style={{ ...tdStyle, color: va.text2 }}>{d.description ?? '—'}</td>
           </tr>
         ))}
       </tbody>
     </table>,
 
-    <div key="fixtures" style={{ padding: 40, textAlign: 'center', color: va.text3 }}>
-      <div style={{ fontSize: 28, marginBottom: 10 }}>◫</div>
-      <div style={{ fontSize: 13, color: va.text2 }}>Quản lý đồ gá: FixtureType › Location › Slot › Category</div>
-    </div>,
-
-    <div key="doctypes" style={{ padding: 40, textAlign: 'center', color: va.text3 }}>
-      <div style={{ fontSize: 28, marginBottom: 10 }}>◰</div>
-      <div style={{ fontSize: 13, color: va.text2 }}>Loại tài liệu hệ thống (ISO/QMS)</div>
-    </div>,
+    // File Types
+    <table key="filetypes" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
+      <thead><tr style={{ background: va.surface2 }}>
+        {['Code', 'Tên', 'Folder', 'Part', 'OP', 'Job'].map((h, i) => <th key={i} style={thStyle()}>{h}</th>)}
+      </tr></thead>
+      <tbody>
+        {loading ? <tr><td colSpan={6} style={tdStyle}><span style={{ color: va.text3 }}>Đang tải…</span></td></tr>
+          : fileTypes.map(f => (
+          <tr key={f.code} className="va-row va-clickable">
+            <td style={tdStyle}><CodeTag c={f.code} /></td>
+            <td style={{ ...tdStyle, fontWeight: 500 }}>{f.name}</td>
+            <td style={{ ...tdStyle, fontFamily: va.mono, color: va.text2, fontSize: 11 }}>{f.folder}</td>
+            <td style={tdStyle}>{f.isPartNumber ? '✓' : ''}</td>
+            <td style={tdStyle}>{f.isOpNumber  ? '✓' : ''}</td>
+            <td style={tdStyle}>{f.isJobNumber ? '✓' : ''}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>,
   ]
 
   return (

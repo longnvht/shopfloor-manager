@@ -34,6 +34,7 @@ public interface IShopfloorDbContext
 
     // Master Data
     DbSet<Machine>      Machines      { get; }
+    DbSet<MachineGroup> MachineGroups { get; }
     DbSet<MachineEvent> MachineEvents { get; }
 
     // Gage Management
