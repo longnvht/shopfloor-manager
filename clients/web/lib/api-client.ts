@@ -198,6 +198,15 @@ export const api = {
   opTypes: {
     list: () => request<{ id: number; code: string; name: string | null }[]>('/api/v1/op-types'),
   },
+  dimCategories: {
+    list: () => request<{ id: number; code: string; name: string; description: string | null }[]>('/api/v1/dimension-categories'),
+  },
+  fileTypes2: {
+    list: () => request<{ id: number; code: string; name: string; folder: string; isPartNumber: boolean; isOpNumber: boolean; isJobNumber: boolean }[]>('/api/v1/tech-documents/file-types'),
+  },
+  machineGroups: {
+    list: () => request<{ id: number; code: string; name: string; machineCount: number }[]>('/api/v1/machine-groups'),
+  },
   dashboard: {
     overview:   () => request<unknown>('/api/v1/dashboard/overview'),
     production: () => request<unknown>('/api/v1/dashboard/production'),

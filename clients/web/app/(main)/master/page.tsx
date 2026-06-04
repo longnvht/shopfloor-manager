@@ -31,17 +31,16 @@ export default function MasterPage() {
   useEffect(() => {
     Promise.all([
       api.machines.list(false),
-      api.dashboard.overview(), // reuse for counts (workaround)
       api.opTypes.list(),
-      fetch('/api/v1/dimension-categories', { headers: { Authorization: `Bearer ${localStorage.getItem('auth-token')}` } }).then(r => r.json()),
-      fetch('/api/v1/tech-documents/file-types', { headers: { Authorization: `Bearer ${localStorage.getItem('auth-token')}` } }).then(r => r.json()),
-      fetch('/api/v1/machine-groups', { headers: { Authorization: `Bearer ${localStorage.getItem('auth-token')}` } }).then(r => r.json()),
-    ]).then(([mRes, , otRes, dcJson, ftJson, mgJson]) => {
-      if (mRes.success)  setMachines(mRes.data as Machine[])
-      if (otRes.success) setOpTypes(otRes.data as OpType[])
-      if (dcJson.success) setDimCats(dcJson.data)
-      if (ftJson.success) setFileTypes(ftJson.data)
-      if (mgJson.success) setGroups(mgJson.data)
+      api.dimCategories.list(),
+      api.fileTypes2.list(),
+      api.machineGroups.list(),
+    ]).then(([mRes, otRes, dcRes, ftRes, mgRes]) => {
+      if (mRes.success  && mRes.data)  setMachines(mRes.data as Machine[])
+      if (otRes.success && otRes.data) setOpTypes(otRes.data as OpType[])
+      if (dcRes.success && dcRes.data) setDimCats(dcRes.data as DimCat[])
+      if (ftRes.success && ftRes.data) setFileTypes(ftRes.data as FileType[])
+      if (mgRes.success && mgRes.data) setGroups(mgRes.data as MachineGroup[])
       setLoading(false)
     })
   }, [])
