@@ -16,44 +16,64 @@ Các bảng dữ liệu nền tảng (lookup/reference data) mà tất cả modu
 - Gắn với: Machine, GageLocation.
 
 ### 2.2 Machine Group & Machine
-- `machine_groups`: nhóm máy theo loại/khu vực (ví dụ: "Khu CNC", "Khu Mài", "CMM").
-- `machines`: từng máy cụ thể với thông số kỹ thuật đầy đủ:
+
+**Trạng thái implement:** `Machine` entity đã được implement (Phase 4, migration `AddMachines`). Các phần còn lại là Phase 5.
+
+**✅ Đã implement — `machines` table (schema tối giản):**
 
 | Thông số | Mô tả |
 |---|---|
-| `code` | Mã máy (ví dụ: "MC-01", "LATHE-03") — UNIQUE |
-| `name` | Tên máy (ví dụ: "FANUC 0i-MF Plus") |
-| `machine_type` | Loại (CNC Turning, CNC Milling, Grinding, CMM...) |
-| `serial_number` | Số serial máy |
-| `travel_x/y/z` | Hành trình các trục |
-| `max_od`, `length`, `dia` | Kích thước gia công tối đa |
-| `is_cnc` | CNC hay máy thông thường |
-| `factory_id` | Thuộc nhà máy nào |
+| `code` | Mã máy — UNIQUE, dùng làm identifier trong MQTT, session, local.json |
+| `name` | Tên máy |
+| `machine_type` | TypeCode legacy (LLA40, MIL, SLA...) — tham khảo, không validate |
+| `is_cnc` | CNC (true) hay máy thủ công/process (false) |
+| `is_active` | Lọc trong Settings ComboBox và API |
 
-- `machine_configs`: cấu hình serial port (COM port, baud rate...) cho mỗi PC Desktop MES.
-  - Mỗi máy CNC có 1 PC cạnh đó → 1 config row.
-  - Khi Desktop MES khởi động: load config theo `pc_name = Environment.MachineName`.
+- **115 máy active** đã seed từ legacy Vinam-MES (migration `AddMachines`)
+- API: `GET /api/v1/machines?activeOnly=true` đã implement
+- Desktop Settings page dùng ComboBox chọn máy từ danh sách này
+
+**⏳ Phase 5 — chưa implement:**
+- `machine_groups`: nhóm máy theo loại/khu vực
+- Thêm trường: `serial_number`, `travel_x/y/z`, `max_od`, `length`, `dia`, `factory_id`
+- `machine_configs`: cấu hình MQTT/serial port cho MDC agent
+
+**Cấu hình máy trên Desktop MES (thực tế):**
+Desktop MES KHÔNG dùng `machine_configs` table. Thay vào đó mỗi PC có file `local.json`:
+```json
+{
+  "MachineCode": "3100L",
+  "MachineName": "3100L LONG LATHE MACHINE",
+  "ApiBaseUrl": "http://192.168.0.100:5066"
+}
+```
+Admin chỉnh qua Settings page (shortcut "Cài đặt" trên Dashboard). `MachineCode` phải khớp với `machines.code` trong DB.
 
 ### 2.3 OP Types
 - Loại công đoạn sản xuất.
 - Liên kết với `mes_menu_op_types` để xác định menu nào hiện trên Desktop MES cho từng OP type.
 - Khi thêm OP type mới → phải cấu hình `mes_menu_op_types` tương ứng.
 
-**Seed hiện tại (9 loại):**
+**Seed hiện tại (6 loại — DbContext):**
 
-| Code | Tên |
-|---|---|
-| TURN | Turning (tiện) |
-| MILL | Milling (phay) |
-| CNC | CNC Machining |
-| GRIND | Grinding (mài) |
-| WIRE | Wire EDM |
-| INSP | Inspection (kiểm tra) |
-| HT | Heat Treatment |
-| CLEAN | Cleaning |
-| COAT | Coating |
+| Code | Tên | Legacy tương ứng |
+|---|---|---|
+| CNC | CNC Machining | MLA, LLA, LLA40, LLA60, MLA36, MLA60, SLA, TLA, MIL, 5MI |
+| INSP | Inspection | INS |
+| GRIND | Grinding | GRP, HNG |
+| WIRE | Wire EDM | WED |
+| MILL | Milling | MIL (manual) |
+| TURN | Turning | MAL (manual lathe) |
 
-**Legacy reference:** Vinam-MES cũ có 42 loại cụ thể hơn (MLA=Medium Lathe, LLA=Long Lathe, 5MI=5-axis Mill, WED=Wirecut, GDM=Gun Drilling, ASS=Assembly, QPQ/MLK/XYL=surface treatments...). Các loại mới được cộng gộp vào nhóm trên khi import hoặc seed thêm nếu cần.
+**Chưa seed (có thể thêm khi cần):**
+
+| Code | Tên | Legacy tương ứng |
+|---|---|---|
+| HT | Heat Treatment | HTR, SRP, IDH |
+| CLEAN | Cleaning | PPG, CGP, COP, MLK, QPQ, XYL, FLUO, DMC, NCO, BDG |
+| COAT | Coating | (như CLEAN — process ngoài) |
+
+**Legacy reference:** Vinam-MES cũ có 42 loại cụ thể. Toàn bộ đã được migrate vào bảng `machines` (machine_type field). Khi import PartOp từ legacy, map `OPType` theo bảng trên.
 
 ### 2.4 Dimension Categories
 - Phương pháp đo kiểm nhóm theo dụng cụ sử dụng: `LIN`, `ANG`, `THD`, `GEO`, `SFC`.
@@ -100,78 +120,112 @@ FixtureCategory (Danh mục: kết hợp Type + Location, có min/max range)
 - Giải pháp: `is_active = false` thay vì xóa (ẩn khỏi dropdown nhưng giữ data cũ).
 
 ### 3.2 Seed Data
-Các bảng sau có dữ liệu mặc định khi cài đặt (`init.sql`):
-- `work_statuses`: Working, On Leave, Resigned
-- `user_types`: Admin, Manager, Engineer, QC, Operator, Inspector, Planner
-- `gage_statuses`: VALID, EXPIRED, DAMAGED, BORROWED, CALIB
-- `departments`: MGMT, QC, PROD, ME, PLAN, MAINT
-- `roles`: Administrator, Manager, Engineer, QC Inspector, Operator, Planner
-- `file_types`: DRW, GCD, RTC, FXT, THD, TLS, CAM, CAD
+Dữ liệu mặc định được seed qua EF Core `HasData` trong `ShopfloorDbContext.SeedStaticData()` (không dùng `init.sql`):
 
-### 3.3 Machine Config — Auto-detect tại MES
-```csharp
-// Desktop MES khởi động:
-string pcName = Environment.MachineName;
-var config = await api.GetMachineConfigByPcName(pcName);
-if (config != null)
-    // Tự động chọn máy CNC tương ứng
-else
-    // Hiện màn hình chọn máy thủ công
+| Bảng | Nội dung | Số lượng |
+|---|---|---|
+| `work_statuses` | Active, On Leave, Resigned | 3 |
+| `departments` | ADMIN, QC, PROD, ENG | 4 |
+| `roles` | Administrator, Manager, Engineer, QC Inspector, Operator, Planner, **Leader** | **7** |
+| `op_types` | CNC, INSP, GRIND, WIRE, MILL, TURN | 6 |
+| `file_types` | DRW, GCD, RTC, FXT, THD, TLS, CAM, CAD | 8 |
+| `dimension_categories` | LIN, ANG, THD, GEO, SFC | 5 |
+| `ncr_reasons` | 15 lý do theo phòng ban (PROD×6, QC×3, ENG×5, Other×1) | 15 |
+| `machines` | 115 máy active từ legacy (migration `AddMachines`, 2026-06-04) | 115 |
+
+**Leader role (Id=7):** Tổ trưởng — có quyền force-finish session của người khác trên cùng máy. Xem thêm Desktop MES phân quyền.
+
+### 3.3 Machine Config — Desktop MES (thực tế)
+
+Desktop MES KHÔNG tự động detect máy qua `pc_name`. Cấu hình được set thủ công bởi Admin qua **Settings page** (shortcut "Cài đặt" trên Dashboard, chỉ hiện với role Administrator).
+
+Cấu hình lưu trong `local.json` tại thư mục chạy app:
+```json
+{
+  "ApiBaseUrl": "http://192.168.0.100:5066",
+  "MachineCode": "3100L",
+  "MachineName": "3100L LONG LATHE MACHINE"
+}
 ```
+
+- `MachineCode` phải khớp với `machines.code` trong DB → ComboBox trong Settings page load từ `GET /api/v1/machines`
+- `ApiBaseUrl` thay đổi cần restart app (HttpClient singleton)
+- `MachineCode`/`MachineName` áp dụng ngay sau save
 
 ---
 
 ## 4. API Endpoints
 
-```
--- Factories --
-GET    /api/v1/factories
-POST   /api/v1/factories
-PUT    /api/v1/factories/{id}
+✅ = đã implement | ⏳ = Phase 5
 
--- Machine Groups & Machines --
-GET    /api/v1/machine-groups
-POST   /api/v1/machine-groups
-GET    /api/v1/machines?groupId=&isCnc=&factoryId=
-POST   /api/v1/machines
-PUT    /api/v1/machines/{id}
-GET    /api/v1/machines/{id}/config        -- Lấy machine config theo PC name
-PUT    /api/v1/machines/{id}/config
+```
+-- Machines --
+✅ GET    /api/v1/machines?activeOnly=true
+✅ GET    /api/v1/machines/{machineCode}/active-session
+✅ GET    /api/v1/machines/{machineCode}/daily-summary?date=
+⏳ POST   /api/v1/machines
+⏳ PUT    /api/v1/machines/{id}
+⏳ GET    /api/v1/machine-groups
 
 -- OP Types --
-GET    /api/v1/op-types
-POST   /api/v1/op-types
-PUT    /api/v1/op-types/{id}
+✅ GET    /api/v1/op-types          (read-only, dùng trong dropdown chọn OpType khi tạo PartOp)
+⏳ POST   /api/v1/op-types
+⏳ PUT    /api/v1/op-types/{id}
 
 -- Dimension Categories --
-GET    /api/v1/dimension-categories
-POST   /api/v1/dimension-categories
-PUT    /api/v1/dimension-categories/{id}
+✅ GET    /api/v1/dimension-categories
+⏳ POST   /api/v1/dimension-categories
+⏳ PUT    /api/v1/dimension-categories/{id}
 
--- Fixture --
-GET    /api/v1/fixture-types
-GET    /api/v1/fixture-locations
-GET    /api/v1/fixture-slots?locationId=
-GET    /api/v1/fixture-categories?typeId=
-POST/PUT cho tất cả
+-- File Types --
+✅ GET    /api/v1/tech-documents/file-types
 
--- Document Types --
-GET    /api/v1/document-types
-POST   /api/v1/document-types
-
--- MES Menus --
-GET    /api/v1/mes-menus
-PUT    /api/v1/mes-menus/{id}
-GET    /api/v1/mes-role-menus
-PUT    /api/v1/mes-role-menus/{id}
-GET    /api/v1/mes-menu-op-types?opTypeId=
-POST   /api/v1/mes-menu-op-types
-DELETE /api/v1/mes-menu-op-types/{id}
+-- Factories, Fixture, Document Types, MES Menus --
+⏳ Tất cả (Phase 5)
 ```
 
 ---
 
-## 5. Edge Cases
+## 5. Legacy Migration Notes
+
+### 5.1 FileType mapping khi import từ Vinam-MES
+
+Legacy dùng 13 loại file (`filestype` table). Mapping sang hệ thống mới:
+
+| Legacy `FileCode` | Tên | → Mới `Code` | Ghi chú |
+|---|---|---|---|
+| `DRW` | Bản vẽ chi tiết | `DRW` | ✅ 1:1 |
+| `TD` | Bản vẽ công nghệ | `RTC` | Gộp với RC |
+| `RC` | Route Card | `RTC` | ✅ |
+| `FIX` | Bản vẽ đồ gá | `FXT` | ✅ đổi tên |
+| `THD` | Bản vẽ ren | `THD` | ✅ 1:1 |
+| `GCODE` | Chương trình gia công | `GCD` | ✅, `MachineType="FANUC"` |
+| `WC` | Wire Cut G-code | `GCD` | `MachineType="WC"` |
+| `MAZAK` | Mazak G-code | `GCD` | `MachineType="MAZAK"` |
+| `FGCODE` | GCode Fixture | `GCD` | `MachineType="FIXTURE"` |
+| `CAM` | Mô phỏng CAM | `CAM` | ✅ 1:1 |
+
+`TechDocument.MachineType` field (max 20 chars) phân biệt các loại G-code khi import.
+
+### 5.2 TechDocument.Status mapping
+
+| Legacy `Status` | Tên | → Mới `FileStatus` |
+|---|---|---|
+| `1` | Approve | `Approved = 1` |
+| `2` | Reject | `Rejected = 2` |
+| `3` | Pending | `Pending = 0` |
+
+**Lưu ý:** Thứ tự enum khác nhau — phải map theo tên, không map theo số.
+
+### 5.3 PartOp.OpNumber format
+
+Legacy: `OPNumber` là varchar, ví dụ "10", "20", "25". Hệ thống mới thêm `OpNumberSort` (decimal) để sort đúng (tránh sort string "100" < "20").
+
+Import rule: `OpNumberSort = decimal.Parse(OpNumber)` nếu parse được, nếu không → null.
+
+---
+
+## 6. Edge Cases
 
 - **Đổi tên machine code**: ảnh hưởng đến MQTT topic (phải update cả cấu hình trên MDC Agent). Hiện cảnh báo khi đổi.
 - **Xóa OP Type đang có PartOP**: không cho xóa.

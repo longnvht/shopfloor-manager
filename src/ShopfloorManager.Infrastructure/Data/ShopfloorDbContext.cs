@@ -38,6 +38,19 @@ public class ShopfloorDbContext(DbContextOptions<ShopfloorDbContext> options)
     // ── Master Data ───────────────────────────────────────────
     public DbSet<Machine> Machines => Set<Machine>();
 
+    // ── Gage Management ───────────────────────────────────────
+    public DbSet<GageType>          GageTypes          => Set<GageType>();
+    public DbSet<GageLocation>      GageLocations      => Set<GageLocation>();
+    public DbSet<GageSlot>          GageSlots          => Set<GageSlot>();
+    public DbSet<Gage>              Gages              => Set<Gage>();
+    public DbSet<BorrowTransaction> BorrowTransactions => Set<BorrowTransaction>();
+
+    // ── Calibration ───────────────────────────────────────────
+    public DbSet<CalibVendor>    CalibVendors    => Set<CalibVendor>();
+    public DbSet<CalibProcedure> CalibProcedures => Set<CalibProcedure>();
+    public DbSet<CalibRequest>   CalibRequests   => Set<CalibRequest>();
+    public DbSet<CalibRecord>    CalibRecords    => Set<CalibRecord>();
+
     // ── Phase 3: Quality ──────────────────────────────────────
     public DbSet<DimensionCategory> DimensionCategories => Set<DimensionCategory>();
     public DbSet<Dimension> Dimensions => Set<Dimension>();
@@ -79,6 +92,19 @@ public class ShopfloorDbContext(DbContextOptions<ShopfloorDbContext> options)
 
         // Master Data
         modelBuilder.ApplyConfiguration(new MachineConfiguration());
+
+        // Gage Management
+        modelBuilder.ApplyConfiguration(new GageTypeConfiguration());
+        modelBuilder.ApplyConfiguration(new GageLocationConfiguration());
+        modelBuilder.ApplyConfiguration(new GageSlotConfiguration());
+        modelBuilder.ApplyConfiguration(new GageConfiguration());
+        modelBuilder.ApplyConfiguration(new BorrowTransactionConfiguration());
+
+        // Calibration
+        modelBuilder.ApplyConfiguration(new CalibVendorConfiguration());
+        modelBuilder.ApplyConfiguration(new CalibProcedureConfiguration());
+        modelBuilder.ApplyConfiguration(new CalibRequestConfiguration());
+        modelBuilder.ApplyConfiguration(new CalibRecordConfiguration());
 
         SeedStaticData(modelBuilder);
     }

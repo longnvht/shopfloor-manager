@@ -192,4 +192,80 @@ export const api = {
   opTypes: {
     list: () => request<{ id: number; code: string; name: string | null }[]>('/api/v1/op-types'),
   },
+  gages: {
+    list: (params?: { search?: string; statusCode?: string; isBorrowed?: boolean }) => {
+      const q = new URLSearchParams()
+      if (params?.search)     q.set('search',     params.search)
+      if (params?.statusCode) q.set('statusCode', params.statusCode)
+      if (params?.isBorrowed != null) q.set('isBorrowed', String(params.isBorrowed))
+      return request<GageDto[]>(`/api/v1/gages?${q}`)
+    },
+    calibDue: (days = 60) => request<GageDto[]>(`/api/v1/gages/calib-due?days=${days}`),
+    create:   (body: CreateGageBody) => request<GageDto>('/api/v1/gages', { method: 'POST', body: JSON.stringify(body) }),
+    types:    (categoryId?: number) => request<GageTypeDto[]>(`/api/v1/gage-types${categoryId ? `?categoryId=${categoryId}` : ''}`),
+    locations: () => request<GageLocationDto[]>('/api/v1/gage-locations'),
+    borrow:   (body: BorrowBody) => request<number>('/api/v1/borrow-transactions', { method: 'POST', body: JSON.stringify(body) }),
+    returnGage: (id: number)  => request<null>(`/api/v1/borrow-transactions/${id}/return`, { method: 'PUT', body: '{}' }),
+  },
+  calibration: {
+    vendors:        () => request<CalibVendorDto[]>('/api/v1/calib-vendors'),
+    createVendor:   (body: { name: string; contact?: string; phone?: string; email?: string }) =>
+      request<CalibVendorDto>('/api/v1/calib-vendors', { method: 'POST', body: JSON.stringify(body) }),
+    requests:       (params?: { status?: string; gageId?: number }) => {
+      const q = new URLSearchParams()
+      if (params?.status) q.set('status', params.status)
+      if (params?.gageId) q.set('gageId', String(params.gageId))
+      return request<CalibRequestDto[]>(`/api/v1/calib-requests?${q}`)
+    },
+    createRequest:  (body: { gageId: number; vendorId?: number }) =>
+      request<number>('/api/v1/calib-requests', { method: 'POST', body: JSON.stringify(body) }),
+    approveRequest: (id: number) =>
+      request<null>(`/api/v1/calib-requests/${id}/approve`, { method: 'PUT', body: '{}' }),
+    complete:       (body: CompleteCalibBody) =>
+      request<number>('/api/v1/calib-records', { method: 'POST', body: JSON.stringify(body) }),
+  },
+}
+
+// ── Gage types ────────────────────────────────────────────────────────────
+export type GageDto = {
+  id: number; gageNo: string; serialNo: string | null
+  description: string; measuringRange: string | null; accuracy: string | null; unit: string
+  manufacturer: string | null; calibFrequencyDays: number | null
+  lastCalibration: string | null; dueDate: string | null; daysRemaining: number | null
+  inServiceDate: string | null
+  statusCode: string; isValid: boolean
+  gageTypeId: number | null; gageTypeName: string | null; categoryCode: string | null
+  currentLocationId: number | null; currentLocationDesc: string | null
+  isBorrowed: boolean; hasPendingCalib: boolean; note: string | null
+}
+
+export type GageTypeDto     = { id: number; code: string; name: string; categoryCode: string | null }
+export type GageLocationDto = { id: number; code: string; description: string }
+export type CalibVendorDto  = { id: number; name: string; contact: string | null; phone: string | null; email: string | null }
+
+export type CalibRequestDto = {
+  id: number; gageId: number; gageNo: string; gageDescription: string
+  vendorId: number | null; vendorName: string | null
+  requestDate: string; status: number
+  procedureName: string | null; calibrationDate: string | null
+  calibratedBy: string | null; asFoundConditions: string | null
+}
+
+export type CreateGageBody = {
+  gageNo: string; description: string; serialNo?: string; measuringRange?: string
+  accuracy?: string; unit: string; manufacturer?: string; calibFrequencyDays?: number
+  lastCalibration?: string; inServiceDate?: string
+  gageTypeId?: number; defaultLocationId?: number; vendorId?: number; note?: string
+}
+
+export type BorrowBody = {
+  gageId: number; borrowerId: number; managerId: number
+  expectedReturnDate?: string; useLocationId?: number; note?: string
+}
+
+export type CompleteCalibBody = {
+  requestId: number; procedureId?: number; calibratedBy?: string
+  calibrationDate: string; asFoundConditions?: string
+  adjustmentMade?: number; temperature?: number; humidity?: number
+  storagePath?: string
 }

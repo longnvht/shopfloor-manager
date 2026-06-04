@@ -1,20 +1,11 @@
 'use client'
 
+import { useState, useEffect, useCallback } from 'react'
+import { api, type GageDto } from '@/lib/api-client'
 import { VATopbar, VAKpi, VACard, VABtn, VABadge, VASeg } from '@/components/va'
 import { va, type VaBadgeKind } from '@/lib/va-tokens'
 
-const GAGES = [
-  { no: 'MIC-001', desc: 'Panme 0–25mm',       type: 'Micrometer',   range: '0–25mm',   cat: 'LIN', status: 'VALID',    due: '11/07/2026', days: 38,  loc: 'Tủ A · A1',       borrowed: false },
-  { no: 'MIC-002', desc: 'Panme 25–50mm',      type: 'Micrometer',   range: '25–50mm',  cat: 'LIN', status: 'BORROWED', due: '07/08/2026', days: 65,  loc: 'MC-01 · Hùng',    borrowed: true  },
-  { no: 'CAL-023', desc: 'Thước cặp 200mm',    type: 'Caliper',      range: '0–200mm',  cat: 'LIN', status: 'VALID',    due: '20/06/2026', days: 17,  loc: 'Tủ A · A3',       borrowed: false },
-  { no: 'GA-0142', desc: 'Panme 0–25mm #2',    type: 'Micrometer',   range: '0–25mm',   cat: 'LIN', status: 'EXPIRED',  due: '31/05/2026', days: -3,  loc: 'Tủ A · A2',       borrowed: false },
-  { no: 'DIAL-08', desc: 'Đồng hồ so 0.01',    type: 'Dial Ind.',    range: '0–10mm',   cat: 'GEO', status: 'CALIB',    due: '15/05/2026', days: -19, loc: 'Vendor VinaCAL',   borrowed: false },
-  { no: 'RING-M10',desc: 'Ring gauge M10×1.5', type: 'Ring Gauge',   range: 'M10×1.5',  cat: 'THD', status: 'VALID',    due: '03/03/2027', days: 273, loc: 'Tủ B · B1',       borrowed: false },
-  { no: 'SFC-01',  desc: 'Máy đo độ nhám',      type: 'Surf. Tester', range: 'Ra 0.05–10',cat:'SFC', status: 'VALID',   due: '10/10/2026', days: 129, loc: 'Phòng QC',         borrowed: false },
-  { no: 'PROT-05', desc: 'Thước đo góc',        type: 'Protractor',   range: '0–360°',   cat: 'ANG', status: 'DAMAGED',  due: '22/03/2026', days: -73, loc: 'Sửa chữa',         borrowed: false },
-]
-
-const GAGE_STATUS: Record<string, { label: string; kind: VaBadgeKind }> = {
+const STATUS_META: Record<string, { label: string; kind: VaBadgeKind }> = {
   VALID:    { label: 'Hợp lệ',          kind: 'ok'      },
   EXPIRED:  { label: 'Hết hạn',         kind: 'err'     },
   DAMAGED:  { label: 'Hư hỏng',         kind: 'err'     },
@@ -22,9 +13,61 @@ const GAGE_STATUS: Record<string, { label: string; kind: VaBadgeKind }> = {
   CALIB:    { label: 'Đang hiệu chuẩn', kind: 'warn'    },
 }
 
+type Filter = 'all' | 'valid' | 'borrowed' | 'due'
+
 export default function GagesPage() {
-  const counts = GAGES.reduce<Record<string, number>>((a, g) => { a[g.status] = (a[g.status] ?? 0) + 1; return a }, {})
-  const dueColor = (d: number) => d < 0 ? va.err : d <= 30 ? va.warn : va.text2
+  const [gages, setGages]   = useState<GageDto[]>([])
+  const [filter, setFilter] = useState<Filter>('all')
+  const [search, setSearch] = useState('')
+  const [loading, setLoading] = useState(true)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    let res
+    if (filter === 'due') {
+      res = await api.gages.calibDue(60)
+    } else {
+      res = await api.gages.list({
+        search: search || undefined,
+        statusCode:  filter === 'valid'    ? 'VALID'    : undefined,
+        isBorrowed:  filter === 'borrowed' ? true       : undefined,
+      })
+    }
+    if (res.success && res.data) setGages(res.data)
+    setLoading(false)
+  }, [filter, search])
+
+  useEffect(() => { load() }, [load])
+
+  const counts = gages.reduce<Record<string, number>>((a, g) => {
+    a[g.statusCode] = (a[g.statusCode] ?? 0) + 1; return a
+  }, {})
+
+  const dueColor = (d: number | null) => {
+    if (d == null) return va.text3
+    return d < 0 ? va.err : d <= 30 ? va.warn : va.text2
+  }
+
+  async function handleBorrow(gage: GageDto) {
+    // Simplified: borrow by current user (manager=1 for now, proper UI later)
+    const res = await api.gages.borrow({ gageId: gage.id, borrowerId: 1, managerId: 1 })
+    if (res.success) load()
+    else alert(res.error ?? 'Lỗi mượn gage')
+  }
+
+  async function handleReturn(gage: GageDto) {
+    // Get active transaction id from gage — simplified lookup via reload
+    // For now just reload; proper return needs transaction id
+    const txRes = await fetch(`/api/v1/borrow-transactions?gageId=${gage.id}&status=0`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem('auth-token')}` },
+    })
+    const txData = await txRes.json()
+    const tx = txData?.data?.[0]
+    if (!tx) { alert('Không tìm thấy giao dịch mượn'); return }
+    const res = await api.gages.returnGage(tx.id)
+    if (res.success) load()
+    else alert(res.error ?? 'Lỗi trả gage')
+  }
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: va.bg }}>
@@ -34,58 +77,95 @@ export default function GagesPage() {
       <div className="va-scroll" style={{ flex: 1, overflow: 'auto', padding: 22, display: 'flex', flexDirection: 'column', gap: 16 }}>
         {/* KPIs */}
         <div style={{ display: 'flex', gap: 13 }}>
-          <VAKpi label="Tổng gage"          value={GAGES.length} />
+          <VAKpi label="Tổng gage"          value={gages.length} />
           <VAKpi label="Hợp lệ"             value={counts.VALID    ?? 0} accent={va.ok}     />
-          <VAKpi label="Đang mượn"           value={counts.BORROWED ?? 0} accent={va.active}  />
+          <VAKpi label="Đang mượn"           value={counts.BORROWED ?? 0} accent={va.active} />
           <VAKpi label="Hết hạn / hỏng"      value={(counts.EXPIRED ?? 0) + (counts.DAMAGED ?? 0)} accent={va.err} />
           <VAKpi label="Đang hiệu chuẩn"     value={counts.CALIB    ?? 0} accent={va.warn}   />
         </div>
 
         {/* Toolbar */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <VASeg value="all" options={[{ id: 'all', label: 'Tất cả' }, { id: 'valid', label: 'Hợp lệ' }, { id: 'borrowed', label: 'Đang mượn' }, { id: 'due', label: 'Sắp hết hạn' }]} />
+          <VASeg
+            value={filter}
+            onChange={(v) => setFilter(v as Filter)}
+            options={[
+              { id: 'all',      label: 'Tất cả'       },
+              { id: 'valid',    label: 'Hợp lệ'        },
+              { id: 'borrowed', label: 'Đang mượn'     },
+              { id: 'due',      label: 'Sắp hết hạn'   },
+            ]}
+          />
+          <div style={{ height: 34, flex: 1, maxWidth: 280, background: va.surface, border: `1px solid ${va.border}`, borderRadius: 7, padding: '0 12px', display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, color: va.text3 }}>
+            <span>⌕</span>
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Tìm Gage No, mô tả…"
+              style={{ border: 'none', background: 'transparent', outline: 'none', flex: 1, fontSize: 12.5, color: va.text, fontFamily: va.font }}
+            />
+          </div>
         </div>
 
         {/* Table */}
         <VACard pad={false} style={{ flex: 1, minHeight: 0 }}>
           <div className="va-scroll" style={{ overflow: 'auto', height: '100%' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
-              <thead>
-                <tr style={{ background: va.surface2 }}>
-                  {['Gage No', 'Mô tả', 'Loại', 'Range', 'Cat', 'Trạng thái', 'Hạn HC', 'Vị trí', ''].map((h, i) => (
-                    <th key={i} style={{ position: 'sticky', top: 0, background: va.surface2, textAlign: 'left', padding: '10px 14px', fontSize: 9.5, color: va.text2, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.6, borderBottom: `1px solid ${va.border}`, zIndex: 1 }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {GAGES.map(g => (
-                  <tr key={g.no} className="va-row va-clickable">
-                    <td style={{ padding: '11px 14px', borderBottom: `1px solid ${va.separator}`, fontFamily: va.mono, fontWeight: 700, color: va.text }}>{g.no}</td>
-                    <td style={{ padding: '11px 14px', borderBottom: `1px solid ${va.separator}`, fontWeight: 500 }}>{g.desc}</td>
-                    <td style={{ padding: '11px 14px', borderBottom: `1px solid ${va.separator}`, color: va.text2 }}>{g.type}</td>
-                    <td style={{ padding: '11px 14px', borderBottom: `1px solid ${va.separator}`, fontFamily: va.mono, color: va.text2 }}>{g.range}</td>
-                    <td style={{ padding: '11px 14px', borderBottom: `1px solid ${va.separator}` }}>
-                      <span style={{ fontSize: 9.5, fontWeight: 700, color: va.primary, background: va.surface2, padding: '2px 6px', borderRadius: 3, fontFamily: va.mono, border: `1px solid ${va.border}` }}>{g.cat}</span>
-                    </td>
-                    <td style={{ padding: '11px 14px', borderBottom: `1px solid ${va.separator}` }}>
-                      <VABadge kind={GAGE_STATUS[g.status].kind} dot>{GAGE_STATUS[g.status].label}</VABadge>
-                    </td>
-                    <td style={{ padding: '11px 14px', borderBottom: `1px solid ${va.separator}`, fontFamily: va.mono }}>
-                      <div style={{ color: va.text }}>{g.due}</div>
-                      <div style={{ fontSize: 10.5, color: dueColor(g.days), fontWeight: 600 }}>{g.days < 0 ? `quá ${-g.days}d` : `còn ${g.days}d`}</div>
-                    </td>
-                    <td style={{ padding: '11px 14px', borderBottom: `1px solid ${va.separator}`, color: va.text2, fontSize: 11.5 }}>{g.loc}</td>
-                    <td style={{ padding: '11px 14px', borderBottom: `1px solid ${va.separator}`, textAlign: 'right', whiteSpace: 'nowrap' }}>
-                      {g.borrowed
-                        ? <VABtn kind="ghost" style={{ height: 28, fontSize: 11, padding: '0 10px' }}>Trả</VABtn>
-                        : g.status === 'VALID'
-                          ? <VABtn kind="accent" style={{ height: 28, fontSize: 11, padding: '0 10px' }}>Mượn</VABtn>
-                          : <span style={{ fontSize: 11, color: va.text3 }}>—</span>}
-                    </td>
+            {loading ? (
+              <div style={{ padding: 24, fontSize: 12, color: va.text3 }}>Đang tải…</div>
+            ) : gages.length === 0 ? (
+              <div style={{ padding: 24, fontSize: 12, color: va.text3 }}>Không có dụng cụ đo nào.</div>
+            ) : (
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
+                <thead>
+                  <tr style={{ background: va.surface2 }}>
+                    {['Gage No', 'Mô tả', 'Loại', 'Range', 'Cat', 'Trạng thái', 'Hạn HC', 'Vị trí', ''].map((h, i) => (
+                      <th key={i} style={{ position: 'sticky', top: 0, background: va.surface2, textAlign: 'left', padding: '10px 14px', fontSize: 9.5, color: va.text2, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.6, borderBottom: `1px solid ${va.border}`, zIndex: 1 }}>{h}</th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {gages.map(g => {
+                    const sm = STATUS_META[g.statusCode] ?? { label: g.statusCode, kind: 'neutral' as VaBadgeKind }
+                    return (
+                      <tr key={g.id} className="va-row va-clickable">
+                        <td style={{ padding: '11px 14px', borderBottom: `1px solid ${va.separator}`, fontFamily: va.mono, fontWeight: 700, color: va.text }}>{g.gageNo}</td>
+                        <td style={{ padding: '11px 14px', borderBottom: `1px solid ${va.separator}`, fontWeight: 500 }}>{g.description}</td>
+                        <td style={{ padding: '11px 14px', borderBottom: `1px solid ${va.separator}`, color: va.text2 }}>{g.gageTypeName ?? '—'}</td>
+                        <td style={{ padding: '11px 14px', borderBottom: `1px solid ${va.separator}`, fontFamily: va.mono, color: va.text2 }}>{g.measuringRange ?? '—'}</td>
+                        <td style={{ padding: '11px 14px', borderBottom: `1px solid ${va.separator}` }}>
+                          {g.categoryCode
+                            ? <span style={{ fontSize: 9.5, fontWeight: 700, color: va.primary, background: va.surface2, padding: '2px 6px', borderRadius: 3, fontFamily: va.mono, border: `1px solid ${va.border}` }}>{g.categoryCode}</span>
+                            : <span style={{ color: va.text3 }}>—</span>}
+                        </td>
+                        <td style={{ padding: '11px 14px', borderBottom: `1px solid ${va.separator}` }}>
+                          <VABadge kind={sm.kind} dot>{sm.label}</VABadge>
+                        </td>
+                        <td style={{ padding: '11px 14px', borderBottom: `1px solid ${va.separator}`, fontFamily: va.mono }}>
+                          {g.dueDate
+                            ? <>
+                                <div style={{ color: va.text }}>{g.dueDate}</div>
+                                <div style={{ fontSize: 10.5, color: dueColor(g.daysRemaining), fontWeight: 600 }}>
+                                  {g.daysRemaining != null ? (g.daysRemaining < 0 ? `quá ${-g.daysRemaining}d` : `còn ${g.daysRemaining}d`) : '—'}
+                                </div>
+                              </>
+                            : <span style={{ color: va.text3 }}>—</span>}
+                        </td>
+                        <td style={{ padding: '11px 14px', borderBottom: `1px solid ${va.separator}`, color: va.text2, fontSize: 11.5 }}>
+                          {g.currentLocationDesc ?? '—'}
+                        </td>
+                        <td style={{ padding: '11px 14px', borderBottom: `1px solid ${va.separator}`, textAlign: 'right', whiteSpace: 'nowrap' }}>
+                          {g.isBorrowed
+                            ? <VABtn kind="ghost" style={{ height: 28, fontSize: 11, padding: '0 10px' }} onClick={() => handleReturn(g)}>Trả</VABtn>
+                            : g.isValid
+                              ? <VABtn kind="accent" style={{ height: 28, fontSize: 11, padding: '0 10px' }} onClick={() => handleBorrow(g)}>Mượn</VABtn>
+                              : <span style={{ fontSize: 11, color: va.text3 }}>—</span>}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            )}
           </div>
         </VACard>
       </div>

@@ -1,82 +1,108 @@
 'use client'
 
+import { useState, useEffect, useCallback } from 'react'
+import { api, type CalibRequestDto, type CalibVendorDto, type GageDto } from '@/lib/api-client'
 import { VATopbar, VAKpi, VACard, VABtn, VABadge } from '@/components/va'
 import { va, type VaBadgeKind } from '@/lib/va-tokens'
 
-const REQUESTS = [
-  { id: 'CR-26-018', gage: 'DIAL-08',  desc: 'Đồng hồ so 0.01',  vendor: 'VinaCAL Lab', status: 'approved',  reqDate: '20/05/2026', proc: 'CP-DIAL-r3' },
-  { id: 'CR-26-017', gage: 'GA-0142',  desc: 'Panme 0–25mm #2',   vendor: 'VinaCAL Lab', status: 'pending',   reqDate: '25/05/2026', proc: 'CP-MIC-r5' },
-  { id: 'CR-26-016', gage: 'PROT-05',  desc: 'Thước đo góc',       vendor: 'QTech Metro', status: 'pending',   reqDate: '24/05/2026', proc: 'CP-ANG-r2' },
-  { id: 'CR-26-015', gage: 'CAL-023',  desc: 'Thước cặp 200mm',    vendor: 'VinaCAL Lab', status: 'completed', reqDate: '15/05/2026', proc: 'CP-CAL-r4', result: 'Pass' },
-  { id: 'CR-26-014', gage: 'MIC-001',  desc: 'Panme 0–25mm',       vendor: 'QTech Metro', status: 'completed', reqDate: '08/05/2026', proc: 'CP-MIC-r5', result: 'Pass' },
-]
-const CAL_STATUS: Record<string, { label: string; kind: VaBadgeKind }> = {
-  pending:   { label: 'Chờ duyệt',  kind: 'warn'    },
-  approved:  { label: 'Đã gửi',     kind: 'running' },
-  completed: { label: 'Hoàn thành', kind: 'ok'      },
-  cancelled: { label: 'Đã hủy',     kind: 'neutral' },
+// CalibRequestStatus enum: 0=Pending, 1=Approved, 2=Completed, 3=Cancelled
+const STATUS_META: Record<number, { label: string; kind: VaBadgeKind }> = {
+  0: { label: 'Chờ duyệt',  kind: 'warn'    },
+  1: { label: 'Đã gửi',     kind: 'running' },
+  2: { label: 'Hoàn thành', kind: 'ok'      },
+  3: { label: 'Đã hủy',     kind: 'neutral' },
 }
-const VENDORS = [
-  { name: 'VinaCAL Lab', contact: 'Mr. Tuấn', phone: '024 3856 xxxx', jobs: 3 },
-  { name: 'QTech Metro', contact: 'Ms. Lan',  phone: '028 3925 xxxx', jobs: 2 },
-]
-const DUE = [
-  { gage: 'CAL-023', desc: 'Thước cặp 200mm', days: 17,  due: '20/06/2026' },
-  { gage: 'MIC-001', desc: 'Panme 0–25mm',    days: 38,  due: '11/07/2026' },
-  { gage: 'MIC-002', desc: 'Panme 25–50mm',   days: 65,  due: '07/08/2026' },
-]
 
 export default function CalibrationPage() {
+  const [requests, setRequests] = useState<CalibRequestDto[]>([])
+  const [vendors,  setVendors]  = useState<CalibVendorDto[]>([])
+  const [dueGages, setDueGages] = useState<GageDto[]>([])
+  const [loading, setLoading]   = useState(true)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    const [rRes, vRes, dRes] = await Promise.all([
+      api.calibration.requests(),
+      api.calibration.vendors(),
+      api.gages.calibDue(60),
+    ])
+    if (rRes.success && rRes.data) setRequests(rRes.data)
+    if (vRes.success && vRes.data) setVendors(vRes.data)
+    if (dRes.success && dRes.data) setDueGages(dRes.data)
+    setLoading(false)
+  }, [])
+
+  useEffect(() => { load() }, [load])
+
+  async function handleApprove(id: number) {
+    const res = await api.calibration.approveRequest(id)
+    if (res.success) load()
+    else alert(res.error ?? 'Lỗi duyệt yêu cầu')
+  }
+
+  const pending   = requests.filter(r => r.status === 0).length
+  const approved  = requests.filter(r => r.status === 1).length
+  const completed = requests.filter(r => r.status === 2).length
+
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: va.bg }}>
       <VATopbar title="Hiệu chuẩn (Calibration)" breadcrumb="Chất lượng › Chu trình hiệu chuẩn"
         right={<VABtn kind="primary">+ Tạo yêu cầu</VABtn>} />
 
       <div className="va-scroll" style={{ flex: 1, overflow: 'auto', padding: 22, display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {/* KPIs */}
         <div style={{ display: 'flex', gap: 13 }}>
-          <VAKpi label="Chờ duyệt"          value={REQUESTS.filter(r => r.status === 'pending').length}   accent={va.warn}   />
-          <VAKpi label="Đang hiệu chuẩn"     value={REQUESTS.filter(r => r.status === 'approved').length}  accent={va.active} />
-          <VAKpi label="Hoàn thành (tháng)"  value={REQUESTS.filter(r => r.status === 'completed').length} accent={va.ok}     />
-          <VAKpi label="Sắp đến hạn (60d)"   value={DUE.length} />
-          <VAKpi label="Vendor"              value={VENDORS.length} />
+          <VAKpi label="Chờ duyệt"         value={pending}        accent={va.warn}   />
+          <VAKpi label="Đang hiệu chuẩn"    value={approved}       accent={va.active} />
+          <VAKpi label="Hoàn thành (tháng)" value={completed}      accent={va.ok}     />
+          <VAKpi label="Sắp đến hạn (60d)"  value={dueGages.length} />
+          <VAKpi label="Vendor"             value={vendors.length}  />
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 14, flex: 1, minHeight: 0 }}>
-          {/* Requests */}
-          <VACard title="Yêu cầu hiệu chuẩn" sub={`${REQUESTS.length} yêu cầu`} pad={false} style={{ minHeight: 0 }}>
+          {/* Requests table */}
+          <VACard title="Yêu cầu hiệu chuẩn" sub={`${requests.length} yêu cầu`} pad={false} style={{ minHeight: 0 }}>
             <div className="va-scroll" style={{ overflow: 'auto', height: '100%' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
-                <thead>
-                  <tr style={{ background: va.surface2 }}>
-                    {['Mã YC', 'Gage', 'Vendor', 'Procedure', 'Ngày YC', 'Trạng thái', ''].map((h, i) => (
-                      <th key={i} style={{ position: 'sticky', top: 0, background: va.surface2, textAlign: 'left', padding: '10px 14px', fontSize: 9.5, color: va.text2, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.6, borderBottom: `1px solid ${va.border}`, zIndex: 1 }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {REQUESTS.map(r => (
-                    <tr key={r.id} className="va-row va-clickable">
-                      <td style={{ padding: '11px 14px', borderBottom: `1px solid ${va.separator}`, fontFamily: va.mono, fontWeight: 700, color: va.text }}>{r.id}</td>
-                      <td style={{ padding: '11px 14px', borderBottom: `1px solid ${va.separator}` }}>
-                        <div style={{ fontFamily: va.mono, fontWeight: 600, color: va.text }}>{r.gage}</div>
-                        <div style={{ fontSize: 11, color: va.text2 }}>{r.desc}</div>
-                      </td>
-                      <td style={{ padding: '11px 14px', borderBottom: `1px solid ${va.separator}`, color: va.text2 }}>{r.vendor}</td>
-                      <td style={{ padding: '11px 14px', borderBottom: `1px solid ${va.separator}`, fontFamily: va.mono, fontSize: 11.5, color: va.text2 }}>{r.proc}</td>
-                      <td style={{ padding: '11px 14px', borderBottom: `1px solid ${va.separator}`, fontFamily: va.mono, color: va.text2 }}>{r.reqDate}</td>
-                      <td style={{ padding: '11px 14px', borderBottom: `1px solid ${va.separator}` }}>
-                        <VABadge kind={CAL_STATUS[r.status].kind} dot={r.status !== 'completed'}>{CAL_STATUS[r.status].label}</VABadge>
-                        {r.result && <span style={{ fontSize: 10.5, color: va.ok, marginLeft: 6, fontWeight: 600 }}>{r.result}</span>}
-                      </td>
-                      <td style={{ padding: '11px 14px', borderBottom: `1px solid ${va.separator}`, textAlign: 'right', whiteSpace: 'nowrap' }}>
-                        {r.status === 'pending'   && <VABtn kind="primary" style={{ height: 28, fontSize: 11, padding: '0 10px' }}>Duyệt</VABtn>}
-                        {r.status === 'approved'  && <VABtn kind="accent"  style={{ height: 28, fontSize: 11, padding: '0 10px' }}>Nhận KQ</VABtn>}
-                        {r.status === 'completed' && <span className="va-clickable" style={{ fontSize: 11, color: va.primary, fontWeight: 600 }}>⬇ Chứng chỉ</span>}
-                      </td>
+              {loading ? (
+                <div style={{ padding: 16, fontSize: 12, color: va.text3 }}>Đang tải…</div>
+              ) : (
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
+                  <thead>
+                    <tr style={{ background: va.surface2 }}>
+                      {['Gage', 'Vendor', 'Ngày YC', 'Trạng thái', ''].map((h, i) => (
+                        <th key={i} style={{ position: 'sticky', top: 0, background: va.surface2, textAlign: 'left', padding: '10px 14px', fontSize: 9.5, color: va.text2, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.6, borderBottom: `1px solid ${va.border}`, zIndex: 1 }}>{h}</th>
+                      ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {requests.map(r => {
+                      const sm = STATUS_META[r.status] ?? { label: String(r.status), kind: 'neutral' as VaBadgeKind }
+                      return (
+                        <tr key={r.id} className="va-row va-clickable">
+                          <td style={{ padding: '11px 14px', borderBottom: `1px solid ${va.separator}` }}>
+                            <div style={{ fontFamily: va.mono, fontWeight: 600, color: va.text }}>{r.gageNo}</div>
+                            <div style={{ fontSize: 11, color: va.text2 }}>{r.gageDescription}</div>
+                          </td>
+                          <td style={{ padding: '11px 14px', borderBottom: `1px solid ${va.separator}`, color: va.text2 }}>{r.vendorName ?? '—'}</td>
+                          <td style={{ padding: '11px 14px', borderBottom: `1px solid ${va.separator}`, fontFamily: va.mono, color: va.text2 }}>{r.requestDate}</td>
+                          <td style={{ padding: '11px 14px', borderBottom: `1px solid ${va.separator}` }}>
+                            <VABadge kind={sm.kind} dot={r.status !== 2}>{sm.label}</VABadge>
+                            {r.calibrationDate && <span style={{ fontSize: 10.5, color: va.ok, marginLeft: 6, fontWeight: 600 }}>{r.calibrationDate}</span>}
+                          </td>
+                          <td style={{ padding: '11px 14px', borderBottom: `1px solid ${va.separator}`, textAlign: 'right', whiteSpace: 'nowrap' }}>
+                            {r.status === 0 && <VABtn kind="primary" style={{ height: 28, fontSize: 11, padding: '0 10px' }} onClick={() => handleApprove(r.id)}>Duyệt</VABtn>}
+                            {r.status === 1 && <VABtn kind="accent"  style={{ height: 28, fontSize: 11, padding: '0 10px' }}>Nhận KQ</VABtn>}
+                            {r.status === 2 && <span className="va-clickable" style={{ fontSize: 11, color: va.primary, fontWeight: 600 }}>⬇ Chứng chỉ</span>}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                    {requests.length === 0 && (
+                      <tr><td colSpan={5} style={{ padding: 24, textAlign: 'center', color: va.text3, fontSize: 12 }}>Chưa có yêu cầu hiệu chuẩn.</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              )}
             </div>
           </VACard>
 
@@ -84,32 +110,39 @@ export default function CalibrationPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14, minHeight: 0 }}>
             <VACard title="Sắp đến hạn" sub="60 ngày tới" pad={false} style={{ flex: 1, minHeight: 0 }}>
               <div className="va-scroll" style={{ overflow: 'auto', height: '100%' }}>
-                {DUE.map(d => (
-                  <div key={d.gage} className="va-row va-clickable" style={{ padding: '12px 16px', borderBottom: `1px solid ${va.separator}`, display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontFamily: va.mono, fontWeight: 600, fontSize: 12.5, color: va.text }}>{d.gage}</div>
-                      <div style={{ fontSize: 11, color: va.text2 }}>{d.desc}</div>
+                {dueGages.length === 0
+                  ? <div style={{ padding: 16, fontSize: 12, color: va.text3 }}>Không có gage nào sắp hết hạn.</div>
+                  : dueGages.map(g => (
+                    <div key={g.id} className="va-row va-clickable" style={{ padding: '12px 16px', borderBottom: `1px solid ${va.separator}`, display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontFamily: va.mono, fontWeight: 600, fontSize: 12.5, color: va.text }}>{g.gageNo}</div>
+                        <div style={{ fontSize: 11, color: va.text2 }}>{g.description}</div>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontFamily: va.mono, fontSize: 13, fontWeight: 600, color: (g.daysRemaining ?? 999) <= 30 ? va.warn : va.text2 }}>
+                          {g.daysRemaining != null ? `${g.daysRemaining}d` : '—'}
+                        </div>
+                        {g.dueDate && <div style={{ fontSize: 10, color: va.text3, fontFamily: va.mono }}>{g.dueDate}</div>}
+                      </div>
                     </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontFamily: va.mono, fontSize: 13, fontWeight: 600, color: d.days <= 30 ? va.warn : va.text2 }}>{d.days}d</div>
-                      <div style={{ fontSize: 10, color: va.text3, fontFamily: va.mono }}>{d.due}</div>
-                    </div>
-                  </div>
-                ))}
+                  ))
+                }
               </div>
             </VACard>
 
             <VACard title="Vendor hiệu chuẩn" pad={false}>
-              {VENDORS.map((v, i) => (
-                <div key={v.name} style={{ padding: '12px 16px', borderBottom: i < VENDORS.length - 1 ? `1px solid ${va.separator}` : 'none', display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{ width: 34, height: 34, borderRadius: 8, background: va.accentLt, color: va.primary, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, flexShrink: 0 }}>{v.name[0]}</div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 12.5, fontWeight: 600, color: va.text }}>{v.name}</div>
-                    <div style={{ fontSize: 11, color: va.text2 }}>{v.contact} · {v.phone}</div>
+              {vendors.length === 0
+                ? <div style={{ padding: 16, fontSize: 12, color: va.text3 }}>Chưa có vendor.</div>
+                : vendors.map((v, i) => (
+                  <div key={v.id} style={{ padding: '12px 16px', borderBottom: i < vendors.length - 1 ? `1px solid ${va.separator}` : 'none', display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{ width: 34, height: 34, borderRadius: 8, background: va.accentLt, color: va.primary, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, flexShrink: 0 }}>{v.name[0]}</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 12.5, fontWeight: 600, color: va.text }}>{v.name}</div>
+                      <div style={{ fontSize: 11, color: va.text2 }}>{v.contact} {v.phone && `· ${v.phone}`}</div>
+                    </div>
                   </div>
-                  <span style={{ fontFamily: va.mono, fontSize: 11, color: va.text3 }}>{v.jobs} YC</span>
-                </div>
-              ))}
+                ))
+              }
             </VACard>
           </div>
         </div>

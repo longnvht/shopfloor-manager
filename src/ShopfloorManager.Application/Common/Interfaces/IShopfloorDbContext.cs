@@ -35,6 +35,19 @@ public interface IShopfloorDbContext
     // Master Data
     DbSet<Machine> Machines { get; }
 
+    // Gage Management
+    DbSet<GageType>         GageTypes         { get; }
+    DbSet<GageLocation>     GageLocations     { get; }
+    DbSet<GageSlot>         GageSlots         { get; }
+    DbSet<Gage>             Gages             { get; }
+    DbSet<BorrowTransaction> BorrowTransactions { get; }
+
+    // Calibration
+    DbSet<CalibVendor>    CalibVendors    { get; }
+    DbSet<CalibProcedure> CalibProcedures { get; }
+    DbSet<CalibRequest>   CalibRequests   { get; }
+    DbSet<CalibRecord>    CalibRecords    { get; }
+
     // Phase 3 — Quality
     DbSet<DimensionCategory> DimensionCategories { get; }
     DbSet<Dimension> Dimensions { get; }
