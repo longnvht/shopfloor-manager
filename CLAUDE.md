@@ -189,9 +189,10 @@ clients/web/
 │   └── (main)/                    # Authenticated layout — VASidebar + VATopbar shell
 │       ├── layout.tsx             # Shell: VASidebar 224px + flex-1 content
 │       ├── dashboard/             # Dashboard KPI (placeholder Phase 5)
-│       ├── jobs/                  # Job list + [id] detail + [id]/fai + [id]/documents
-│       ├── parts/                 # Part list + [id] detail + [id]/documents
-│       ├── routing/               # Routing & Operations (part list + OP flow)
+│       ├── parts/                 # "Chi tiết kỹ thuật" — master-detail: part list + revision + routing + OP
+│       │   └── [id]/              # Part detail (revisions, routing revs, operations)
+│       ├── jobs/                  # "Lệnh SX & Sản phẩm" — master-detail: job list + progress + serials
+│       │   └── [id]/              # Job detail + fai + documents
 │       ├── planning/              # Gantt chart tuần (mock data)
 │       ├── cnc/                   # CNC Live — machine status + gauges (mock data)
 │       ├── fai/                   # FAI Dimension Sheet matrix (mock data)
@@ -229,8 +230,13 @@ clients/web/
 - Components: `VASidebar`, `VATopbar`, `VABadge`, `VAKpi`, `VACard`, `VABtn`, `VASeg`
 - Inline styles với `va.*` tokens — không dùng Tailwind bên trong VA components
 
-**Trang dùng API thật:** `/jobs`, `/jobs/[id]`, `/parts`, `/ncrs`
-**Trang dùng mock data (chờ Phase 5 API):** `/routing`, `/planning`, `/cnc`, `/fai`, `/gages`, `/calibration`, `/documents`, `/hr`, `/master`
+**Trang dùng API thật:** `/jobs` (Lệnh SX & Sản phẩm), `/parts` (Chi tiết kỹ thuật), `/ncrs`
+**Trang dùng mock data (chờ Phase 5 API):** `/planning`, `/cnc`, `/fai`, `/gages`, `/calibration`, `/documents`, `/hr`, `/master`
+
+**Lưu ý kỹ thuật — Zustand + Next.js App Router:**
+- `useAuthStore` dùng `persist` middleware → trên server `user=null`, sau hydrate mới có data
+- Các component hiển thị `user` dùng `useState/useEffect` mounted check để tránh flicker
+- Sidebar user footer: `{mounted && user ? initials(user.name) : ''}`
 
 **Dev server:** `cd clients/web && npm run dev` → http://localhost:3000
 
@@ -803,10 +809,12 @@ Desktop app: build riêng bằng dotnet publish, deploy thủ công lên từng 
 
 **Web UI — ✅ Hoàn tất** (2026-06-04)
 - VA warm industrial design system: tokens, sidebar, topbar, badge, kpi, card, btn, seg
-- 18 routes: dashboard, jobs, parts, routing, planning, cnc, fai, ncr, gages, calibration, documents, hr, master
-- 4 trang kết nối API thật (jobs, parts, ncrs); 9 trang dùng mock data chờ Phase 5
+- 18 routes — tất cả có VA shell, sidebar navigation
+- `/parts` redesign → "Chi tiết kỹ thuật": master-detail Part list + Revision + Routing + OP flow
+- `/jobs` redesign → "Lệnh SX & Sản phẩm": master-detail Job list + progress bar + serial grid
+- API thật: `/jobs`, `/parts`, `/ncrs`; mock data: `/planning`, `/cnc`, `/fai`, `/gages`, `/calibration`, `/documents`, `/hr`, `/master`
 - Fonts: Inter + Fraunces + JetBrains Mono (next/font/google)
-- Theme: override shadcn CSS vars → VA palette, `.va-scroll`/`.va-row`/`.va-clickable` utilities
+- Theme: override shadcn CSS vars → VA palette
 
 **Phase 6 chi tiết:**
 - Multi-factory support (FactoryId đã chuẩn bị trên Machine entity)
