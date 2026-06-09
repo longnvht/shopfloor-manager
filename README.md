@@ -190,48 +190,277 @@ Time filters: Day / Week / Month / Quarter.
 
 ### Desktop MES — WPF Touchscreen App
 
-A separate WPF application (`ShopfloorManager.Desktop`) installed on each CNC machine PC. Designed for 10–15" touchscreens; all buttons are ≥56px tall.
+A separate WPF application (`ShopfloorManager.Desktop`) installed on each CNC machine PC. Designed for 10–15" touchscreens; all interactive elements are ≥56px tall. Connects to the shared API over HTTP — **no direct database access**.
 
-**Login**
+#### Hardware & configuration
+
+Each machine PC has a `local.json` that overrides global settings:
+
+```json
+{
+  "ApiBaseUrl": "http://192.168.1.100:5066",
+  "MachineCode": "CNC-LINE1-03",
+  "MachineName": "MAZAK QTN-350 #3"
+}
+```
+
+`MachineCode` is used to tag every measurement record (traceability — know which machine produced which result) and to subscribe to the correct MQTT topic for real-time CNC data.
+
+---
+
+#### Login
 
 ![Desktop MES — Login](docs/screenshots/desktop-login.png)
 
-Per-machine configuration in `local.json`: `ApiBaseUrl`, `MachineCode`, `MachineName`. The app connects to the shared API — no direct database access.
+Standard JWT login (`POST /api/v1/auth/login`). Token is held **in-memory only** — never written to disk. On success, the app checks for an active session on this machine before navigating to the Dashboard.
 
-**Dashboard**
+**Login → mode determination:**
+
+| Machine state at login | Result |
+|---|---|
+| No active session | → **Operation Mode** (operator is free to work) |
+| Active session belonging to *this* user | → **Operation Mode** (session is resumed; WorkContext restored) |
+| Active session belonging to *another* user — role is `Leader` or `Administrator` | → **Operation Mode** (ForceFinish button visible) |
+| Active session belonging to *another* user — role is `Operator` / other | → **View Mode** (forced read-only; cannot be overridden) |
+
+---
+
+#### Dashboard
 
 ![Desktop MES — Dashboard](docs/screenshots/desktop-dashboard.png)
 
-The main screen after login shows:
-- **Machine card** (top-left) — availability %, quality %, uptime, parts made today
-- **Operator card** (top-right) — check-in time, work time, idle time, parts produced
-- **Work Info card** (center) — current Job / OP / Serial with Start / Stop / Navigate buttons
-- **Shortcuts** (bottom) — contextual quick-access to Select Job, Select OP, FAI Sheet, G-code Viewer, NCR, Settings
+The hub of the app — no sidebar navigation. Everything accessible from one screen.
 
-**Job Selection**
+**Four zones:**
+
+| Zone | Content |
+|---|---|
+| **Top bar** | Logo · MODE toggle chip · clock · logout |
+| **Machine card** (top-left) | Availability %, quality %, uptime today, parts completed today |
+| **Operator card** (top-right) | Check-in time, work time, idle time, parts produced |
+| **Work Info card** (center) | Job / OP / Serial + action button (context-aware) |
+| **Shortcuts grid** (bottom) | Icon buttons — role and context aware |
+
+**Work Info card — 5 exclusive states** (only one action button visible at any time):
+
+```
+State            Button shown          Condition
+─────────────────────────────────────────────────────────────────
+No job           [+ Chọn Job]          !HasWork && !CanForceFinish
+Has job/OP,      [Tiếp tục →]          CanNavigate && !CanForceFinish
+no serial
+Serial chosen,   [▶ Bắt đầu]           HasProduct && !IsWip
+not started
+Session active   [■ Kết thúc] + timer  CanStop && !CanForceFinish
+Another user's   [Kết thúc phiên X]    CanForceFinish (Leader/Admin)
+session
+```
+
+**Shortcuts — visibility rules:**
+
+| Shortcut | Visible when |
+|---|---|
+| Chọn Job | Always |
+| Chọn OP | HasJob |
+| Chọn sản phẩm | HasOp |
+| Xem bản vẽ / G-code / Hướng dẫn gá / CW | HasOp |
+| **Bảng đo** | Operation Mode + HasProduct + `session.StartedAt != null` |
+| Tạo NCR | HasProduct + Operation Mode (QC/Engineer/Admin) |
+| Cài đặt | Role = Administrator |
+
+*Shortcuts "Chọn Job/OP/Sản phẩm" are disabled (opacity 40%) while a session is in progress — prevents context switch mid-production. View Mode re-enables them (operates on separate ViewContext).*
+
+---
+
+#### Job Selection
 
 ![Desktop MES — Job List](docs/screenshots/desktop-joblist.png)
 
-Card-grid job browser (5 per row) with overdue highlighting (red date badge). Touch-optimized — swipe to scroll, large touch targets.
+Card grid (5 columns) showing active production orders. Each card shows job number, part number, revision, quantity, and ship date. **Red date badge** = overdue. Supports text search and drag-to-scroll.
 
-**Operation → Product → FAI workflow:**
+---
 
-1. Operator selects **Job** → **Operation** → **Product serial**
-2. Presses **Start** → creates a `ProductionSession` (API records timestamp)
-3. Opens **FAI Sheet** — dimension card grid (balloon numbers, nominal, tolerances)
-4. Taps a dimension card → virtual **NumPad** appears (for numeric) or **PASS/FAIL** buttons (for text type)
-5. Confirms measurement → auto-advances to next unmeasured dimension
-6. When all dimensions measured → presses **Stop** → session closed
-7. Any FAIL → **NCR dialog** opens immediately at the machine
+#### Operation List
 
-**Document Viewer:**
-- G-code files rendered with syntax highlighting (N/G/M/axis/feed/tool in different colors) inside a `RichTextBox`
-- PDF files (drawings, route cards) rendered natively via **WebView2** (Edge PDF viewer)
+After selecting a job, the operator chooses which operation they are performing:
 
-**Session rules:**
-- Only one active session per machine at a time
-- `Leader` and `Administrator` roles can force-finish another operator's session
-- Other users login during an active session → View Mode (read-only browse, no production input)
+```
+┌─────────────────────────────────────────────────────┐
+│  OP 10 — Inspection                                 │
+│  Setup: 0.5h  |  Run: 0.1h                          │
+│  [📐 Bản vẽ]  [📋 Route Card]                      │
+└─────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────┐
+│  OP 20 — Turning                                    │
+│  Setup: 2.0h  |  Run: 4.0h                          │
+│  [💾 G-code]  [🔩 Fixture]                          │
+└─────────────────────────────────────────────────────┘
+```
+
+Each OP card shows: operation number, type, setup/run times, and document availability badges. The list combines template operations (from `RoutingRev`) and any job-specific operations (`ForJobOnly = true`).
+
+---
+
+#### Product Serial Selection
+
+After selecting an operation, the operator selects which product serial they are machining:
+
+```
+┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐
+│   001    │  │   002    │  │   003    │  │   004    │
+│   ○      │  │   ⚙      │  │   ✓      │  │   ✓      │
+│ READY    │  │ IN PROG  │  │ COMPLETE │  │ COMPLETE │
+└──────────┘  └──────────┘  └──────────┘  └──────────┘
+```
+
+Four card states (color-coded):
+
+| Color | State | Meaning |
+|---|---|---|
+| Gray | Ready | Available to select |
+| Amber | In Progress | Currently being machined (this machine) |
+| Orange | Locked | Being machined on another machine |
+| Green | Complete | FAI finished |
+
+**Session constraints** (enforced server-side):
+- One active session per **product** — a serial being machined elsewhere cannot be claimed.
+- One active session per **machine** — starting a second session on the same machine is blocked.
+
+---
+
+#### FAI Measurement Entry
+
+The core feature. After pressing **Start**, the operator measures each dimension:
+
+```
+┌─────────────────────────────────┬─────────────────────────┐
+│  DIMENSION CARDS (55% width)    │  INPUT PANEL (45%)      │
+│                                 │                         │
+│  ┌────┐ ┌────┐ ┌────┐ ┌────┐   │  Balloon:  Ø5           │
+│  │ 1  │ │ 2  │ │ 3  │ │ 4  │   │  Nominal:  25.0000      │
+│  │PASS│ │FAIL│ │    │ │    │   │  Min:      24.9800      │
+│  │25.0│ │25.3│ │    │ │    │   │  Max:      25.0200      │
+│  └────┘ └────┘ └────┘ └────┘   │                         │
+│  Green   Red   Gray  Gray       │  ┌──────────────────┐   │
+│                                 │  │  [7] [8] [9]     │   │
+│  ┌────┐ ┌────┐                  │  │  [4] [5] [6]     │   │
+│  │ 5  │ │Ra1 │                  │  │  [1] [2] [3]     │   │
+│  │    │ │TEXT│                  │  │  [±] [0] [.]     │   │
+│  └────┘ └────┘                  │  └──────────────────┘   │
+│  Gray  (PASS/FAIL)              │  [ ✓ Confirm ]          │
+└─────────────────────────────────┴─────────────────────────┘
+```
+
+**Measurement rules:**
+- **Numeric dimensions** — NumPad input → Confirm → `Pass` if `min ≤ value ≤ max`, else `Fail`.
+- **Text dimensions** (`IsTextType = true`) — PASS/FAIL buttons, auto-save immediately; no confirm step.
+- **Final dimensions** (`IsFinal = true`) — visible but disabled for Operators; only QC Inspectors can enter.
+- **Already measured** (`IsInputLocked`) — card shows previous value in gray; input panel fully disabled with amber notice. Each measurement creates a new record — history is preserved.
+
+On **Fail**: an NCR dialog opens immediately, requiring the operator to select a reason category before proceeding.
+
+Auto-advance: after confirming a measurement, focus moves to the next unmeasured dimension automatically.
+
+---
+
+#### Virtual Keyboard
+
+Two keyboard types, both implemented as floating `WS_EX_NOACTIVATE` windows (focused TextBox never loses focus):
+
+- **NumPad** — numeric input with `±`, `.`, backspace. Floats near the input field.
+- **QWERTY** — full keyboard with CapsLock toggle and numeric panel. Used for search fields and NCR descriptions.
+
+Both keyboards support **drag** via a handle strip at the top (`ReleaseCapture` + `WM_NCLBUTTONDOWN` trick — avoids `DragMove()` which would steal focus).
+
+---
+
+#### Document Viewer
+
+Accessible from operation shortcuts (Drawing, G-code, Route Card, Fixture):
+
+- **G-code** — `RichTextBox` with syntax highlighting: N=gray, G=blue, M=purple, X/Y/Z=orange, F/S=green, T/H/D=teal, comments=gray. Renders up to 5,000 lines.
+- **PDF** (drawings, route cards) — native PDF rendering via **Microsoft WebView2** (Edge PDF engine; zoom/pan built-in). Documents are downloaded from MinIO via pre-signed URL.
+
+Only `Status = Approved` documents are shown to operators.
+
+---
+
+#### Operation Mode vs View Mode
+
+Two modes allow operators to browse production records without disrupting an active session.
+
+```
+Operation Mode                    View Mode
+────────────────────────────       ────────────────────────────
+WorkContext: CurrentJob/Op/Prod    WorkContext: ViewJob/Op/Prod
+                                   (independent slot)
+Navigation writes CurrentJob...    Navigation writes ViewJob...
+Session Start/Stop available       No session operations
+Shortcuts act on current context   Shortcuts act on view context
+FAI sheet accessible               FAI shortcut hidden
+```
+
+**MODE toggle chip** (top bar, always visible):
+- Brown background + "VIEW" text → Operation Mode
+- Orange `#FF8F00` background + "VIEW MODE" text → View Mode
+- Chip is dimmed (opacity 40%) and non-clickable when **forced** View Mode (another user's session + Operator role)
+
+**Forced View Mode** — when an Operator logs in while another user has an active session on that machine, they are placed in View Mode automatically and cannot toggle out. A `Leader` or `Administrator` can use the ForceFinish button to end the other session.
+
+**Dual context** — the two context slots are completely independent. Toggling mode does not clear or copy between them. View context persists until logout.
+
+---
+
+#### NCR Creation at Machine
+
+When a measurement fails, an NCR dialog appears:
+
+1. Select reason from dropdown (15 seeded categories: Tool wear, Setup error, Drawing error, …)
+2. Select department responsible (PROD / QC / ENG)
+3. Enter optional description
+4. Submit → `POST /api/v1/ncrs` → NCR number generated (`NCR-{YY}-{NNNN}`)
+5. QC Inspector receives a real-time notification via **SignalR**
+
+---
+
+#### Settings Page (Administrator only)
+
+Accessible from the shortcuts grid when logged in as `Administrator`:
+
+- Edit `ApiBaseUrl`, `MachineCode`, `MachineName`
+- **Test Connection** button — verifies the new URL with a fresh `HttpClient` (not the shared singleton)
+- Save → writes `local.json` at `AppContext.BaseDirectory`
+- API URL change requires app restart (the singleton `HttpClient` was created with the old URL); other fields apply immediately
+
+---
+
+#### Real-time Updates (SignalR)
+
+After login, the app connects to `/hub/shopfloor` and joins groups by role:
+
+| Event | Received by | Action |
+|---|---|---|
+| `ncr-created` | QC Inspector | Toast notification + badge count |
+| `job-status-changed` | All | Refresh job list |
+| `measure-submitted` | Engineer, QC | Update FAI progress counter |
+| `document-approved` | All | Refresh document availability |
+
+---
+
+#### Comparison: Legacy Vinam-MES vs Shopfloor Manager Desktop
+
+| Feature | Vinam-MES (WinForms) | Shopfloor Manager (WPF) |
+|---|---|---|
+| Data access | Direct MySQL queries | REST API only |
+| Documents | FTP download | MinIO pre-signed URL |
+| Authentication | MD5 + MySQL | JWT (8h expiry) |
+| Notifications | Teams webhook (polling) | SignalR (push) |
+| Measure history | Upsert — last value only | New record every measurement |
+| Measure precision | `FLOAT` | `DECIMAL(14,4)` |
+| Offline mode | No | No (planned Phase 4b) |
+| UI framework | WinForms + Guna2 | WPF + MaterialDesignThemes |
+| Virtual keyboard | Custom WinForms | Custom WPF (no-focus window) |
+| PDF viewer | PdfiumViewer | WebView2 (Edge) |
 
 ---
 
