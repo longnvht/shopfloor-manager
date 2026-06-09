@@ -488,22 +488,45 @@ ProductionSession  (machine session at CNC)
 
 **Prerequisites:** Docker Desktop, .NET 9 SDK, Node.js 20+
 
+### Development setup (`docker-compose.dev.yml`)
+
+In development, only the **infrastructure** runs in Docker. The API and Web App run directly on your machine for fast hot-reload.
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  docker-compose.dev.yml  (infrastructure only)          │
+│                                                         │
+│  postgres:5432   minio:9000/9001   mosquitto:1883/9002  │
+└─────────────────────────────────────────────────────────┘
+       ↑                  ↑                  ↑
+  dotnet run          npm run dev       (MQTT test)
+  :5066               :3000
+```
+
 ```bash
 # 1. Clone the repository
 git clone https://github.com/longnvht/shopfloor-manager.git
 cd shopfloor-manager
 
-# 2. Start infrastructure (PostgreSQL, MinIO, Mosquitto)
+# 2. Start infrastructure (PostgreSQL + MinIO + Mosquitto)
 docker compose -f docker-compose.dev.yml up -d
-
-# 3. Run the API (from repo root)
-cd src
-dotnet run --project ShopfloorManager.API
-# → http://localhost:5066
-# → Swagger UI: http://localhost:5066/swagger
 ```
 
+Dev services started by Docker:
+
+| Container | Image | Ports | Purpose |
+|---|---|---|---|
+| `postgres` | `postgres:16-alpine` | `5432` | Database — no auth required in dev |
+| `minio` | `minio/minio:latest` | `9000` (API), `9001` (Console) | File storage (drawings, G-code, PDFs) |
+| `mosquitto` | `eclipse-mosquitto:2` | `1883` (MQTT), `9002` (WebSocket) | MQTT broker for CNC data |
+
 ```bash
+# 3. Run the API
+cd src
+dotnet run --project ShopfloorManager.API
+# → API:        http://localhost:5066
+# → Swagger UI: http://localhost:5066/swagger
+
 # 4. Run the Web App
 cd clients/web
 npm install
@@ -511,17 +534,17 @@ npm run dev
 # → http://localhost:3000
 ```
 
-**Default credentials** (dev only — no `.env` required):
+**Default dev credentials** (hardcoded — no `.env` needed):
 
 | Service | URL | Credentials |
 |---|---|---|
 | Web App | `http://localhost:3000` | `admin` / `Admin@123` |
 | API Swagger | `http://localhost:5066/swagger` | — |
-| PostgreSQL | `localhost:5432` | `shopfloor` / `dev_password` / `shopfloor_dev` |
+| PostgreSQL | `localhost:5432` | `shopfloor` / `dev_password` / db `shopfloor_dev` |
 | MinIO Console | `http://localhost:9001` | `minioadmin` / `minioadmin123` |
 | MQTT | `localhost:1883` | no auth |
 
-**EF Core migrations** (required after any entity change):
+**EF Core migrations** (run after any entity change):
 
 ```bash
 cd src
@@ -539,7 +562,14 @@ dotnet ef database update \
 ```bash
 cd src
 dotnet build ShopfloorManager.Desktop
-# Edit local.json: ApiBaseUrl, MachineCode, MachineName
+
+# Edit src/ShopfloorManager.Desktop/local.json:
+# {
+#   "ApiBaseUrl": "http://localhost:5066",
+#   "MachineCode": "MACHINE-01",
+#   "MachineName": "My CNC Lathe"
+# }
+
 dotnet run --project ShopfloorManager.Desktop
 ```
 
@@ -547,26 +577,138 @@ dotnet run --project ShopfloorManager.Desktop
 
 ## Production Deployment
 
-```bash
-# 1. Copy and configure environment
-cp .env.example .env
-# Edit .env: DB password, MinIO credentials, JWT secret, SMTP settings
+### Full stack (`docker-compose.yml`)
 
-# 2. Start the full stack
-docker compose up -d
+The production compose file runs **6 services** with health checks and `restart: unless-stopped`:
+
+```
+                    ┌─────────────────┐
+Internet ──── 80/443 │     nginx       │ (reverse proxy)
+                    └────┬───────┬────┘
+                         │       │
+               ┌─────────▼─┐ ┌───▼──────┐
+               │    web    │ │   api    │
+               │ Next.js   │ │ .NET 9   │
+               └───────────┘ └──┬───┬──┘
+                                │   │
+                     ┌──────────▼┐  └────────────┐
+                     │ postgres  │               │
+                     │    16     │    ┌──────────▼┐
+                     └──────────┘    │   minio   │
+                                     └──────────┘
+                    ┌──────────────────────────────┐
+                    │         mosquitto            │ :1883 ← CNC machines
+                    └──────────────────────────────┘
 ```
 
-Nginx routes:
+| Service | Image | Ports | Depends on |
+|---|---|---|---|
+| `postgres` | `postgres:16-alpine` | internal only | — |
+| `minio` | `minio/minio:latest` | internal only | — |
+| `mosquitto` | `eclipse-mosquitto:2` | `1883` (exposed to LAN) | — |
+| `api` | built from `src/ShopfloorManager.API/Dockerfile` | internal only | postgres ✓, minio ✓ |
+| `web` | built from `clients/web/Dockerfile` | internal only | api ✓ |
+| `nginx` | `nginx:alpine` | `80`, `443` | web, api |
 
-| Path | Service |
+### Step-by-step
+
+```bash
+# 1. Copy and configure the environment file
+cp .env.example .env
+```
+
+Edit `.env` with production values:
+
+```env
+# PostgreSQL
+DB_USER=shopfloor
+DB_PASSWORD=<strong-password>
+DB_NAME=shopfloor
+
+# JWT — generate with: openssl rand -base64 48
+JWT_SECRET=<64-char-random-string>
+JWT_EXPIRY_HOURS=8
+
+# MinIO
+MINIO_USER=<minio-admin-user>
+MINIO_PASSWORD=<strong-password>
+MINIO_BUCKET=shopfloor-storage
+
+# MQTT
+MQTT_TOPIC_CNC=factory/cnc/#
+
+# Email (optional — for password reset)
+SMTP_HOST=smtp.yourcompany.com
+SMTP_PORT=587
+SMTP_USER=noreply@yourcompany.com
+SMTP_PASSWORD=<smtp-password>
+SMTP_FROM=noreply@yourcompany.com
+
+# Teams webhook (optional — for NCR alerts)
+TEAMS_WEBHOOK_URL=https://outlook.office.com/webhook/...
+
+# App
+NEXT_PUBLIC_APP_NAME=Shopfloor Manager
+```
+
+```bash
+# 2. Start the full stack
+docker compose up -d
+
+# 3. Check all services are healthy
+docker compose ps
+```
+
+Expected output:
+
+```
+NAME                    STATUS
+shopfloor-postgres      running (healthy)
+shopfloor-minio         running (healthy)
+shopfloor-mosquitto     running
+shopfloor-api           running (healthy)
+shopfloor-web           running
+shopfloor-nginx         running
+```
+
+### Nginx routing
+
+| Host path | Proxied to | Notes |
+|---|---|---|
+| `/` | `web:3000` | Next.js Web App |
+| `/api/*` | `api:5000` | REST API |
+| `/hub/*` | `api:5000` | SignalR WebSocket |
+| `minio.*` | `minio:9001` | MinIO Console (optional) |
+
+### Data volumes (persistent)
+
+| Volume | Contains |
 |---|---|
-| `shopfloor.factory.local` | Web App (Next.js) |
-| `shopfloor.factory.local/api/*` | REST API |
-| `shopfloor.factory.local/hub/*` | SignalR |
+| `postgres_data` | All application data |
+| `minio_data` | Drawings, G-code, PDFs, CAD files |
+| `mosquitto_data` | MQTT retained messages |
+| `mosquitto_logs` | Mosquitto broker logs |
 
-Desktop App deployment: build with `dotnet publish`, distribute the output folder to each CNC machine PC. Edit `local.json` per machine (API URL, machine code, machine name).
+### Desktop App deployment
 
-> **Note:** `clients/web/Dockerfile` is not yet created — needed before deploying the web service via Docker Compose.
+The Desktop MES app is a Windows-only WPF application deployed manually to each CNC machine PC:
+
+```bash
+# Build a self-contained publish (on Windows)
+dotnet publish src/ShopfloorManager.Desktop \
+  -c Release -r win-x64 --self-contained \
+  -o publish/desktop
+
+# Copy publish/desktop/ to each CNC machine PC
+# Then edit local.json on each machine:
+# {
+#   "ApiBaseUrl": "http://shopfloor.factory.local/api",
+#   "MachineCode": "CNC-LINE1-01",
+#   "MachineName": "MAZAK QTN-350 #1"
+# }
+```
+
+> **Note:** `clients/web/Dockerfile` is not yet created — the `web` service in `docker-compose.yml` requires it before production deployment of the web app.
 
 ---
 
