@@ -20,6 +20,12 @@ public partial class MainViewModel : ViewModelBase
     [ObservableProperty]
     private ViewModelBase? _currentPage;
 
+    private void SetPage(ViewModelBase vm)
+    {
+        CurrentPage?.Cleanup();
+        CurrentPage = vm;
+    }
+
     public MainViewModel(IServiceProvider sp, WorkContext work, INavigationService nav, IKeyboardService keyboard, AppSettings settings)
     {
         _sp       = sp;
@@ -39,7 +45,7 @@ public partial class MainViewModel : ViewModelBase
         var vm = _sp.GetRequiredService<DashboardViewModel>();
         vm.NavigateTo = HandleDashboardNavigation;
         vm.Initialize();
-        CurrentPage = vm;
+        SetPage(vm);
     }
 
     private void HandleDashboardNavigation(string target)
@@ -50,6 +56,7 @@ public partial class MainViewModel : ViewModelBase
             case "ops":      NavigateToOps();           break;
             case "products": NavigateToProducts();      break;
             case "fai":      NavigateToFai();           break;
+            case "fai-final": NavigateToFaiFinal();    break;
             case "gcode":
             case "drawing":
             case "fixture":
@@ -75,7 +82,7 @@ public partial class MainViewModel : ViewModelBase
             NavigateToOps();
         };
         vm.OnBack = NavigateToDashboard;
-        CurrentPage = vm;
+        SetPage(vm);
         _ = vm.InitializeAsync();
     }
 
@@ -99,7 +106,7 @@ public partial class MainViewModel : ViewModelBase
             _browseOp = op;
             NavigateToProducts();
         };
-        CurrentPage = vm;
+        SetPage(vm);
         _ = vm.InitializeAsync(job);
     }
 
@@ -127,7 +134,7 @@ public partial class MainViewModel : ViewModelBase
             vm.OnProductSelected = _ => NavigateToDashboard();
             vm.IsViewMode = false;
         }
-        CurrentPage = vm;
+        SetPage(vm);
         _ = vm.InitializeAsync(job, op);
     }
 
@@ -136,7 +143,6 @@ public partial class MainViewModel : ViewModelBase
     public void NavigateToFai()
     {
         _keyboard.Hide();
-        // FAI chỉ khả dụng trong Operation Mode khi session đã được bắt đầu (StartedAt có giá trị)
         if (_work.CurrentJob is null || _work.CurrentOp is null || _work.CurrentProduct is null
             || _work.ActiveSession?.StartedAt.HasValue != true)
         {
@@ -146,7 +152,26 @@ public partial class MainViewModel : ViewModelBase
         var vm = _sp.GetRequiredService<FaiViewModel>();
         vm.OnBack = NavigateToDashboard;
         vm.OnDimensionFail = ShowNcrDialog;
-        CurrentPage = vm;
+        SetPage(vm);
+        _ = vm.InitializeAsync();
+    }
+
+    // ===== FAI Final (re-inspect sau rework) =====
+
+    public void NavigateToFaiFinal()
+    {
+        _keyboard.Hide();
+        if (_work.CurrentJob is null || _work.CurrentOp is null || _work.CurrentProduct is null
+            || _work.ActiveSession?.StartedAt.HasValue != true)
+        {
+            NavigateToDashboard();
+            return;
+        }
+        var vm = _sp.GetRequiredService<FaiViewModel>();
+        vm.IsFinalMode = true;
+        vm.OnBack = NavigateToDashboard;
+        vm.OnDimensionFail = ShowNcrDialog;
+        SetPage(vm);
         _ = vm.InitializeAsync();
     }
 
@@ -160,7 +185,7 @@ public partial class MainViewModel : ViewModelBase
         if (job is null || op is null) { NavigateToDashboard(); return; }
         var vm = _sp.GetRequiredService<DocumentViewerViewModel>();
         vm.OnBack = NavigateToDashboard;
-        CurrentPage = vm;
+        SetPage(vm);
         _ = vm.InitializeAsync(job, op);
     }
 
@@ -172,7 +197,7 @@ public partial class MainViewModel : ViewModelBase
         var vm = _sp.GetRequiredService<SettingsViewModel>();
         vm.OnBack = NavigateToDashboard;
         vm.Initialize();
-        CurrentPage = vm;
+        SetPage(vm);
     }
 
     private void ShowNcrDialog(NcrTriggerArgs args)

@@ -161,7 +161,9 @@ public class CreateDimensionCommandHandler(IShopfloorDbContext db)
 
 public record SaveMeasureCommand(
     long DimensionId, int ProductId, decimal? Value,
-    bool? ManualResult,   // Dùng cho text dimension — true=Pass, false=Fail
+    bool? ManualResult,    // Dùng cho text dimension — true=Pass, false=Fail
+    bool IsFinal,          // true khi re-inspect sau rework (FAI Final)
+    int? FinalOpId,
     string? Note, int RequesterId)
     : IRequest<Result<MeasureValueDto>>;
 
@@ -170,7 +172,7 @@ public record MeasureValueDto(
     int ProductId, string SerialNumber, int PartOpId,
     decimal? Value, string Result, string? Note, DateTimeOffset MeasuredAt);
 
-public class SaveMeasureCommandHandler(IShopfloorDbContext db)
+public class SaveMeasureCommandHandler(IShopfloorDbContext db, IRealtimeNotifier realtime)
     : IRequestHandler<SaveMeasureCommand, Result<MeasureValueDto>>
 {
     public async Task<Result<MeasureValueDto>> Handle(SaveMeasureCommand req, CancellationToken ct)
@@ -185,7 +187,6 @@ public class SaveMeasureCommandHandler(IShopfloorDbContext db)
         MeasureResult result;
         if (dim.IsTextType)
         {
-            // Text dimension: operator chọn Pass/Fail thủ công
             result = req.ManualResult == true ? MeasureResult.Pass : MeasureResult.Fail;
         }
         else
@@ -203,13 +204,17 @@ public class SaveMeasureCommandHandler(IShopfloorDbContext db)
             DimensionId = req.DimensionId, ProductId = req.ProductId,
             PartOpId = dim.PartOpId,
             Value = req.Value, Result = result, Note = req.Note,
+            IsFinal = req.IsFinal, FinalOpId = req.FinalOpId,
             MeasuredBy = req.RequesterId
         };
         db.MeasureValues.Add(mv);
         await db.SaveChangesAsync(ct);
 
-        return Result.Ok(new MeasureValueDto(mv.Id, dim.Id, dim.BalloonNumber,
+        var dto = new MeasureValueDto(mv.Id, dim.Id, dim.BalloonNumber,
             req.ProductId, product.SerialNumber, dim.PartOpId,
-            req.Value, result.ToString(), req.Note, mv.MeasuredAt));
+            req.Value, result.ToString(), req.Note, mv.MeasuredAt);
+
+        await realtime.NotifyMeasureSubmittedAsync(dto, ct);
+        return Result.Ok(dto);
     }
 }

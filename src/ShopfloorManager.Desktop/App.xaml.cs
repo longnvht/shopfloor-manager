@@ -56,6 +56,7 @@ public partial class App : Application
         // Services (singleton so token persists across navigations)
         services.AddSingleton<IAuthService, AuthService>();
         services.AddSingleton<IKeyboardService, KeyboardService>();
+        services.AddSingleton<ISignalRService, SignalRService>();
         services.AddSingleton<WorkContext>();           // Work state shared across pages
         services.AddSingleton<NavigationService>();
         services.AddSingleton<INavigationService>(sp => sp.GetRequiredService<NavigationService>());

@@ -18,6 +18,16 @@ public partial class FaiViewModel : Base.ViewModelBase
     public PartOpDto?              Op      { get; private set; }
     public ProductWithSessionDto?  Product { get; private set; }
 
+    /// <summary>
+    /// true = FAI Final mode: re-inspect sau rework, chỉ hiển thị Fail dims,
+    /// chỉ QC Inspector, lưu với IsFinal=true.
+    /// </summary>
+    public bool IsFinalMode { get; set; }
+
+    public string PageTitle => IsFinalMode
+        ? "NHẬP KẾT QUẢ ĐO (FAI FINAL)"
+        : "NHẬP KẾT QUẢ ĐO (FAI)";
+
     public string TitleContext => Product is null ? "" :
         $"{Job?.JobNumber}  ·  OP {Op?.OpNumber}  ·  S/N: {Product.SerialNumber}";
 
@@ -45,7 +55,11 @@ public partial class FaiViewModel : Base.ViewModelBase
     public bool ShowPlaceholder  => SelectedDimension is null;
     public bool ShowNumericInput => SelectedDimension is { IsTextType: false };
     public bool ShowTextInput    => SelectedDimension is { IsTextType: true };
-    public bool IsInputLocked    => SelectedDimension?.IsMeasured == true;
+    // Normal FAI: lock sau bất kỳ lần đo nào.
+    // FAI Final: chỉ lock khi Pass (Fail dims vẫn cho phép đo lại).
+    public bool IsInputLocked    => IsFinalMode
+        ? SelectedDimension?.State == MeasureState.Pass
+        : SelectedDimension?.IsMeasured == true;
     public bool IsInputEnabled   => !IsInputLocked;
 
     public Action? OnBack { get; set; }
@@ -127,12 +141,23 @@ public partial class FaiViewModel : Base.ViewModelBase
                 });
             }
 
+            // FAI Final: chỉ giữ lại dims có trạng thái Fail để re-inspect
+            if (IsFinalMode)
+            {
+                var failDims = Dimensions.Where(d => d.State == MeasureState.Fail).ToList();
+                Dimensions.Clear();
+                foreach (var d in failDims) Dimensions.Add(d);
+            }
+
             RefreshProgress();
 
             if (!Dimensions.Any())
-                ErrorMessage = "OP này chưa có kích thước nào được định nghĩa.";
+                ErrorMessage = IsFinalMode
+                    ? "Không có kích thước nào ở trạng thái FAIL để re-inspect."
+                    : "OP này chưa có kích thước nào được định nghĩa.";
             else
-                SelectedDimension = Dimensions.FirstOrDefault(d => !d.IsMeasured);
+                SelectedDimension = Dimensions.FirstOrDefault(d =>
+                    IsFinalMode ? d.State == MeasureState.Fail : !d.IsMeasured);
         }
         catch (Exception ex) { ErrorMessage = $"Lỗi: {ex.Message}"; }
         finally { IsBusy = false; }
@@ -184,6 +209,7 @@ public partial class FaiViewModel : Base.ViewModelBase
                 ProductId    = Product!.ProductId,
                 Value        = value,
                 ManualResult = manualResult,
+                IsFinal      = IsFinalMode,
                 Note         = (string?)null
             };
 
@@ -209,7 +235,9 @@ public partial class FaiViewModel : Base.ViewModelBase
             }
 
             InputValue        = "";
-            SelectedDimension = Dimensions.FirstOrDefault(d => !d.IsMeasured);
+            SelectedDimension = IsFinalMode
+                ? Dimensions.FirstOrDefault(d => d.State == MeasureState.Fail)
+                : Dimensions.FirstOrDefault(d => !d.IsMeasured);
             RefreshProgress();
         }
         catch (Exception ex) { ErrorMessage = $"Lỗi: {ex.Message}"; }

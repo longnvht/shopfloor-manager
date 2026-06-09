@@ -14,6 +14,7 @@ public partial class LoginViewModel : ViewModelBase
     private readonly IApiClient _api;
     private readonly WorkContext _work;
     private readonly AppSettings _settings;
+    private readonly ISignalRService _signalR;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(LoginCommand))]
@@ -24,13 +25,14 @@ public partial class LoginViewModel : ViewModelBase
     private string _password = string.Empty;
 
     public LoginViewModel(IAuthService auth, INavigationService nav,
-        IApiClient api, WorkContext work, AppSettings settings)
+        IApiClient api, WorkContext work, AppSettings settings, ISignalRService signalR)
     {
         _auth     = auth;
         _nav      = nav;
         _api      = api;
         _work     = work;
         _settings = settings;
+        _signalR  = signalR;
     }
 
     [RelayCommand(CanExecute = nameof(CanLogin))]
@@ -46,6 +48,9 @@ public partial class LoginViewModel : ViewModelBase
                 ErrorMessage = result.Error ?? "Đăng nhập thất bại";
                 return;
             }
+
+            // Kết nối SignalR sau khi đăng nhập thành công (non-blocking)
+            _ = _signalR.ConnectAsync(_auth.Token!, _settings.ApiBaseUrl);
 
             await DetermineAppMode();
             _nav.NavigateTo<MainViewModel>();

@@ -7,11 +7,11 @@ using QuestPDF.Infrastructure;
 using ShopfloorManager.API.Hubs;
 using ShopfloorManager.API.Infrastructure;
 using ShopfloorManager.API.Middleware;
+using ShopfloorManager.API.Services;
 using ShopfloorManager.Application;
+using ShopfloorManager.Application.Common.Interfaces;
 using ShopfloorManager.Infrastructure;
 using ShopfloorManager.Infrastructure.Data;
-using ShopfloorManager.API.Hubs;
-using ShopfloorManager.API.Services;
 using ShopfloorManager.Infrastructure.Mqtt;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -61,6 +61,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization();
 builder.Services.AddSignalR();
 builder.Services.AddMemoryCache();
+builder.Services.AddScoped<IRealtimeNotifier, SignalRNotifier>();
 
 // MQTT Background Service
 builder.Services.Configure<MqttOptions>(o => {

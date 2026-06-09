@@ -18,7 +18,7 @@ Desktop MES là ứng dụng chạy tại shop floor — trên máy tính công 
 - Tạo NCR khi sản phẩm không đạt
 - Theo dõi trạng thái sản xuất real-time
 
-## Trạng thái implement *(cập nhật 2026-05-27)*
+## Trạng thái implement *(cập nhật 2026-06-09, phase 4b hoàn tất)*
 
 | Tính năng | Trạng thái |
 |---|---|
@@ -42,9 +42,10 @@ Desktop MES là ứng dụng chạy tại shop floor — trên máy tính công 
 | DocumentViewer — G-code text viewer | ✅ Done |
 | Session constraint redesign — claim client-side, BeginSession atomically | ✅ Done |
 | Shortcut lock khi inprogress (Chọn Job/OP/SP disabled, opacity 0.4) | ✅ Done |
-| DocumentViewer — PDF viewer (Drawing, Route Card) | ⏳ Next |
-| Settings Page (Admin) | ⏳ |
-| FAI Final (re-inspect sau rework, is_final=true, chỉ QC Inspector) | ⏳ Phase 4b |
+| DocumentViewer — PDF viewer (WebView2 — Drawing, Route Card) | ✅ Done |
+| Settings Page (Admin — ApiBaseUrl, MachineCode, MachineName) | ✅ Done |
+| FAI Final (re-inspect sau rework, is_final=true, chỉ QC Inspector) | ✅ Done |
+| SignalR real-time notifications (NCR banner trên Dashboard) | ✅ Done |
 | Gage Selection trong FAI (chọn dụng cụ đo trước khi nhập) | ⏳ Phase 5 |
 
 ---

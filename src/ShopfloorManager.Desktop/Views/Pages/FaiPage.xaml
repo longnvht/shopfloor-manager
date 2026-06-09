@@ -54,9 +54,19 @@
 
         <!-- ══ TITLE BAR ══ -->
         <Border Grid.Row="0" Background="{StaticResource BrandPrimary}">
+            <Border.Style>
+                <Style TargetType="Border">
+                    <Setter Property="Background" Value="{StaticResource BrandPrimary}"/>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsFinalMode, Mode=OneWay}" Value="True">
+                            <Setter Property="Background" Value="#B71C1C"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Border.Style>
             <Grid Margin="16,0">
                 <StackPanel VerticalAlignment="Center">
-                    <TextBlock Text="NHẬP KẾT QUẢ ĐO (FAI)"
+                    <TextBlock Text="{Binding PageTitle, Mode=OneWay}"
                                Foreground="White" FontWeight="Bold" FontSize="14"/>
                     <TextBlock Text="{Binding TitleContext, Mode=OneWay}"
                                Foreground="{StaticResource BrandAccentLight}"

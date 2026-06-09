@@ -529,7 +529,7 @@ CalibRequestStatus:Pending=0, Approved=1, Completed=2, Cancelled=3
 - NcrReason: seed 7 lý do (Tool wear, Setup error, Drawing error...)
 - SPC: ISpcService + MathNet dùng MaxValue/MinValue
 
-**Phase 4 — 🔄 In progress** (bắt đầu 2026-05-21)
+**Phase 4 — ✅ Hoàn tất** (2026-05-21 → 2026-06-09)
 - Project: `ShopfloorManager.Desktop` (WPF .NET 9, trong cùng solution)
 - Spec: [`Project_Documents/14_desktop_mes.md`](Project_Documents/14_desktop_mes.md) — dựa trên phân tích Vinam-MES WinForms cũ
 - Stack: WPF + CommunityToolkit.Mvvm + MaterialDesignThemes + SignalR.Client
@@ -574,6 +574,9 @@ CalibRequestStatus:Pending=0, Approved=1, Completed=2, Cancelled=3
 - ✅ Session constraint redesign: Claim = client-side only (WorkContext, không ghi DB); chỉ `BeginSession` ghi DB (tạo + start atomically); ràng buộc per-machine chỉ áp dụng khi inprogress (`started_at IS NOT NULL`)
 - ✅ Shortcut lock khi inprogress: Operation Mode + IsWip → "Chọn Job/OP/Sản phẩm" disabled (opacity 0.4), View Mode → re-enable
 - ✅ Settings page (Admin): ApiBaseUrl, MachineCode, MachineName — edit + test connection + save to `local.json`; URL đổi → cần restart app
+- ✅ FAI Final mode: shortcut "FAI Final" visible khi Operation Mode + session started + tất cả dims đã đo + có ít nhất 1 Fail; `FaiViewModel.IsFinalMode=true` — chỉ load dims có `State=Fail`; title bar đỏ thẫm `#B71C1C`; lưu với `IsFinal=true` trong API; API: `SaveMeasureCommand` hỗ trợ `IsFinal` flag
+- ✅ SignalR real-time notifications: API `IRealtimeNotifier` interface (Application layer) + `SignalRNotifier` (API layer, dùng `IHubContext<ShopfloorHub>`); Desktop `ISignalRService` + `SignalRService` singleton; `ConnectAsync` sau login (fire-and-forget); `NcrCreated` event consumed bởi `DashboardViewModel`; banner đỏ `#B71C1C` auto-dismiss sau 8 giây
+- ✅ SetPage() pattern: `MainViewModel.SetPage(vm)` gọi `CurrentPage?.Cleanup()` trước khi switch — ngăn ghost event subscription (NcrCreated leak) khi navigate away rồi back về Dashboard
 
 **Ràng buộc ProductionSession (thiết kế mới 2026-05-27):**
 - **Claim = client-side only**: chọn product → `_work.SetProduct(product, null)` — KHÔNG ghi DB
@@ -704,6 +707,10 @@ Session của người khác trên máy:
 - **CanNavigate/CanStart (thiết kế mới)**: `CanNavigate = HasWork && !HasProduct && ActiveSession == null` (có job/op nhưng chưa chọn product); `CanStart = HasProduct && !IsWip && IsOperationMode` (đã chọn product, chưa có session). Mutual exclusion đảm bảo chỉ 1 button visible.
 - **WorkState "has-product"**: thay thế "complete" — `HasProduct && !IsWip` → `"has-product"` (đã chọn sản phẩm, chưa bắt đầu gia công). `TapWorkInfo` case "has-product" → navigate to products.
 - **Shortcut disabled khi inprogress**: `canChangeContext = IsViewMode || !IsWip` — truyền `isEnabled: canChangeContext` vào `Add()` cho 3 shortcuts "Chọn Job/OP/Sản phẩm". `UtilBtn` ControlTemplate có `Trigger IsEnabled=False → Opacity=0.4 + Cursor=Arrow`. View Mode → re-enable (thao tác trên view context).
+- **FAI Final mode**: `FaiViewModel.IsFinalMode = true` được set TRƯỚC khi gọi `SetPage(vm)`. `InitializeAsync` khi `IsFinalMode=true` chỉ load dims có `State=Fail` (dựa trên `MeasureResult.Fail` của lần đo cuối). API `SaveMeasureCommand`: `IsFinal=true` → ghi `is_final=true` vào MeasureValue. Shortcut "FAI Final": `canFaiFinal = !IsViewMode && hasProduct && sessionStarted && allMeasured && hasAnyFail`.
+- **IRealtimeNotifier pattern**: Interface `IRealtimeNotifier` định nghĩa ở Application layer (`ShopfloorManager.Application/Common/Interfaces/`); implementation `SignalRNotifier` ở API layer; đăng ký trong `Program.cs` là `services.AddScoped<IRealtimeNotifier, SignalRNotifier>()`. Inject vào MediatR handlers qua constructor.
+- **SignalR Desktop singleton**: `ISignalRService` đăng ký là **singleton** — connection và event subscriptions sống suốt vòng đời app. `DashboardViewModel` (transient) subscribe/unsubscribe `NcrCreated` trong constructor/Cleanup. `SetPage()` đảm bảo Cleanup được gọi khi navigate away.
+- **SetPage() cleanup pattern**: `MainViewModel.SetPage(vm)` → `CurrentPage?.Cleanup()` → `CurrentPage = vm`. Tất cả ViewModel phải override `Cleanup()` để unsubscribe events (đặc biệt `DashboardViewModel.NcrCreated` và `DispatcherTimer.Stop()`). Không gọi `CurrentPage = vm` trực tiếp — luôn dùng `SetPage()`.
 
 ---
 

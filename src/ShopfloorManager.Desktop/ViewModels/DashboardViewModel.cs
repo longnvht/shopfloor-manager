@@ -17,6 +17,7 @@ public partial class DashboardViewModel : ViewModelBase
     private readonly IApiClient   _api;
     private readonly INavigationService _nav;
     private readonly AppSettings  _settings;
+    private readonly ISignalRService _signalR;
 
     // ── Tracking ───────────────────────────────────────────────────────
     private readonly DateTimeOffset _appStartTime  = DateTimeOffset.Now;
@@ -27,6 +28,13 @@ public partial class DashboardViewModel : ViewModelBase
 
     // ── Daily summary (OEE data) ───────────────────────────────────────
     private DailySummaryDto? _dailySummary;
+
+    // ── SignalR notification banner ────────────────────────────────────
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSignalRNotification))]
+    private string? _signalRNotification;
+    public bool HasSignalRNotification => SignalRNotification is not null;
+    private DispatcherTimer? _notifyTimer;
 
     // ── Timer ──────────────────────────────────────────────────────────
     private DispatcherTimer? _timer;
@@ -190,15 +198,38 @@ public partial class DashboardViewModel : ViewModelBase
     public Action<string>? NavigateTo { get; set; }
 
     public DashboardViewModel(WorkContext work, IAuthService auth,
-        IApiClient api, INavigationService nav, AppSettings settings)
+        IApiClient api, INavigationService nav, AppSettings settings, ISignalRService signalR)
     {
         _work     = work;
         _auth     = auth;
         _api      = api;
         _nav      = nav;
         _settings = settings;
+        _signalR  = signalR;
 
         _work.PropertyChanged += (_, _) => RefreshWorkInfo();
+        _signalR.NcrCreated += OnNcrCreated;
+    }
+
+    private void OnNcrCreated(NcrCreatedPayload ncr)
+    {
+        System.Windows.Application.Current.Dispatcher.Invoke(() =>
+        {
+            var serial = ncr.SerialNumber is not null ? $"  S/N {ncr.SerialNumber}" : "";
+            SignalRNotification = $"NCR mới: {ncr.NcrNumber}  —  {ncr.JobNumber}{serial}";
+
+            _notifyTimer?.Stop();
+            _notifyTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(8) };
+            _notifyTimer.Tick += (_, _) => { SignalRNotification = null; _notifyTimer.Stop(); };
+            _notifyTimer.Start();
+        });
+    }
+
+    public override void Cleanup()
+    {
+        _timer?.Stop();
+        _notifyTimer?.Stop();
+        _signalR.NcrCreated -= OnNcrCreated;
     }
 
     public void Initialize()
@@ -414,9 +445,10 @@ public partial class DashboardViewModel : ViewModelBase
     [RelayCommand]
     private void Logout()
     {
-        _timer?.Stop();
+        Cleanup();
         _work.Clear();
         _auth.Logout();
+        _ = _signalR.DisconnectAsync();
         _nav.NavigateTo<LoginViewModel>();
     }
 
@@ -444,6 +476,10 @@ public partial class DashboardViewModel : ViewModelBase
         Add("Hướng dẫn CW",   "FileDocumentOutline", "routecard", when: hasOp);
         Add("Xem G-code",     "Download",            "gcode",     when: hasOp);
         Add("Bảng đo",        "ClipboardTextOutline","fai",       when: canFai);
+        if (role is "QC Inspector" or "Administrator")
+        {
+            Add("FAI Final",  "ClipboardCheckOutline","fai-final", when: canFai);
+        }
         if (role is "QC Inspector" or "Engineer" or "Administrator")
         {
             Add("Lịch sử đo", "ChartBar",   "history", when: hasProd && !_work.IsViewMode);
@@ -462,8 +498,6 @@ public partial class DashboardViewModel : ViewModelBase
         Shortcuts.Add(new ShortcutItem(title, icon,
             new RelayCommand(() => NavigateTo?.Invoke(target)), isEnabled));
     }
-
-    public void Cleanup() => _timer?.Stop();
 
     // Track product claimed
     public void OnProductClaimed() { _productsCreated++; OnPropertyChanged(nameof(ProductsCreatedDisplay)); }

@@ -35,7 +35,7 @@ public class FaiController(IMediator mediator) : ControllerBase
     {
         var result = await mediator.Send(new SaveMeasureCommand(
             req.DimensionId, req.ProductId, req.Value,
-            req.ManualResult, req.Note, UserId));
+            req.ManualResult, req.IsFinal, req.FinalOpId, req.Note, UserId));
         return result.IsSuccess
             ? Ok(ApiResponse<MeasureValueDto>.Ok(result.Value))
             : BadRequest(ApiResponse<MeasureValueDto>.Fail(result.Errors));
@@ -45,5 +45,7 @@ public class FaiController(IMediator mediator) : ControllerBase
 public record SaveMeasureRequest(
     long DimensionId, int ProductId,
     decimal? Value,
-    bool? ManualResult,   // Dùng cho text dimension
-    string? Note);
+    bool? ManualResult,    // Dùng cho text dimension
+    bool IsFinal = false,  // true khi re-inspect sau rework (FAI Final)
+    int? FinalOpId = null,
+    string? Note = null);

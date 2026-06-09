@@ -128,7 +128,7 @@ public class CreateNcrCommandValidator : AbstractValidator<CreateNcrCommand>
     }
 }
 
-public class CreateNcrCommandHandler(IShopfloorDbContext db)
+public class CreateNcrCommandHandler(IShopfloorDbContext db, IRealtimeNotifier realtime)
     : IRequestHandler<CreateNcrCommand, Result<NcrDto>>
 {
     public async Task<Result<NcrDto>> Handle(CreateNcrCommand req, CancellationToken ct)
@@ -162,14 +162,18 @@ public class CreateNcrCommandHandler(IShopfloorDbContext db)
         var raiser = await db.Users.FindAsync([req.RequesterId], ct);
         var reason = ncr.ReasonId.HasValue
             ? await db.NcrReasons.FindAsync([ncr.ReasonId.Value], ct) : null;
-        return Result.Ok(new NcrDto(
+
+        var dto = new NcrDto(
             ncr.Id, ncr.NcrNumber,
             ncr.JobId, job.JobNumber,
             ncr.ProductId, null, ncr.PartOpId, null,
             ncr.ReasonId, reason?.Name,
             ncr.DepartmentId, ncr.MachineCode,
             ncr.Description, ncr.Status.ToString(),
-            raiser?.Name ?? "", ncr.RaisedAt, null, null));
+            raiser?.Name ?? "", ncr.RaisedAt, null, null);
+
+        await realtime.NotifyNcrCreatedAsync(dto, ct);
+        return Result.Ok(dto);
     }
 }
 
