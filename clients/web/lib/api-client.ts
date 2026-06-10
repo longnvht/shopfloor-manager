@@ -209,16 +209,32 @@ export const api = {
       request<SpcDto>(`/api/v1/operations/${opId}/dimensions/${dimId}/spc`),
   },
   opTypes: {
-    list: () => request<{ id: number; code: string; name: string | null }[]>('/api/v1/op-types'),
+    list:   (activeOnly = false) => request<OpTypeDto[]>(`/api/v1/op-types?activeOnly=${activeOnly}`),
+    create: (body: { code: string; name?: string | null; description?: string | null; isActive: boolean }) =>
+      request<OpTypeDto>('/api/v1/op-types', { method: 'POST', body: JSON.stringify(body) }),
+    update: (id: number, body: { id: number; code: string; name?: string | null; description?: string | null; isActive: boolean }) =>
+      request<OpTypeDto>(`/api/v1/op-types/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   },
   dimCategories: {
-    list: () => request<{ id: number; code: string; name: string; description: string | null }[]>('/api/v1/dimension-categories'),
+    list:   (activeOnly = false) => request<DimensionCategoryDto[]>(`/api/v1/dimension-categories?activeOnly=${activeOnly}`),
+    create: (body: { code: string; name: string; description?: string | null; isActive: boolean }) =>
+      request<DimensionCategoryDto>('/api/v1/dimension-categories', { method: 'POST', body: JSON.stringify(body) }),
+    update: (id: number, body: { id: number; code: string; name: string; description?: string | null; isActive: boolean }) =>
+      request<DimensionCategoryDto>(`/api/v1/dimension-categories/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   },
   fileTypes2: {
-    list: () => request<{ id: number; code: string; name: string; folder: string; isPartNumber: boolean; isOpNumber: boolean; isJobNumber: boolean }[]>('/api/v1/tech-documents/file-types'),
+    list:   (activeOnly = false) => request<FileTypeDto[]>(`/api/v1/tech-documents/file-types?activeOnly=${activeOnly}`),
+    create: (body: Omit<FileTypeDto, 'id'>) =>
+      request<FileTypeDto>('/api/v1/tech-documents/file-types', { method: 'POST', body: JSON.stringify(body) }),
+    update: (id: number, body: FileTypeDto) =>
+      request<FileTypeDto>(`/api/v1/tech-documents/file-types/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   },
   machineGroups: {
-    list: () => request<{ id: number; code: string; name: string; machineCount: number }[]>('/api/v1/machine-groups'),
+    list:   (activeOnly = false) => request<MachineGroupDto[]>(`/api/v1/machine-groups?activeOnly=${activeOnly}`),
+    create: (body: { code: string; name: string; isActive: boolean }) =>
+      request<MachineGroupDto>('/api/v1/machine-groups', { method: 'POST', body: JSON.stringify(body) }),
+    update: (id: number, body: { id: number; code: string; name: string; isActive: boolean }) =>
+      request<MachineGroupDto>(`/api/v1/machine-groups/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   },
   dashboard: {
     overview:   () => request<unknown>('/api/v1/dashboard/overview'),
@@ -226,10 +242,14 @@ export const api = {
     quality:    (days = 30) => request<unknown>(`/api/v1/dashboard/quality?days=${days}`),
   },
   machines: {
-    list:       (activeOnly = true) => request<{ id: number; code: string; name: string; machineType: string | null }[]>(`/api/v1/machines?activeOnly=${activeOnly}`),
+    list:       (activeOnly = true) => request<MachineDto[]>(`/api/v1/machines?activeOnly=${activeOnly}`),
     status:     () => request<unknown[]>('/api/v1/machines/status'),
     statusLive: (code: string) => request<unknown>(`/api/v1/machines/${code}/status-live`),
     events:     (code: string, date?: string) => request<unknown[]>(`/api/v1/machines/${code}/events${date ? `?date=${date}` : ''}`),
+    create: (body: { code: string; name: string; machineType?: string | null; isCnc: boolean; isActive: boolean; serialNumber?: string | null }) =>
+      request<MachineDto>('/api/v1/machines', { method: 'POST', body: JSON.stringify(body) }),
+    update: (id: number, body: { id: number; code: string; name: string; machineType?: string | null; isCnc: boolean; isActive: boolean; serialNumber?: string | null }) =>
+      request<MachineDto>(`/api/v1/machines/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   },
   gages: {
     list: (params?: { search?: string; statusCode?: string; isBorrowed?: boolean }) => {
@@ -373,10 +393,19 @@ export type TechDocListDto = {
 }
 
 export type FileTypeDto = {
-  id: number; code: string; name: string; folder: string
+  id: number; code: string; name: string; folder: string | null
   isPartNumber: boolean; isRevision: boolean; isOpNumber: boolean; isJobNumber: boolean
-  isGcode: boolean; isSegment: boolean; sortOrder: number
+  isGcode: boolean; isSegment: boolean; sortOrder: number; isActive: boolean
 }
+
+export type MachineDto = {
+  id: number; code: string; name: string; machineType: string | null; isCnc: boolean
+  isActive: boolean; serialNumber: string | null
+}
+
+export type MachineGroupDto = { id: number; code: string; name: string; isActive: boolean; machineCount: number }
+export type OpTypeDto = { id: number; code: string; name: string | null; description: string | null; isActive: boolean }
+export type DimensionCategoryDto = { id: number; code: string; name: string; description: string | null; isActive: boolean }
 
 export type UploadDocBody = {
   fileTypeId: number; fileName: string

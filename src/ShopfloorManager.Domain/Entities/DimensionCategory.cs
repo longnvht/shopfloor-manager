@@ -10,6 +10,7 @@ public class DimensionCategory
     public string Code { get; set; } = string.Empty;  // LIN, ANG, THD, GEO, SFC
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
+    public bool IsActive { get; set; } = true;
 
     public ICollection<Dimension> Dimensions { get; set; } = [];
 }

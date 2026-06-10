@@ -906,6 +906,14 @@ Desktop app: build riêng bằng dotnet publish, deploy thủ công lên từng 
 - Fix bảng "Operations"/"Chi tiết công đoạn" trong `parts/page.tsx` và `parts/[id]/page.tsx`: đổi `minHeight: <số cố định>` → `minHeight: 0` trên `VACard`, bọc `<table>` trong `<div className="va-scroll" style={{ overflow: 'auto', height: '100%' }}>` + sticky `<th>` — theo đúng pattern đã có ở `gages`/`hr`/`documents`
 - Xem chi tiết pattern tại "Lưu ý kỹ thuật — Scroll trong layout flex" phía trên — áp dụng cho mọi trang/bảng mới sau này
 
+**Master Data CRUD** (2026-06-10)
+- Thêm `IsActive` (bool, default true) vào 4 entity trước đây thiếu: `MachineGroup`, `OpType`, `DimensionCategory`, `FileType` — migration `AddIsActiveToMasterDataLookups` (cột mới `defaultValue: true` để dữ liệu cũ không bị ẩn)
+- `MasterDataController` mới (`src/ShopfloorManager.API/Controllers/MasterDataController.cs`) — gom toàn bộ GET/POST/PUT cho 5 entity: `/api/v1/machines`, `/api/v1/machine-groups`, `/api/v1/op-types`, `/api/v1/dimension-categories`, `/api/v1/tech-documents/file-types` (`activeOnly` query param, default `false` trừ machines `true`); POST/PUT yêu cầu role Administrator
+- `LookupsController` chỉ còn Positions/UserTypes/WorkStatuses/NcrReasons — các GET op-types/dimension-categories/machines/machine-groups/file-types đã chuyển sang `MasterDataController` (tránh route trùng)
+- Application layer: `MachineCommands.cs`, `OpTypeCommands.cs`, `DimensionCategoryCommands.cs`, `FileTypeCommands.cs` (mới) + `MachineQueries.cs` cập nhật DTO thêm `IsActive`/`SerialNumber`
+- Web `/master`: nút "+ Thêm mục" + click vào dòng để sửa → `MasterItemDialog` (`components/master/master-item-dialog.tsx`) — 1 dialog dùng chung cho cả 5 tab, field theo `kind`; mỗi bảng thêm cột "Trạng thái" (`VABadge` Hoạt động/Đã ẩn)
+- `api-client.ts`: `machines`/`machineGroups`/`opTypes`/`dimCategories`/`fileTypes2` đều có `list(activeOnly)`, `create()`, `update()`; types mới `MachineDto`, `MachineGroupDto`, `OpTypeDto`, `DimensionCategoryDto`, `FileTypeDto` (thêm `isActive`)
+
 **Phase 6 chi tiết:**
 - Multi-factory support (FactoryId đã chuẩn bị trên Machine entity)
 - Migration tool: MySQL → PostgreSQL (C# console app, đọc từ DB cũ)
