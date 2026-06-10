@@ -3,7 +3,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:md="http://materialdesigninxaml.net/winfx/xaml/themes"
         xmlns:kb="clr-namespace:ShopfloorManager.Desktop.Behaviors"
-        Title="Shopfloor Manager — Đăng nhập"
+        xmlns:loc="clr-namespace:ShopfloorManager.Desktop.Localization"
+        Title="{loc:Loc Key=Login_WindowTitle}"
         Width="420" Height="520"
         WindowStartupLocation="CenterScreen"
         ResizeMode="NoResize"
@@ -21,11 +22,11 @@
 
             <!-- Header -->
             <StackPanel Grid.Row="0" Margin="40,40,40,20" HorizontalAlignment="Center">
-                <TextBlock Text="SHOPFLOOR MANAGER"
+                <TextBlock Text="{loc:Loc Key=Login_AppName}"
                            Style="{StaticResource MaterialDesignHeadline5TextBlock}"
                            FontWeight="Bold"
                            HorizontalAlignment="Center"/>
-                <TextBlock Text="Desktop MES"
+                <TextBlock Text="{loc:Loc Key=Login_AppSubtitle}"
                            Style="{StaticResource MaterialDesignSubtitle1TextBlock}"
                            Foreground="{DynamicResource MaterialDesign.Brush.Secondary}"
                            HorizontalAlignment="Center"
@@ -36,13 +37,13 @@
             <StackPanel Grid.Row="1" Margin="40,0" VerticalAlignment="Center">
                 <TextBox Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}"
                          kb:KeyboardBehavior.Mode="Qwerty"
-                         md:HintAssist.Hint="Tên đăng nhập"
+                         md:HintAssist.Hint="{loc:Loc Key=Login_UsernameHint}"
                          md:HintAssist.IsFloating="True"
                          Style="{StaticResource MaterialDesignOutlinedTextBox}"
                          IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBoolConverter}}"/>
 
                 <PasswordBox Margin="0,16,0,0"
-                             md:HintAssist.Hint="Mật khẩu"
+                             md:HintAssist.Hint="{loc:Loc Key=Login_PasswordHint}"
                              md:HintAssist.IsFloating="True"
                              Style="{StaticResource MaterialDesignOutlinedPasswordBox}"
                              md:PasswordBoxAssist.Password="{Binding Password, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
@@ -54,7 +55,7 @@
                            Visibility="{Binding ErrorMessage, Converter={StaticResource StringToVisibilityConverter}}"
                            TextWrapping="Wrap"/>
 
-                <Button Content="ĐĂNG NHẬP"
+                <Button Content="{loc:Loc Key=Login_LoginButton}"
                         Command="{Binding LoginCommand}"
                         Style="{StaticResource MaterialDesignRaisedButton}"
                         md:ButtonAssist.CornerRadius="6"

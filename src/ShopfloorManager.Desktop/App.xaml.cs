@@ -2,6 +2,7 @@ using System.Windows;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using ShopfloorManager.Desktop.Configuration;
+using ShopfloorManager.Desktop.Localization;
 using ShopfloorManager.Desktop.Services;
 using ShopfloorManager.Desktop.ViewModels;
 using ShopfloorManager.Desktop.ViewModels.Base;
@@ -25,6 +26,8 @@ public partial class App : Application
 
         var settings = config.Get<AppSettings>() ?? new AppSettings();
 
+        LocalizationManager.Instance.SetLanguage(settings.Language);
+
         var services = new ServiceCollection();
         ConfigureServices(services, settings);
         _sp = services.BuildServiceProvider();
@@ -44,6 +47,7 @@ public partial class App : Application
     {
         // Config
         services.AddSingleton(settings);
+        services.AddSingleton(LocalizationManager.Instance);
 
         // HTTP — singleton để token được share giữa tất cả services
         services.AddSingleton<System.Net.Http.HttpClient>(_ => new System.Net.Http.HttpClient

@@ -2,32 +2,34 @@
 
 import { useState, useEffect } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { va } from '@/lib/va-tokens'
 import { useAuthStore } from '@/stores/auth.store'
+import { VALangSwitcher } from './lang-switcher'
 
 // ── Navigation map ────────────────────────────────────────────────────────
 // live: true  → route exists, clickable
 // live: false → phase 5/6, shows "SOON"
 const VA_NAV = [
-  { group: 'Tổng quan', items: [
-    { id: 'dashboard', label: 'Dashboard',          ico: '▦', href: '/dashboard',   live: true  },
+  { groupKey: 'overview', items: [
+    { id: 'dashboard', labelKey: 'dashboard', ico: '▦', href: '/dashboard',   live: true  },
   ]},
-  { group: 'Sản xuất', items: [
-    { id: 'parts',     label: 'Chi tiết kỹ thuật',  ico: '⊟', href: '/parts',       live: true  },
-    { id: 'jobs',      label: 'Lệnh SX & Sản phẩm', ico: '◫', href: '/jobs',        live: true  },
-    { id: 'planning',  label: 'Lập kế hoạch',        ico: '▤', href: '/planning',    live: true  },
-    { id: 'cnc',       label: 'CNC Live',            ico: '◈', href: '/cnc',         live: true  },
+  { groupKey: 'production', items: [
+    { id: 'parts',     labelKey: 'parts',     ico: '⊟', href: '/parts',       live: true  },
+    { id: 'jobs',      labelKey: 'jobs',      ico: '◫', href: '/jobs',        live: true  },
+    { id: 'planning',  labelKey: 'planning',  ico: '▤', href: '/planning',    live: true  },
+    { id: 'cnc',       labelKey: 'cnc',       ico: '◈', href: '/cnc',         live: true  },
   ]},
-  { group: 'Chất lượng', items: [
-    { id: 'fai',       label: 'FAI & Đo kiểm',ico: '◉', href: '/fai',         live: true  },
-    { id: 'ncr',       label: 'NCR',          ico: '⊘', href: '/ncrs',        live: true  },
-    { id: 'gage',      label: 'Dụng cụ đo',   ico: '⊡', href: '/gages',       live: true  },
-    { id: 'calib',     label: 'Hiệu chuẩn',   ico: '⟲', href: '/calibration', live: true  },
+  { groupKey: 'quality', items: [
+    { id: 'fai',       labelKey: 'fai',       ico: '◉', href: '/fai',         live: true  },
+    { id: 'ncr',       labelKey: 'ncr',       ico: '⊘', href: '/ncrs',        live: true  },
+    { id: 'gage',      labelKey: 'gage',      ico: '⊡', href: '/gages',       live: true  },
+    { id: 'calib',     labelKey: 'calib',     ico: '⟲', href: '/calibration', live: true  },
   ]},
-  { group: 'Hệ thống', items: [
-    { id: 'docs',      label: 'Tài liệu KT',  ico: '◰', href: '/documents',   live: true  },
-    { id: 'hr',        label: 'Nhân sự',      ico: '◌', href: '/hr',          live: true  },
-    { id: 'master',    label: 'Master data',  ico: '⊞', href: '/master',      live: true  },
+  { groupKey: 'system', items: [
+    { id: 'docs',      labelKey: 'docs',      ico: '◰', href: '/documents',   live: true  },
+    { id: 'hr',        labelKey: 'hr',        ico: '◌', href: '/hr',          live: true  },
+    { id: 'master',    labelKey: 'master',    ico: '⊞', href: '/master',      live: true  },
   ]},
 ]
 
@@ -38,6 +40,8 @@ function initials(name: string): string {
 export function VASidebar() {
   const pathname  = usePathname()
   const router    = useRouter()
+  const t         = useTranslations('nav')
+  const tCommon   = useTranslations('common')
   const { user, logout } = useAuthStore()
   // Avoid Zustand persist hydration mismatch — only render user info after mount
   const [mounted, setMounted] = useState(false)
@@ -71,7 +75,7 @@ export function VASidebar() {
         <div>
           <div style={{ fontSize: 13.5, fontWeight: 700, letterSpacing: 0.4 }}>SHOPFLOOR</div>
           <div style={{ fontSize: 9.5, color: va.accentLt, letterSpacing: 1.6, textTransform: 'uppercase' }}>
-            Manager · Office
+            {t('subtitle')}
           </div>
         </div>
       </div>
@@ -79,13 +83,13 @@ export function VASidebar() {
       {/* Nav groups */}
       <div className="va-scroll" style={{ flex: 1, overflow: 'auto', padding: '10px 10px 14px' }}>
         {VA_NAV.map(sec => (
-          <div key={sec.group} style={{ marginBottom: 12 }}>
+          <div key={sec.groupKey} style={{ marginBottom: 12 }}>
             <div style={{
               fontSize: 9.5, color: 'rgba(255,255,255,0.42)',
               letterSpacing: 1.4, textTransform: 'uppercase',
               padding: '4px 8px 6px', fontWeight: 600,
             }}>
-              {sec.group}
+              {t(`groups.${sec.groupKey}`)}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
               {sec.items.map(it => {
@@ -107,9 +111,9 @@ export function VASidebar() {
                     <span style={{ width: 15, textAlign: 'center', color: on ? va.accent : 'inherit', fontSize: 13, opacity: it.live ? 1 : 0.5 }}>
                       {it.ico}
                     </span>
-                    <span style={{ flex: 1, fontWeight: on ? 600 : 400 }}>{it.label}</span>
+                    <span style={{ flex: 1, fontWeight: on ? 600 : 400 }}>{t(`items.${it.labelKey}`)}</span>
                     {!it.live && (
-                      <span style={{ fontSize: 8, color: 'rgba(255,255,255,0.3)', letterSpacing: 0.5 }}>SOON</span>
+                      <span style={{ fontSize: 8, color: 'rgba(255,255,255,0.3)', letterSpacing: 0.5 }}>{tCommon('soon')}</span>
                     )}
                   </div>
                 )
@@ -117,6 +121,14 @@ export function VASidebar() {
             </div>
           </div>
         ))}
+      </div>
+
+      {/* Language switcher */}
+      <div style={{
+        padding: '10px 14px', borderTop: '1px solid rgba(255,255,255,0.08)',
+        display: 'flex', justifyContent: 'flex-end',
+      }}>
+        <VALangSwitcher />
       </div>
 
       {/* User footer — only render after client hydration to avoid Zustand persist mismatch */}
@@ -142,7 +154,7 @@ export function VASidebar() {
         </div>
         <button
           onClick={handleLogout}
-          title="Đăng xuất"
+          title={tCommon('logout')}
           style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.5)', fontSize: 14, padding: 2 }}
         >
           ⏻

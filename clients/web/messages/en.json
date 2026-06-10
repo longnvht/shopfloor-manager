@@ -1,0 +1,78 @@
+{
+  "common": {
+    "logout": "Log out",
+    "soon": "SOON"
+  },
+  "nav": {
+    "subtitle": "Manager · Office",
+    "groups": {
+      "overview": "Overview",
+      "production": "Production",
+      "quality": "Quality",
+      "system": "System"
+    },
+    "items": {
+      "dashboard": "Dashboard",
+      "parts": "Engineering Data",
+      "jobs": "Jobs & Products",
+      "planning": "Planning",
+      "cnc": "CNC Live",
+      "fai": "FAI & Inspection",
+      "ncr": "NCR",
+      "gage": "Gages",
+      "calib": "Calibration",
+      "docs": "Tech Documents",
+      "hr": "HR",
+      "master": "Master Data"
+    }
+  },
+  "dashboard": {
+    "title": "Production Dashboard",
+    "breadcrumb": "Plant · {date}",
+    "period": {
+      "day": "Day",
+      "week": "Week",
+      "month": "Month",
+      "quarter": "Quarter"
+    },
+    "kpi": {
+      "machinesRunning": "Machines running",
+      "machinesUnit": "machines",
+      "activeJobs": "Active jobs",
+      "passRate": "FAI pass rate",
+      "openNcrs": "Open NCRs",
+      "openNcrsSub": "needs action",
+      "doneToday": "Completed today"
+    },
+    "machineStatus": {
+      "title": "CNC Machine Status",
+      "sub": "Real-time via MQTT",
+      "connected": "Connected",
+      "noData": "No machine data yet. MDC Agent not connected.",
+      "alarm": "ALARM",
+      "running": "RUNNING",
+      "off": "OFF",
+      "idle": "IDLE",
+      "offline": "Machine off · out of shift"
+    },
+    "production": {
+      "title": "Production Overview",
+      "activeJobs": "Jobs running",
+      "completedThisMonth": "Completed this month",
+      "totalSerials": "Total serials",
+      "avgProgress": "Avg. progress",
+      "gagesExpired": "Expired/damaged gages",
+      "pendingCalib": "Pending calib requests"
+    },
+    "quality": {
+      "title": "Quality (30 days)",
+      "passRateLabel": "Pass rate",
+      "totalMeasured": "Total measured",
+      "pass": "Pass",
+      "fail": "Fail",
+      "openNcrs": "Open NCRs",
+      "closedThisMonth": "NCRs closed this month",
+      "noData": "No inspection data yet."
+    }
+  }
+}

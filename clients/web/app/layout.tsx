@@ -1,5 +1,7 @@
 import type { Metadata } from 'next'
 import { Inter, Fraunces, JetBrains_Mono } from 'next/font/google'
+import { NextIntlClientProvider } from 'next-intl'
+import { getLocale } from 'next-intl/server'
 import './globals.css'
 
 const inter = Inter({
@@ -26,15 +28,19 @@ export const metadata: Metadata = {
   description: 'Factory management system for CNC machining shops',
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const locale = await getLocale()
+
   return (
     <html
-      lang="vi"
+      lang={locale}
       className={`${inter.variable} ${fraunces.variable} ${jetbrainsMono.variable} h-full`}
     >
-      <body className="h-full">{children}</body>
+      <body className="h-full">
+        <NextIntlClientProvider>{children}</NextIntlClientProvider>
+      </body>
     </html>
   )
 }

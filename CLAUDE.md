@@ -250,6 +250,45 @@ clients/web/
 
 ---
 
+## i18n — English + Tiếng Việt
+
+Hệ thống hỗ trợ 2 ngôn ngữ: **English** và **Tiếng Việt**. Web dùng `next-intl`, Desktop dùng RESX + custom `MarkupExtension`. Hạ tầng đã hoàn chỉnh — các trang/màn hình chưa dịch vẫn hardcode tiếng Việt, dịch dần theo pattern dưới đây.
+
+### Web (`clients/web`) — next-intl
+
+- **Cookie-based locale** (`NEXT_LOCALE`, không dùng URL prefix `/en/...`) — set qua Server Action `app/actions/locale.ts` (`setLocale('en'|'vi')`, maxAge 1 năm)
+- `i18n/request.ts`: `getRequestConfig()` đọc cookie → load `messages/{locale}.json`; `next.config.ts` wrap bằng `createNextIntlPlugin('./i18n/request.ts')`
+- `app/layout.tsx` (Server Component, async): đọc `getLocale()`/`getMessages()`, set `<html lang={locale}>`, wrap `{children}` trong `<NextIntlClientProvider>`
+- `components/va/lang-switcher.tsx` (`VALangSwitcher`) — đặt trong `VASidebar` footer, mọi route đều thấy
+
+**Đã dịch (pattern mẫu):** `components/va/sidebar.tsx` (namespace `nav` + `common`), `app/(main)/dashboard/page.tsx` (namespace `dashboard`)
+**Chưa dịch (theo cùng pattern):** `/jobs`, `/parts`, `/fai`, `/ncrs`, `/gages`, `/calibration`, `/documents`, `/hr`, `/master`, `/planning`, `/cnc`, `/(auth)/login`
+
+**Cách thêm trang mới:**
+1. Thêm namespace mới (tên route, vd `jobs`) vào CẢ `messages/vi.json` VÀ `messages/en.json` — cùng cấu trúc key, khác giá trị
+2. Trong component: `"use client"` + `const t = useTranslations('jobs')` → `t('title')`, `t('table.status')`...
+3. Date/time format theo locale: `useLocale()` → `new Date().toLocaleDateString(locale === 'vi' ? 'vi-VN' : 'en-US', {...})`
+4. Key động (vd label trong array/map) dùng pattern `t(\`group.${key}\`)` — xem `dashboard/page.tsx` production/quality cards
+
+### Desktop (`src/ShopfloorManager.Desktop`) — RESX + MarkupExtension
+
+- `Resources/Strings.resx` (default = **Tiếng Việt**, fallback) + `Resources/Strings.en-US.resx` (English satellite) — cùng key set, hand-written `Strings.Designer.cs` (không cần VS ResX code-generator; .NET SDK tự glob `**/*.resx` làm `EmbeddedResource` và build satellite assembly `en-US/ShopfloorManager.Desktop.resources.dll`)
+- `Localization/LocalizationManager.cs` — singleton `INotifyPropertyChanged`, indexer `this[string key]`, `SetLanguage("vi"|"en")` set `Strings.Culture` + raise `PropertyChanged("Item[]")` để mọi binding indexer tự refresh (live switch, không cần restart)
+- `Localization/LocExtension.cs` — `{loc:Loc Key=...}` MarkupExtension, dùng trong XAML
+- `AppSettings.Language` ("vi"|"en", default "vi") — load từ `local.json`, áp dụng tại `App.xaml.cs OnStartup` qua `LocalizationManager.Instance.SetLanguage(settings.Language)`; `LocalizationManager.Instance` đăng ký singleton trong DI
+
+**Đã dịch (pattern mẫu):** `Views/LoginWindow.xaml`, `Views/Pages/SettingsPage.xaml` + `ViewModels/SettingsViewModel.cs` (gồm section "NGÔN NGỮ" — 2 nút Tiếng Việt/English, đổi ngay lập tức + lưu vào `local.json`)
+**Chưa dịch (theo cùng pattern):** `DashboardPage.xaml`, `JobListPage.xaml`, `OperationPage.xaml`, `ProductListPage.xaml`, `FaiPage.xaml`, `DocumentViewerPage.xaml`, `NcrDialogWindow.xaml`, virtual keyboards
+
+**Cách thêm key mới:**
+1. Đặt tên key theo convention `<Page>_<Element>` (vd `Settings_SaveButton`, `Login_UsernameHint`)
+2. Thêm `<data name="Key" xml:space="preserve"><value>...</value></data>` vào CẢ `Strings.resx` (tiếng Việt) VÀ `Strings.en-US.resx` (tiếng Anh)
+3. Trong XAML: thêm `xmlns:loc="clr-namespace:ShopfloorManager.Desktop.Localization"` vào root, dùng `Text="{loc:Loc Key=...}"` / `Content="{loc:Loc Key=...}"` / `md:HintAssist.Hint="{loc:Loc Key=...}"`
+4. Trong code-behind/ViewModel (status messages, không phải binding): `LocalizationManager.Instance["Key"]` hoặc inject `LocalizationManager` qua DI; placeholder `{0}` dùng `string.Format(_loc["Key"], value)`
+5. Computed/read-only property binding trong WPF mặc định TwoWay — `{loc:Loc}` đã set `Mode=OneWay` sẵn nên không cần thêm
+
+---
+
 ## Architecture (.NET)
 
 Clean Architecture with 4 layers. **Dependency direction: API → Application → Domain ← Infrastructure**.
@@ -728,6 +767,13 @@ Session của người khác trên máy:
 - **Lưu ý dữ liệu dev DB**: `gage_types` (36 dòng) và `gage_locations` (89 dòng) đã có sẵn dữ liệu thực import từ legacy MySQL (không phải seed migration) — KHÔNG seed thêm vào 2 bảng này để tránh đụng PK. `gages` cũng đã có 85 dòng thực.
 - **Phát hiện cần điều tra riêng**: `gage_locations` (89 dòng) chứa toàn mã máy/process (300-1, ASY, ENG1-6, GAGE ROOM, WDP...) — giống dữ liệu `machine_groups`/Epicor ResourceGroup hơn là "vị trí lưu trữ gage". `machine_groups` hiện đang trống (0 dòng). Có thể import trước đó đã ghi nhầm bảng — cần xem lại khi làm `17_machines_equipment.md` / migration tool.
 - **GET /api/v1/borrow-transactions**: `GetBorrowTransactionsQueryHandler` trong `GageQueries.cs` — dùng bởi web `handleReturn()` để tìm `BorrowTransaction` đang `Active` theo `gageId` trước khi gọi `return`.
+
+**i18n (English + Tiếng Việt) — Hạ tầng + Pilot pages — ✅ Hoàn tất** (2026-06-10)
+- Web: cài `next-intl`; `i18n/request.ts` (cookie `NEXT_LOCALE`, default `vi`) + `messages/vi.json` + `messages/en.json`; `next.config.ts` wrap `createNextIntlPlugin`; `app/layout.tsx` async đọc `getLocale()/getMessages()`, wrap `NextIntlClientProvider`; `app/actions/locale.ts` Server Action `setLocale()`; `components/va/lang-switcher.tsx` (`VALangSwitcher`) đặt trong sidebar footer
+- Web pilot pages dịch toàn bộ: `components/va/sidebar.tsx` (namespace `nav`+`common` — toàn bộ nav groups/items + tooltip đăng xuất), `app/(main)/dashboard/page.tsx` (namespace `dashboard` — title, breadcrumb date-locale, KPI, machine status, production/quality cards)
+- Desktop: `Resources/Strings.resx` (default = Tiếng Việt) + `Resources/Strings.en-US.resx` (English satellite) + hand-written `Strings.Designer.cs`; `Localization/LocalizationManager.cs` (singleton, indexer, `SetLanguage()` live switch) + `Localization/LocExtension.cs` (`{loc:Loc Key=...}`); `AppSettings.Language` ("vi"|"en") load/save qua `local.json`, áp dụng tại `App.xaml.cs OnStartup`
+- Desktop pilot pages dịch toàn bộ: `Views/LoginWindow.xaml` (title, app name/subtitle, hint, nút đăng nhập); `Views/Pages/SettingsPage.xaml` + `ViewModels/SettingsViewModel.cs` — thêm section "NGÔN NGỮ" (2 nút Tiếng Việt/English, `SetLanguageCommand` đổi ngay lập tức + lưu `local.json`), toàn bộ label tĩnh + message (`ConnectionStatus`, `SaveStatus`) chuyển sang `{loc:Loc}`/`LocalizationManager.Instance["Key"]`
+- Pattern + danh sách trang đã/chưa dịch: xem section "i18n — English + Tiếng Việt" phía trên — dịch dần các trang còn lại theo đúng pattern này
 
 ---
 

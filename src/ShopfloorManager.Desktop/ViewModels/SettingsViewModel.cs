@@ -6,6 +6,7 @@ using System.Text.Json;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using ShopfloorManager.Desktop.Configuration;
+using ShopfloorManager.Desktop.Localization;
 using ShopfloorManager.Desktop.Models;
 using ShopfloorManager.Desktop.Services;
 using ShopfloorManager.Desktop.ViewModels.Base;
@@ -16,8 +17,11 @@ public partial class SettingsViewModel : ViewModelBase
 {
     private readonly AppSettings _settings;
     private readonly IApiClient  _api;
+    private readonly LocalizationManager _loc;
 
     [ObservableProperty] private string _apiBaseUrl  = string.Empty;
+
+    [ObservableProperty] private string _selectedLanguage = "vi";
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(TestConnectionCommand))]
@@ -43,21 +47,31 @@ public partial class SettingsViewModel : ViewModelBase
 
     public Action? OnBack { get; set; }
 
-    public SettingsViewModel(AppSettings settings, IApiClient api)
+    public SettingsViewModel(AppSettings settings, IApiClient api, LocalizationManager loc)
     {
         _settings = settings;
         _api      = api;
+        _loc      = loc;
     }
 
     public void Initialize()
     {
         ApiBaseUrl  = _settings.ApiBaseUrl;
+        SelectedLanguage = _settings.Language;
         ConnectionStatus = string.Empty;
         TestPassed  = null;
         SaveStatus  = string.Empty;
         SavePassed  = null;
         ClearError();
         _ = LoadMachinesAsync();
+    }
+
+    [RelayCommand]
+    private void SetLanguage(string lang)
+    {
+        SelectedLanguage = lang;
+        _settings.Language = lang;
+        _loc.SetLanguage(lang);
     }
 
     private async Task LoadMachinesAsync()
@@ -86,24 +100,24 @@ public partial class SettingsViewModel : ViewModelBase
     {
         IsTesting = true;
         TestPassed = null;
-        ConnectionStatus = "Đang kiểm tra...";
+        ConnectionStatus = _loc["Settings_Testing"];
         try
         {
             using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
             // GET on the login endpoint — any HTTP response means server is reachable
             var resp = await client.GetAsync(ApiBaseUrl.TrimEnd('/') + "/api/v1/auth/login");
             TestPassed = true;
-            ConnectionStatus = $"Kết nối thành công (HTTP {(int)resp.StatusCode})";
+            ConnectionStatus = string.Format(_loc["Settings_TestSuccess"], (int)resp.StatusCode);
         }
         catch (HttpRequestException ex)
         {
             TestPassed = false;
-            ConnectionStatus = $"Không kết nối được: {ex.Message}";
+            ConnectionStatus = string.Format(_loc["Settings_TestFailedConnect"], ex.Message);
         }
         catch (TaskCanceledException)
         {
             TestPassed = false;
-            ConnectionStatus = "Hết thời gian chờ (timeout 5s)";
+            ConnectionStatus = _loc["Settings_TestTimeout"];
         }
         finally { IsTesting = false; }
     }
@@ -116,7 +130,7 @@ public partial class SettingsViewModel : ViewModelBase
         if (SelectedMachine is null)
         {
             SavePassed = false;
-            SaveStatus = "Vui lòng chọn mã máy.";
+            SaveStatus = _loc["Settings_SaveSelectMachine"];
             return;
         }
 
@@ -133,19 +147,20 @@ public partial class SettingsViewModel : ViewModelBase
             {
                 ApiBaseUrl  = _settings.ApiBaseUrl,
                 MachineCode = _settings.MachineCode,
-                MachineName = _settings.MachineName
+                MachineName = _settings.MachineName,
+                Language    = _settings.Language
             }, new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(path, json);
 
             SavePassed = true;
             SaveStatus = urlChanged
-                ? "Đã lưu. Khởi động lại ứng dụng để áp dụng URL API mới."
-                : "Đã lưu cấu hình thành công.";
+                ? _loc["Settings_SaveSuccessUrlChanged"]
+                : _loc["Settings_SaveSuccess"];
         }
         catch (Exception ex)
         {
             SavePassed = false;
-            SaveStatus = $"Lỗi ghi file: {ex.Message}";
+            SaveStatus = string.Format(_loc["Settings_SaveError"], ex.Message);
         }
     }
 }

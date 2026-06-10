@@ -1,0 +1,78 @@
+{
+  "common": {
+    "logout": "Đăng xuất",
+    "soon": "SOON"
+  },
+  "nav": {
+    "subtitle": "Manager · Office",
+    "groups": {
+      "overview": "Tổng quan",
+      "production": "Sản xuất",
+      "quality": "Chất lượng",
+      "system": "Hệ thống"
+    },
+    "items": {
+      "dashboard": "Dashboard",
+      "parts": "Chi tiết kỹ thuật",
+      "jobs": "Lệnh SX & Sản phẩm",
+      "planning": "Lập kế hoạch",
+      "cnc": "CNC Live",
+      "fai": "FAI & Đo kiểm",
+      "ncr": "NCR",
+      "gage": "Dụng cụ đo",
+      "calib": "Hiệu chuẩn",
+      "docs": "Tài liệu KT",
+      "hr": "Nhân sự",
+      "master": "Master data"
+    }
+  },
+  "dashboard": {
+    "title": "Dashboard Sản xuất",
+    "breadcrumb": "Xưởng · {date}",
+    "period": {
+      "day": "Ngày",
+      "week": "Tuần",
+      "month": "Tháng",
+      "quarter": "Quý"
+    },
+    "kpi": {
+      "machinesRunning": "Máy đang chạy",
+      "machinesUnit": "máy",
+      "activeJobs": "Job đang thực hiện",
+      "passRate": "Tỉ lệ Pass FAI",
+      "openNcrs": "NCR đang mở",
+      "openNcrsSub": "cần xử lý",
+      "doneToday": "SP hoàn thành hôm nay"
+    },
+    "machineStatus": {
+      "title": "Trạng thái máy CNC",
+      "sub": "Real-time qua MQTT",
+      "connected": "Kết nối",
+      "noData": "Chưa có dữ liệu máy. MDC Agent chưa kết nối.",
+      "alarm": "ALARM",
+      "running": "ĐANG CHẠY",
+      "off": "OFF",
+      "idle": "IDLE",
+      "offline": "Máy tắt · ngoài ca"
+    },
+    "production": {
+      "title": "Tổng quan sản xuất",
+      "activeJobs": "Job đang chạy",
+      "completedThisMonth": "Hoàn thành tháng này",
+      "totalSerials": "Tổng serials",
+      "avgProgress": "% tiến độ trung bình",
+      "gagesExpired": "Gage hết hạn / hỏng",
+      "pendingCalib": "HC chờ duyệt"
+    },
+    "quality": {
+      "title": "Chất lượng (30 ngày)",
+      "passRateLabel": "Pass rate",
+      "totalMeasured": "Tổng đo kiểm",
+      "pass": "Pass",
+      "fail": "Fail",
+      "openNcrs": "NCR đang mở",
+      "closedThisMonth": "NCR đóng tháng này",
+      "noData": "Chưa có dữ liệu đo kiểm."
+    }
+  }
+}

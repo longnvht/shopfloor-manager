@@ -1,4 +1,5 @@
 export { VASidebar }  from './sidebar'
+export { VALangSwitcher } from './lang-switcher'
 export { VATopbar }   from './topbar'
 export { VABadge }    from './badge'
 export { VAKpi }      from './kpi'

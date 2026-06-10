@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+
+  <!-- Login -->
+  <data name="Login_WindowTitle" xml:space="preserve">
+    <value>Shopfloor Manager — Login</value>
+  </data>
+  <data name="Login_AppName" xml:space="preserve">
+    <value>SHOPFLOOR MANAGER</value>
+  </data>
+  <data name="Login_AppSubtitle" xml:space="preserve">
+    <value>Desktop MES</value>
+  </data>
+  <data name="Login_UsernameHint" xml:space="preserve">
+    <value>Username</value>
+  </data>
+  <data name="Login_PasswordHint" xml:space="preserve">
+    <value>Password</value>
+  </data>
+  <data name="Login_LoginButton" xml:space="preserve">
+    <value>LOG IN</value>
+  </data>
+
+  <!-- Settings -->
+  <data name="Settings_Title" xml:space="preserve">
+    <value>SETTINGS</value>
+  </data>
+  <data name="Settings_Subtitle" xml:space="preserve">
+    <value>System configuration</value>
+  </data>
+  <data name="Settings_ApiSection" xml:space="preserve">
+    <value>API CONNECTION</value>
+  </data>
+  <data name="Settings_ApiUrlLabel" xml:space="preserve">
+    <value>API server URL</value>
+  </data>
+  <data name="Settings_TestButton" xml:space="preserve">
+    <value>Test</value>
+  </data>
+  <data name="Settings_MachineSection" xml:space="preserve">
+    <value>MACHINE CONFIGURATION</value>
+  </data>
+  <data name="Settings_MachineLabel" xml:space="preserve">
+    <value>Select machine</value>
+  </data>
+  <data name="Settings_MachineHint" xml:space="preserve">
+    <value>-- Select machine code --</value>
+  </data>
+  <data name="Settings_LanguageSection" xml:space="preserve">
+    <value>LANGUAGE</value>
+  </data>
+  <data name="Settings_LanguageLabel" xml:space="preserve">
+    <value>Select display language</value>
+  </data>
+  <data name="Settings_InfoSection" xml:space="preserve">
+    <value>INFORMATION</value>
+  </data>
+  <data name="Settings_AppVersionLabel" xml:space="preserve">
+    <value>App version</value>
+  </data>
+  <data name="Settings_PlatformLabel" xml:space="preserve">
+    <value>Platform</value>
+  </data>
+  <data name="Settings_BackButton" xml:space="preserve">
+    <value>← Back</value>
+  </data>
+  <data name="Settings_SaveButton" xml:space="preserve">
+    <value>Save configuration</value>
+  </data>
+  <data name="Settings_Testing" xml:space="preserve">
+    <value>Testing...</value>
+  </data>
+  <data name="Settings_TestSuccess" xml:space="preserve">
+    <value>Connection successful (HTTP {0})</value>
+  </data>
+  <data name="Settings_TestFailedConnect" xml:space="preserve">
+    <value>Could not connect: {0}</value>
+  </data>
+  <data name="Settings_TestTimeout" xml:space="preserve">
+    <value>Timed out (5s)</value>
+  </data>
+  <data name="Settings_SaveSelectMachine" xml:space="preserve">
+    <value>Please select a machine.</value>
+  </data>
+  <data name="Settings_SaveSuccessUrlChanged" xml:space="preserve">
+    <value>Saved. Restart the app to apply the new API URL.</value>
+  </data>
+  <data name="Settings_SaveSuccess" xml:space="preserve">
+    <value>Configuration saved successfully.</value>
+  </data>
+  <data name="Settings_SaveError" xml:space="preserve">
+    <value>File write error: {0}</value>
+  </data>
+</root>
