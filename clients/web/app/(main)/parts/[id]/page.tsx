@@ -51,7 +51,7 @@ export default function PartDetailPage() {
   const partNumber = revs[0]?.partNumber ?? `Part #${partId}`
 
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: va.bg }}>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0, background: va.bg }}>
       <VATopbar
         title={loading ? '…' : partNumber}
         breadcrumb={`Sản xuất › Chi tiết kỹ thuật › ${partNumber}`}
@@ -82,7 +82,7 @@ export default function PartDetailPage() {
                 <div style={{ fontSize: 12, color: va.text2, marginBottom: 10 }}>{selectedRev.description}</div>
               )}
               {selectedRev && (
-                <Link href={`/parts/${id}/documents?partRevId=${selectedRev.id}&partNumber=${encodeURIComponent(partNumber)}&revCode=${selectedRev.revCode}`}>
+                <Link href={`/documents?partRevId=${selectedRev.id}&partNumber=${encodeURIComponent(partNumber)}&revCode=${selectedRev.revCode}&backHref=${encodeURIComponent(`/parts/${id}`)}`}>
                   <VABtn kind="ghost" style={{ height: 28, fontSize: 11 }}>Bản vẽ / CAD (Rev {selectedRev.revCode})</VABtn>
                 </Link>
               )}
@@ -111,44 +111,46 @@ export default function PartDetailPage() {
               title="Operations"
               sub={selectedRR ? `Routing ${selectedRR.revCode} · ${ops.length} OP` : ''}
               pad={false}
-              style={{ flex: 1, minHeight: 200 }}
+              style={{ flex: 1, minHeight: 0 }}
             >
-              {ops.length === 0 ? (
-                <div style={{ padding: 16, fontSize: 12, color: va.text3 }}>Chưa có operation nào.</div>
-              ) : (
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
-                  <thead>
-                    <tr style={{ background: va.surface2 }}>
-                      {['OP', 'Loại', 'Mô tả', 'Setup (h)', 'Prod (h)', 'Trạng thái', 'Tài liệu'].map((h, i) => (
-                        <th key={i} style={{ textAlign: 'left', padding: '9px 14px', fontSize: 9.5, color: va.text2, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.6, borderBottom: `1px solid ${va.border}` }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {ops.map(op => (
-                      <tr key={op.id} className="va-row va-clickable">
-                        <td style={{ padding: '10px 14px', borderBottom: `1px solid ${va.separator}` }}>
-                          <span style={{ fontFamily: va.mono, fontWeight: 700, color: va.text }}>{op.opNumber}</span>
-                        </td>
-                        <td style={{ padding: '10px 14px', borderBottom: `1px solid ${va.separator}`, color: va.text2 }}>{op.opTypeName ?? '—'}</td>
-                        <td style={{ padding: '10px 14px', borderBottom: `1px solid ${va.separator}`, color: va.text2, maxWidth: 200 }}>
-                          <span style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{op.description ?? '—'}</span>
-                        </td>
-                        <td style={{ padding: '10px 14px', borderBottom: `1px solid ${va.separator}`, fontFamily: va.mono, color: va.text2 }}>{op.setupTime ?? '—'}</td>
-                        <td style={{ padding: '10px 14px', borderBottom: `1px solid ${va.separator}`, fontFamily: va.mono, color: va.text2 }}>{op.prodTime ?? '—'}</td>
-                        <td style={{ padding: '10px 14px', borderBottom: `1px solid ${va.separator}` }}>
-                          <VABadge kind={op.isComplete ? 'ok' : 'neutral'}>{op.isComplete ? 'Done' : 'Active'}</VABadge>
-                        </td>
-                        <td style={{ padding: '10px 14px', borderBottom: `1px solid ${va.separator}` }}>
-                          <Link href={`/parts/${id}/documents?opId=${op.id}&opNumber=${op.opNumber}&partNumber=${encodeURIComponent(partNumber)}&revCode=${selectedRev?.revCode ?? ''}`}>
-                            <VABtn kind="ghost" style={{ height: 26, fontSize: 11, padding: '0 8px' }}>Tài liệu →</VABtn>
-                          </Link>
-                        </td>
+              <div className="va-scroll" style={{ overflow: 'auto', height: '100%' }}>
+                {ops.length === 0 ? (
+                  <div style={{ padding: 16, fontSize: 12, color: va.text3 }}>Chưa có operation nào.</div>
+                ) : (
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
+                    <thead>
+                      <tr style={{ background: va.surface2 }}>
+                        {['OP', 'Loại', 'Mô tả', 'Setup (h)', 'Prod (h)', 'Trạng thái', 'Tài liệu'].map((h, i) => (
+                          <th key={i} style={{ position: 'sticky', top: 0, textAlign: 'left', padding: '9px 14px', fontSize: 9.5, color: va.text2, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.6, borderBottom: `1px solid ${va.border}`, background: va.surface2, zIndex: 1 }}>{h}</th>
+                        ))}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
+                    </thead>
+                    <tbody>
+                      {ops.map(op => (
+                        <tr key={op.id} className="va-row va-clickable">
+                          <td style={{ padding: '10px 14px', borderBottom: `1px solid ${va.separator}` }}>
+                            <span style={{ fontFamily: va.mono, fontWeight: 700, color: va.text }}>{op.opNumber}</span>
+                          </td>
+                          <td style={{ padding: '10px 14px', borderBottom: `1px solid ${va.separator}`, color: va.text2 }}>{op.opTypeName ?? '—'}</td>
+                          <td style={{ padding: '10px 14px', borderBottom: `1px solid ${va.separator}`, color: va.text2, maxWidth: 200 }}>
+                            <span style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{op.description ?? '—'}</span>
+                          </td>
+                          <td style={{ padding: '10px 14px', borderBottom: `1px solid ${va.separator}`, fontFamily: va.mono, color: va.text2 }}>{op.setupTime ?? '—'}</td>
+                          <td style={{ padding: '10px 14px', borderBottom: `1px solid ${va.separator}`, fontFamily: va.mono, color: va.text2 }}>{op.prodTime ?? '—'}</td>
+                          <td style={{ padding: '10px 14px', borderBottom: `1px solid ${va.separator}` }}>
+                            <VABadge kind={op.isComplete ? 'ok' : 'neutral'}>{op.isComplete ? 'Done' : 'Active'}</VABadge>
+                          </td>
+                          <td style={{ padding: '10px 14px', borderBottom: `1px solid ${va.separator}` }}>
+                            <Link href={`/documents?partOpId=${op.id}&opNumber=${op.opNumber}&partNumber=${encodeURIComponent(partNumber)}&revCode=${selectedRev?.revCode ?? ''}&backHref=${encodeURIComponent(`/parts/${id}`)}`}>
+                              <VABtn kind="ghost" style={{ height: 26, fontSize: 11, padding: '0 8px' }}>Tài liệu →</VABtn>
+                            </Link>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
             </VACard>
           </>
         )}

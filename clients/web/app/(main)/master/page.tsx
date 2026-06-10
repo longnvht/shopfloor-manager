@@ -137,7 +137,7 @@ export default function MasterPage() {
   ]
 
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: va.bg }}>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0, background: va.bg }}>
       <VATopbar title="Master Data" breadcrumb="Hệ thống › Dữ liệu danh mục nền tảng"
         right={<VABtn kind="primary">+ Thêm mục</VABtn>} />
 

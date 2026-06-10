@@ -196,7 +196,7 @@ export default function CalibrationPage() {
   const completed = requests.filter(r => r.status === 2).length
 
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: va.bg }}>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0, background: va.bg }}>
       <VATopbar title="Hiệu chuẩn (Calibration)" breadcrumb="Chất lượng › Chu trình hiệu chuẩn"
         right={<VABtn kind="primary" onClick={() => setShowCreate(true)}>+ Tạo yêu cầu</VABtn>} />
 

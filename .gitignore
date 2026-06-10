@@ -8,6 +8,7 @@ obj/
 *.DotSettings.user
 TestResults/
 *.nupkg
+*_wpftmp.csproj
 *.snupkg
 
 # ASP.NET

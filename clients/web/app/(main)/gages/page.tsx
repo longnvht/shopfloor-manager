@@ -70,7 +70,7 @@ export default function GagesPage() {
   }
 
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: va.bg }}>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0, background: va.bg }}>
       <VATopbar title="Dụng cụ đo (Gage)" breadcrumb="Chất lượng › Quản lý dụng cụ"
         right={<><VABtn kind="ghost" style={{ marginRight: 8 }}>⬆ Import</VABtn><VABtn kind="primary">+ Thêm gage</VABtn></>} />
 

@@ -32,7 +32,7 @@ export default function JobDetailPage() {
   const forJobOnlyOps = job.operations.filter(o => o.forJobOnly)
 
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: va.bg }}>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0, background: va.bg }}>
       <VATopbar
         title={job.jobNumber}
         breadcrumb={`Sản xuất › Jobs › ${job.partNumber} Rev ${job.revCode}`}
@@ -89,8 +89,8 @@ export default function JobDetailPage() {
                         </span>
                       </td>
                       <td className="py-2 text-center">
-                        {/* Standard OP docs sống ở Parts page */}
-                        <Link href={`/parts/${job.partRevId}/documents?opId=${op.id}&opNumber=${op.opNumber}&partNumber=${job.partNumber}&revCode=${job.revCode}`}>
+                        {/* Standard OP docs sống ở /documents */}
+                        <Link href={`/documents?partOpId=${op.id}&opNumber=${op.opNumber}&partNumber=${encodeURIComponent(job.partNumber)}&revCode=${job.revCode}&backHref=${encodeURIComponent(`/jobs/${id}`)}`}>
                           <Button size="sm" variant="ghost" className="h-7 text-xs">Xem →</Button>
                         </Link>
                       </td>

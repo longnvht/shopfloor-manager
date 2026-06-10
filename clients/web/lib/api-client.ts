@@ -130,6 +130,10 @@ export const api = {
       if (search) q.set('search', search)
       return request<UserListDto[]>(`/api/v1/users?${q}`)
     },
+    create: (body: { userLogin: string; password: string; name: string; email?: string; roleId?: number; userTypeId?: number; positionId?: number; workStatusId?: number }) =>
+      request<UserListDto>('/api/v1/users', { method: 'POST', body: JSON.stringify(body) }),
+    update: (id: number, body: { name: string; email?: string; sex?: string; roleId?: number; userTypeId?: number; positionId?: number; workStatusId?: number; isActive: boolean }) =>
+      request<UserListDto>(`/api/v1/users/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
     changePassword: (currentPassword: string, newPassword: string) =>
       request<null>('/api/v1/users/me/change-password', {
         method: 'POST', body: JSON.stringify({ currentPassword, newPassword }),
@@ -149,7 +153,16 @@ export const api = {
   },
   lookups: {
     roles: () => request<{ id: number; name: string }[]>('/api/v1/roles'),
-    departments: () => request<{ id: number; code: string; name: string }[]>('/api/v1/departments'),
+    departments: () => request<DepartmentDto[]>('/api/v1/departments'),
+    createDepartment: (body: { code: string; name: string }) =>
+      request<DepartmentDto>('/api/v1/departments', { method: 'POST', body: JSON.stringify(body) }),
+    updateDepartment: (id: number, body: { code: string; name: string }) =>
+      request<DepartmentDto>(`/api/v1/departments/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+    positions: () => request<PositionDto[]>('/api/v1/positions'),
+    createPosition: (body: { code: string; description?: string }) =>
+      request<PositionDto>('/api/v1/positions', { method: 'POST', body: JSON.stringify(body) }),
+    userTypes: () => request<UserTypeDto[]>('/api/v1/user-types'),
+    workStatuses: () => request<WorkStatusDto[]>('/api/v1/work-statuses'),
   },
   fai: {
     sheet: (partOpId: number, jobId: number) =>
@@ -236,17 +249,23 @@ export const api = {
       request<BorrowTransactionDto[]>(`/api/v1/borrow-transactions?gageId=${gageId}&status=0`),
   },
   techDocuments: {
-    list: (params?: { status?: string; fileTypeCode?: string; page?: number }) => {
+    list: (params?: { status?: string; fileTypeCode?: string; page?: number; partRevId?: number; partOpId?: number; jobId?: number }) => {
       const q = new URLSearchParams({ page: String(params?.page ?? 1), pageSize: '50' })
       if (params?.status)       q.set('status', params.status)
       if (params?.fileTypeCode) q.set('fileTypeCode', params.fileTypeCode)
+      if (params?.partRevId)    q.set('partRevId', String(params.partRevId))
+      if (params?.partOpId)     q.set('partOpId', String(params.partOpId))
+      if (params?.jobId)        q.set('jobId', String(params.jobId))
       return request<TechDocListDto[]>(`/api/v1/tech-documents?${q}`)
     },
     inspect: (id: number, action: 'approve' | 'reject', note?: string) =>
       request<null>(`/api/v1/tech-documents/${id}/inspect`, {
-        method: 'PUT', body: JSON.stringify({ action, note }),
+        method: 'PUT', body: JSON.stringify({ approve: action === 'approve', note }),
       }),
     downloadUrl: (id: number) => request<string>(`/api/v1/tech-documents/${id}/download-url`),
+    fileTypes: () => request<FileTypeDto[]>('/api/v1/tech-documents/file-types'),
+    create: (body: UploadDocBody) =>
+      request<UploadResponseDto>('/api/v1/tech-documents', { method: 'POST', body: JSON.stringify(body) }),
   },
   planning: {
     items: (params?: { startDate?: string; endDate?: string; machineId?: number }) => {
@@ -353,11 +372,32 @@ export type TechDocListDto = {
   storagePath?: string
 }
 
+export type FileTypeDto = {
+  id: number; code: string; name: string; folder: string
+  isPartNumber: boolean; isRevision: boolean; isOpNumber: boolean; isJobNumber: boolean
+  isGcode: boolean; isSegment: boolean; sortOrder: number
+}
+
+export type UploadDocBody = {
+  fileTypeId: number; fileName: string
+  partRevId?: number | null; partOpId?: number | null; jobId?: number | null
+  description?: string | null; revision?: string | null
+  code?: string | null; segment?: string | null; machineType?: string | null
+}
+
+export type UploadResponseDto = { documentId: number; objectKey: string; uploadUrl: string }
+
 export type UserListDto = {
-  id: number; userLogin: string; name: string; email: string | null
+  id: number; userLogin: string; name: string; email: string | null; sex: string | null
   role: string | null; userType: string | null; position: string | null
+  roleId: number | null; userTypeId: number | null; positionId: number | null; workStatusId: number | null
   isActive: boolean; firstLogin: boolean; createdAt: string
 }
+
+export type PositionDto = { id: number; code: string; description: string | null; isActive: boolean }
+export type UserTypeDto = { id: number; typeName: string; description: string | null; canEnterValue: boolean; canRaiseNcr: boolean }
+export type WorkStatusDto = { id: number; name: string; isWorking: boolean }
+export type DepartmentDto = { id: number; code: string; name: string }
 
 export type CompleteCalibBody = {
   requestId: number; procedureId?: number; calibratedBy?: string

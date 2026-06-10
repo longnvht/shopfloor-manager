@@ -230,13 +230,19 @@ clients/web/
 - Components: `VASidebar`, `VATopbar`, `VABadge`, `VAKpi`, `VACard`, `VABtn`, `VASeg`
 - Inline styles với `va.*` tokens — không dùng Tailwind bên trong VA components
 
-**Trang dùng API thật:** `/jobs` (Lệnh SX & Sản phẩm), `/parts` (Chi tiết kỹ thuật), `/ncrs`
-**Trang dùng mock data (chờ Phase 5 API):** `/planning`, `/cnc`, `/fai`, `/gages`, `/calibration`, `/documents`, `/hr`, `/master`
+**Trang dùng API thật:** `/jobs` (Lệnh SX & Sản phẩm), `/parts` (Chi tiết kỹ thuật), `/ncrs`, `/hr` (Nhân sự & Tài khoản), `/fai` (FAI & Đo kiểm — chọn Job/OP rồi xem matrix thật)
+**Trang dùng mock data (chờ Phase 5 API):** `/planning`, `/cnc`, `/gages`, `/calibration`, `/documents`, `/master`
 
 **Lưu ý kỹ thuật — Zustand + Next.js App Router:**
 - `useAuthStore` dùng `persist` middleware → trên server `user=null`, sau hydrate mới có data
 - Các component hiển thị `user` dùng `useState/useEffect` mounted check để tránh flicker
 - Sidebar user footer: `{mounted && user ? initials(user.name) : ''}`
+
+**Lưu ý kỹ thuật — Scroll trong layout flex:**
+- `(main)/layout.tsx` bọc mỗi page trong `<div className="flex-1 flex flex-col overflow-hidden min-w-0">` — nếu page root thiếu `minHeight: 0`, flexbox "automatic minimum size" sẽ làm div phình theo nội dung và bị `overflow: hidden` của layout cắt mất (clip), thay vì cho cuộn.
+- **Mọi page root** (`<div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: va.bg }}>`) phải có thêm `minHeight: 0`.
+- **Bảng/danh sách dài trong `VACard`**: dùng `<VACard pad={false} style={{ flex: 1, minHeight: 0 }}><div className="va-scroll" style={{ overflow: 'auto', height: '100%' }}><table>...</table></div></VACard>` — header `<th>` thêm `position: 'sticky', top: 0, background: va.surface2, zIndex: 1` để sticky khi cuộn. `VACard` mặc định `overflow: 'hidden'` nên không tự cuộn nếu thiếu wrapper này.
+- `.va-scroll` (`globals.css`) chỉ style appearance scrollbar — luôn phải đi kèm `overflow: 'auto'` inline.
 
 **Dev server:** `cd clients/web && npm run dev` → http://localhost:3000
 
@@ -830,9 +836,29 @@ Desktop app: build riêng bằng dotnet publish, deploy thủ công lên từng 
 - 18 routes — tất cả có VA shell, sidebar navigation
 - `/parts` redesign → "Chi tiết kỹ thuật": master-detail Part list + Revision + Routing + OP flow
 - `/jobs` redesign → "Lệnh SX & Sản phẩm": master-detail Job list + progress bar + serial grid
-- API thật: `/jobs`, `/parts`, `/ncrs`; mock data: `/planning`, `/cnc`, `/fai`, `/gages`, `/calibration`, `/documents`, `/hr`, `/master`
+- API thật: `/jobs`, `/parts`, `/ncrs`, `/hr`, `/fai`; mock data: `/planning`, `/cnc`, `/gages`, `/calibration`, `/documents`, `/master`
 - Fonts: Inter + Fraunces + JetBrains Mono (next/font/google)
 - Theme: override shadcn CSS vars → VA palette
+
+**Web UI — bổ sung Phase 5 gaps** (2026-06-10)
+- `/hr`: nút "+ Tạo tài khoản" → `UserDialog` (create/edit user, load roles/userTypes/positions/workStatuses); menu "⋯" mỗi dòng → Sửa / Vô hiệu hoá-Kích hoạt (`api.users.update` với `isActive` toggle, soft-disable không xoá cứng); nút "Danh mục" → `ManageLookupsDialog` (Phòng ban: list+inline edit+thêm; Chức vụ: list+thêm — API chưa có update/delete cho Position)
+- `UserDto` (Application layer) bổ sung `Sex, RoleId, UserTypeId, PositionId, WorkStatusId` — cần thiết để pre-select dropdown khi sửa user (additive, không cần migration)
+- `/fai` (top-level "FAI & Đo kiểm" sidebar route, khác `/jobs/[id]/fai`): viết lại từ mock 100% → chọn Job (search) + Operation rồi render `FaiSheetDto` thật qua `FaiMatrix`
+- Tách `components/fai/fai-matrix.tsx` dùng chung giữa `/fai` và `/jobs/[id]/fai` — tránh trùng lặp ~100 dòng matrix table
+
+**Web UI — hợp nhất `/documents` + `/parts/[id]/documents`** (2026-06-10)
+- Fix bug: `api.techDocuments.inspect()` gửi sai payload `{action, note}` — backend `InspectRequest(bool Approve, string? Note)` cần `{approve: boolean, note}`. Bug khiến bấm "Duyệt" luôn ghi `Approve=false` → tài liệu bị set Rejected thay vì Approved.
+- `api.techDocuments.list()` thêm params `partRevId`/`partOpId`/`jobId`; thêm `fileTypes()` (`GET /api/v1/tech-documents/file-types`) và `create()` (`POST /api/v1/tech-documents` → presigned upload URL)
+- `/documents` (Tài liệu KT) đọc query params `partRevId`/`partOpId`/`jobId` (filter data) + `partNumber`/`opNumber`/`revCode`/`jobNumber`/`backHref` (hiển thị) — breadcrumb/title động theo context; nút "← Quay lại" khi có `backHref`; nút "⬆ Upload" + form upload (port từ trang cũ) chỉ hiện khi có context (`partRevId` hoặc `partOpId`)
+- Xoá `/parts/[id]/documents/page.tsx` (route + thư mục) — đã hợp nhất vào `/documents`
+- `/parts/[id]`: 2 nút "Bản vẽ / CAD" và "Tài liệu →" giờ trỏ sang `/documents?partRevId=...` / `/documents?partOpId=...&...&backHref=/parts/{id}` thay vì trang riêng
+- **Lưu ý**: `/jobs/[id]/documents` (trang doc cho ForJobOnly OP — RTC/FXT) vẫn là trang độc lập, chưa hợp nhất — out of scope đợt này, có thể áp dụng cùng pattern sau
+
+**Web UI — fix scroll trên toàn bộ (main) routes** (2026-06-10)
+- Bug: hầu hết các trang không cuộn được danh sách/bảng — page root div thiếu `minHeight: 0` nên bị `(main)/layout.tsx`'s `overflow: hidden` clip nội dung thay vì cho cuộn
+- Fix: thêm `minHeight: 0` vào page root style của 15 trang — `dashboard`, `jobs`, `jobs/[id]`, `jobs/[id]/fai` (4 nhánh return), `parts`, `parts/[id]`, `planning`, `cnc`, `fai`, `ncrs`, `gages`, `calibration`, `documents`, `hr`, `master`
+- Fix bảng "Operations"/"Chi tiết công đoạn" trong `parts/page.tsx` và `parts/[id]/page.tsx`: đổi `minHeight: <số cố định>` → `minHeight: 0` trên `VACard`, bọc `<table>` trong `<div className="va-scroll" style={{ overflow: 'auto', height: '100%' }}>` + sticky `<th>` — theo đúng pattern đã có ở `gages`/`hr`/`documents`
+- Xem chi tiết pattern tại "Lưu ý kỹ thuật — Scroll trong layout flex" phía trên — áp dụng cho mọi trang/bảng mới sau này
 
 **Phase 6 chi tiết:**
 - Multi-factory support (FactoryId đã chuẩn bị trên Machine entity)

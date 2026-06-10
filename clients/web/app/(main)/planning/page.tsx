@@ -68,7 +68,7 @@ export default function PlanningPage() {
   }
 
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: va.bg }}>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0, background: va.bg }}>
       <VATopbar
         title="Lập kế hoạch sản xuất"
         breadcrumb={`Sản xuất › ${label}`}

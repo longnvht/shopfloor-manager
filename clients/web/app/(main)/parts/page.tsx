@@ -145,61 +145,63 @@ function PartDetail({ part }: { part: PartDto }) {
         title="Chi tiết công đoạn"
         sub={selRR ? `Routing ${selRR.revCode} · ${standardOps.length} OP` : ''}
         pad={false}
-        style={{ flex: 1, minHeight: 240 }}
+        style={{ flex: 1, minHeight: 0 }}
         right={
           <div style={{ display: 'flex', gap: 8 }}>
             {selRev && (
-              <Link href={`/parts/${part.id}/documents?partRevId=${selRev.id}&partNumber=${encodeURIComponent(part.partNumber)}&revCode=${selRev.revCode}`}>
+              <Link href={`/documents?partRevId=${selRev.id}&partNumber=${encodeURIComponent(part.partNumber)}&revCode=${selRev.revCode}&backHref=${encodeURIComponent('/parts')}`}>
                 <VABtn kind="ghost" style={{ height: 28, fontSize: 11 }}>Bản vẽ / CAD</VABtn>
               </Link>
             )}
           </div>
         }
       >
-        {loadingOps ? (
-          <div style={{ padding: 16, fontSize: 12, color: va.text3 }}>Đang tải…</div>
-        ) : standardOps.length === 0 ? (
-          <div style={{ padding: 16, fontSize: 12, color: va.text3 }}>Chưa có operation. Chọn Routing Rev để xem.</div>
-        ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
-            <thead>
-              <tr style={{ background: va.surface2 }}>
-                {['OP', 'Loại', 'Mô tả', 'Setup (h)', 'Run (h)', 'Tài liệu', ''].map((h, i) => (
-                  <th key={i} style={{ textAlign: ['Setup (h)', 'Run (h)'].includes(h) ? 'center' : 'left', padding: '9px 14px', fontSize: 9.5, color: va.text2, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.6, borderBottom: `1px solid ${va.border}` }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {standardOps.map(op => (
-                <tr key={op.id} className="va-row va-clickable">
-                  <td style={{ padding: '10px 14px', borderBottom: `1px solid ${va.separator}` }}>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: 48, height: 26, borderRadius: 6, background: va.primary, color: '#fff', fontFamily: va.mono, fontWeight: 600, fontSize: 11.5 }}>{op.opNumber}</span>
-                  </td>
-                  <td style={{ padding: '10px 14px', borderBottom: `1px solid ${va.separator}` }}>
-                    {op.opTypeName
-                      ? <span style={{ fontSize: 10.5, fontWeight: 600, color: opColor(op.opTypeName), background: va.surface2, padding: '2px 7px', borderRadius: 4, border: `1px solid ${opColor(op.opTypeName)}33` }}>{op.opTypeName}</span>
-                      : <span style={{ color: va.text3, fontSize: 11 }}>—</span>}
-                  </td>
-                  <td style={{ padding: '10px 14px', borderBottom: `1px solid ${va.separator}`, color: va.text2, maxWidth: 200 }}>
-                    <span style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{op.description ?? '—'}</span>
-                  </td>
-                  <td style={{ padding: '10px 14px', borderBottom: `1px solid ${va.separator}`, fontFamily: va.mono, color: va.text2, textAlign: 'center' }}>{op.setupTime ?? '—'}</td>
-                  <td style={{ padding: '10px 14px', borderBottom: `1px solid ${va.separator}`, fontFamily: va.mono, color: va.text2, textAlign: 'center' }}>{op.prodTime ?? '—'}</td>
-                  <td style={{ padding: '10px 14px', borderBottom: `1px solid ${va.separator}` }}>
-                    <Link href={`/parts/${part.id}/documents?opId=${op.id}&opNumber=${op.opNumber}&partNumber=${encodeURIComponent(part.partNumber)}&revCode=${selRev?.revCode ?? ''}`}>
-                      <VABtn kind="ghost" style={{ height: 26, fontSize: 11, padding: '0 8px' }}>Tài liệu →</VABtn>
-                    </Link>
-                  </td>
-                  <td style={{ padding: '10px 14px', borderBottom: `1px solid ${va.separator}`, textAlign: 'right' }}>
-                    {op.isComplete
-                      ? <VABadge kind="ok">Done</VABadge>
-                      : <span style={{ fontSize: 11, color: va.text3 }}>—</span>}
-                  </td>
+        <div className="va-scroll" style={{ overflow: 'auto', height: '100%' }}>
+          {loadingOps ? (
+            <div style={{ padding: 16, fontSize: 12, color: va.text3 }}>Đang tải…</div>
+          ) : standardOps.length === 0 ? (
+            <div style={{ padding: 16, fontSize: 12, color: va.text3 }}>Chưa có operation. Chọn Routing Rev để xem.</div>
+          ) : (
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
+              <thead>
+                <tr style={{ background: va.surface2 }}>
+                  {['OP', 'Loại', 'Mô tả', 'Setup (h)', 'Run (h)', 'Tài liệu', ''].map((h, i) => (
+                    <th key={i} style={{ position: 'sticky', top: 0, background: va.surface2, textAlign: ['Setup (h)', 'Run (h)'].includes(h) ? 'center' : 'left', padding: '9px 14px', fontSize: 9.5, color: va.text2, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.6, borderBottom: `1px solid ${va.border}`, zIndex: 1 }}>{h}</th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+              </thead>
+              <tbody>
+                {standardOps.map(op => (
+                  <tr key={op.id} className="va-row va-clickable">
+                    <td style={{ padding: '10px 14px', borderBottom: `1px solid ${va.separator}` }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: 48, height: 26, borderRadius: 6, background: va.primary, color: '#fff', fontFamily: va.mono, fontWeight: 600, fontSize: 11.5 }}>{op.opNumber}</span>
+                    </td>
+                    <td style={{ padding: '10px 14px', borderBottom: `1px solid ${va.separator}` }}>
+                      {op.opTypeName
+                        ? <span style={{ fontSize: 10.5, fontWeight: 600, color: opColor(op.opTypeName), background: va.surface2, padding: '2px 7px', borderRadius: 4, border: `1px solid ${opColor(op.opTypeName)}33` }}>{op.opTypeName}</span>
+                        : <span style={{ color: va.text3, fontSize: 11 }}>—</span>}
+                    </td>
+                    <td style={{ padding: '10px 14px', borderBottom: `1px solid ${va.separator}`, color: va.text2, maxWidth: 200 }}>
+                      <span style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{op.description ?? '—'}</span>
+                    </td>
+                    <td style={{ padding: '10px 14px', borderBottom: `1px solid ${va.separator}`, fontFamily: va.mono, color: va.text2, textAlign: 'center' }}>{op.setupTime ?? '—'}</td>
+                    <td style={{ padding: '10px 14px', borderBottom: `1px solid ${va.separator}`, fontFamily: va.mono, color: va.text2, textAlign: 'center' }}>{op.prodTime ?? '—'}</td>
+                    <td style={{ padding: '10px 14px', borderBottom: `1px solid ${va.separator}` }}>
+                      <Link href={`/documents?partOpId=${op.id}&opNumber=${op.opNumber}&partNumber=${encodeURIComponent(part.partNumber)}&revCode=${selRev?.revCode ?? ''}&backHref=${encodeURIComponent('/parts')}`}>
+                        <VABtn kind="ghost" style={{ height: 26, fontSize: 11, padding: '0 8px' }}>Tài liệu →</VABtn>
+                      </Link>
+                    </td>
+                    <td style={{ padding: '10px 14px', borderBottom: `1px solid ${va.separator}`, textAlign: 'right' }}>
+                      {op.isComplete
+                        ? <VABadge kind="ok">Done</VABadge>
+                        : <span style={{ fontSize: 11, color: va.text3 }}>—</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
       </VACard>
     </div>
   )
@@ -230,7 +232,7 @@ export default function PartsPage() {
   useEffect(() => { load() }, [load])
 
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: va.bg }}>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0, background: va.bg }}>
       <VATopbar
         title="Chi tiết kỹ thuật"
         breadcrumb="Sản xuất › Part · Revision · Routing · Operations"

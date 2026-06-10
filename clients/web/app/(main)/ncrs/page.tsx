@@ -153,7 +153,7 @@ export default function NcrsPage() {
   useEffect(() => { load() }, [load])
 
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: va.bg }}>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0, background: va.bg }}>
       <VATopbar
         title="NCR · Báo cáo không phù hợp"
         breadcrumb="Chất lượng › Non-Conformance"

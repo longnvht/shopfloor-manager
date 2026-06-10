@@ -49,7 +49,7 @@ export default function CncPage() {
   const selMachine = machines.find(m => m.machineCode === sel)
 
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: va.bg }}>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0, background: va.bg }}>
       <VATopbar title="CNC Live" breadcrumb="Sản xuất › Giám sát máy real-time"
         right={
           <span style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: va.ok, fontWeight: 600, padding: '6px 12px', background: va.okBg, borderRadius: 7 }}>

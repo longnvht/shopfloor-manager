@@ -1,7 +1,9 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { api, type TechDocListDto } from '@/lib/api-client'
+import { useSearchParams } from 'next/navigation'
+import Link from 'next/link'
+import { api, type TechDocListDto, type FileTypeDto } from '@/lib/api-client'
 import { VATopbar, VAKpi, VACard, VABtn, VABadge } from '@/components/va'
 import { VASeg } from '@/components/va/seg'
 import { va, type VaBadgeKind } from '@/lib/va-tokens'
@@ -19,20 +21,51 @@ const STATUS_META: Record<string, { label: string; kind: VaBadgeKind }> = {
 
 type Filter = 'all' | 'Pending' | 'Approved' | 'Rejected'
 
+const inputStyle = { width: '100%', marginTop: 4, padding: '7px 10px', borderRadius: 7, border: `1px solid ${va.border}`, fontSize: 12.5, fontFamily: va.font, background: va.surface, color: va.text, outline: 'none', boxSizing: 'border-box' as const }
+const labelStyle = { fontSize: 11.5, fontWeight: 600, color: va.text2 }
+
 export default function DocumentsPage() {
+  const searchParams = useSearchParams()
+  const partRevId  = searchParams.get('partRevId')
+  const partOpId   = searchParams.get('partOpId')
+  const jobId      = searchParams.get('jobId')
+  const partNumber = searchParams.get('partNumber')
+  const opNumber   = searchParams.get('opNumber')
+  const revCode    = searchParams.get('revCode')
+  const jobNumber  = searchParams.get('jobNumber')
+  const backHref   = searchParams.get('backHref')
+
+  const hasContext = !!(partRevId || partOpId || jobId)
+
   const [docs,    setDocs]    = useState<TechDocListDto[]>([])
   const [filter,  setFilter]  = useState<Filter>('all')
   const [loading, setLoading] = useState(true)
   const [acting,  setActing]  = useState<number | null>(null)
 
+  const [fileTypes, setFileTypes] = useState<FileTypeDto[]>([])
+  const [uploadForm, setUploadForm] = useState<{ fileTypeId: string; file: File | null; revision: string; description: string; machineType: string } | null>(null)
+  const [uploading, setUploading] = useState(false)
+
   const load = useCallback(async () => {
     setLoading(true)
-    const res = await api.techDocuments.list({ status: filter === 'all' ? undefined : filter })
+    const res = await api.techDocuments.list({
+      status: filter === 'all' ? undefined : filter,
+      partRevId: partRevId ? Number(partRevId) : undefined,
+      partOpId:  partOpId  ? Number(partOpId)  : undefined,
+      jobId:     jobId     ? Number(jobId)     : undefined,
+    })
     if (res.success && res.data) setDocs(res.data)
     setLoading(false)
-  }, [filter])
+  }, [filter, partRevId, partOpId, jobId])
 
   useEffect(() => { load() }, [load])
+
+  useEffect(() => {
+    if (!hasContext) return
+    api.techDocuments.fileTypes().then(res => {
+      if (res.success && res.data) setFileTypes(res.data)
+    })
+  }, [hasContext])
 
   async function handleApprove(id: number) {
     setActing(id)
@@ -58,14 +91,66 @@ export default function DocumentsPage() {
     else alert('Không tải được URL tài liệu')
   }
 
+  async function handleUpload() {
+    if (!uploadForm?.file || !uploadForm.fileTypeId) return
+    setUploading(true)
+    try {
+      const res = await api.techDocuments.create({
+        fileTypeId:  parseInt(uploadForm.fileTypeId),
+        fileName:    uploadForm.file.name,
+        partRevId:   partOpId ? null : (partRevId ? Number(partRevId) : null),
+        partOpId:    partOpId ? Number(partOpId) : null,
+        jobId:       jobId ? Number(jobId) : null,
+        description: uploadForm.description || null,
+        revision:    uploadForm.revision || null,
+        machineType: uploadForm.machineType || null,
+      })
+      if (!res.success || !res.data) { alert(res.error ?? 'Lỗi upload'); return }
+      await fetch(res.data.uploadUrl, { method: 'PUT', body: uploadForm.file })
+      setUploadForm(null)
+      load()
+    } finally {
+      setUploading(false)
+    }
+  }
+
   const pending  = docs.filter(d => d.status === 'Pending').length
   const approved = docs.filter(d => d.status === 'Approved').length
   const rejected = docs.filter(d => d.status === 'Rejected').length
 
+  const breadcrumb = partOpId
+    ? `Hệ thống › Chi tiết kỹ thuật › ${partNumber ?? ''} Rev ${revCode ?? ''} › OP${opNumber ?? partOpId}`
+    : partRevId
+    ? `Hệ thống › Chi tiết kỹ thuật › ${partNumber ?? ''} Rev ${revCode ?? ''}`
+    : jobId
+    ? `Hệ thống › Lệnh SX › ${jobNumber ?? `Job #${jobId}`}`
+    : 'Hệ thống › Drawing · G-code · Route card'
+
+  const title = partOpId
+    ? `Tài liệu — OP${opNumber ?? partOpId}`
+    : partRevId
+    ? `Tài liệu — ${partNumber ?? ''} Rev ${revCode ?? ''}`
+    : jobId
+    ? `Tài liệu — ${jobNumber ?? `Job #${jobId}`}`
+    : 'Tài liệu kỹ thuật'
+
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: va.bg }}>
-      <VATopbar title="Tài liệu kỹ thuật" breadcrumb="Hệ thống › Drawing · G-code · Route card"
-        right={<VABtn kind="primary">⬆ Upload</VABtn>} />
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0, background: va.bg }}>
+      <VATopbar title={title} breadcrumb={breadcrumb}
+        right={
+          <div style={{ display: 'flex', gap: 8 }}>
+            {backHref && (
+              <Link href={backHref}>
+                <VABtn kind="ghost">← Quay lại</VABtn>
+              </Link>
+            )}
+            {hasContext && (
+              <VABtn kind="primary" onClick={() => setUploadForm({ fileTypeId: '', file: null, revision: '', description: '', machineType: '' })}>
+                ⬆ Upload
+              </VABtn>
+            )}
+          </div>
+        } />
 
       <div className="va-scroll" style={{ flex: 1, overflow: 'auto', padding: 22, display: 'flex', flexDirection: 'column', gap: 16 }}>
         {/* KPIs */}
@@ -86,6 +171,45 @@ export default function DocumentsPage() {
             </div>
             <VABtn kind="accent" onClick={() => setFilter('Pending')}>Xem hàng đợi →</VABtn>
           </div>
+        )}
+
+        {/* Upload form */}
+        {uploadForm && (
+          <VACard title="Upload tài liệu" pad>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div>
+                <label style={labelStyle}>Loại file</label>
+                <select style={inputStyle} value={uploadForm.fileTypeId}
+                  onChange={e => setUploadForm(f => f && ({ ...f, fileTypeId: e.target.value }))}>
+                  <option value="">— Chọn loại —</option>
+                  {fileTypes.map(ft => (
+                    <option key={ft.id} value={ft.id}>{ft.code} — {ft.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label style={labelStyle}>Revision</label>
+                <input style={inputStyle} placeholder="A, B, Rev.01..." value={uploadForm.revision}
+                  onChange={e => setUploadForm(f => f && ({ ...f, revision: e.target.value }))} />
+              </div>
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label style={labelStyle}>File</label>
+                <input type="file" style={{ ...inputStyle, padding: '5px 10px' }}
+                  onChange={e => setUploadForm(f => f && ({ ...f, file: e.target.files?.[0] ?? null }))} />
+              </div>
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label style={labelStyle}>Mô tả</label>
+                <input style={inputStyle} value={uploadForm.description}
+                  onChange={e => setUploadForm(f => f && ({ ...f, description: e.target.value }))} />
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 14 }}>
+              <VABtn kind="ghost" onClick={() => setUploadForm(null)}>Huỷ</VABtn>
+              <VABtn kind="primary" disabled={uploading || !uploadForm.file || !uploadForm.fileTypeId} onClick={handleUpload}>
+                {uploading ? 'Đang upload…' : 'Upload'}
+              </VABtn>
+            </div>
+          </VACard>
         )}
 
         {/* Filter + file type legend */}

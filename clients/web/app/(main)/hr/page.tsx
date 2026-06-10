@@ -3,7 +3,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { api, type UserListDto } from '@/lib/api-client'
 import { VATopbar, VAKpi, VACard, VABtn, VABadge } from '@/components/va'
-import { va, type VaBadgeKind } from '@/lib/va-tokens'
+import { va } from '@/lib/va-tokens'
+import { UserDialog } from '@/components/hr/user-dialog'
+import { ManageLookupsDialog } from '@/components/hr/manage-lookups-dialog'
 
 const ROLE_COLOR: Record<string, string> = {
   Administrator: va.err,   Manager:  va.primary,
@@ -22,6 +24,11 @@ export default function HrPage() {
   const [loading, setLoading] = useState(true)
   const [selRole, setSelRole] = useState('all')
 
+  const [userDialogOpen, setUserDialogOpen] = useState(false)
+  const [editingUser, setEditingUser] = useState<UserListDto | null>(null)
+  const [lookupsOpen, setLookupsOpen] = useState(false)
+  const [openMenuId, setOpenMenuId] = useState<number | null>(null)
+
   const load = useCallback(async () => {
     setLoading(true)
     const res = await api.users.list(1, search || undefined)
@@ -30,6 +37,32 @@ export default function HrPage() {
   }, [search])
 
   useEffect(() => { load() }, [load])
+
+  function openCreate() {
+    setEditingUser(null)
+    setUserDialogOpen(true)
+  }
+
+  function openEdit(u: UserListDto) {
+    setEditingUser(u)
+    setUserDialogOpen(true)
+    setOpenMenuId(null)
+  }
+
+  async function toggleActive(u: UserListDto) {
+    setOpenMenuId(null)
+    await api.users.update(u.id, {
+      name: u.name,
+      email: u.email ?? undefined,
+      sex: u.sex ?? undefined,
+      roleId: u.roleId ?? undefined,
+      userTypeId: u.userTypeId ?? undefined,
+      positionId: u.positionId ?? undefined,
+      workStatusId: u.workStatusId ?? undefined,
+      isActive: !u.isActive,
+    })
+    load()
+  }
 
   // Unique roles from loaded users
   const roles = ['all', ...Array.from(new Set(users.map(u => u.role).filter(Boolean) as string[]))]
@@ -45,9 +78,14 @@ export default function HrPage() {
   const inactiveCount = users.filter(u => !u.isActive).length
 
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: va.bg }}>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0, background: va.bg }} onClick={() => setOpenMenuId(null)}>
       <VATopbar title="Nhân sự & Tài khoản" breadcrumb="Hệ thống › HR & User Management"
-        right={<VABtn kind="primary">+ Tạo tài khoản</VABtn>} />
+        right={
+          <div style={{ display: 'flex', gap: 8 }}>
+            <VABtn kind="ghost" onClick={() => setLookupsOpen(true)}>Danh mục</VABtn>
+            <VABtn kind="primary" onClick={openCreate}>+ Tạo tài khoản</VABtn>
+          </div>
+        } />
 
       <div className="va-scroll" style={{ flex: 1, overflow: 'auto', padding: 22, display: 'flex', flexDirection: 'column', gap: 16 }}>
         {/* KPIs */}
@@ -129,8 +167,22 @@ export default function HrPage() {
                           {u.isActive ? 'Hoạt động' : 'Đã tắt'}
                         </VABadge>
                       </td>
-                      <td style={{ padding: '11px 14px', borderBottom: `1px solid ${va.separator}`, textAlign: 'right' }}>
-                        <span style={{ color: va.text3, fontSize: 15, cursor: 'pointer' }}>⋯</span>
+                      <td style={{ padding: '11px 14px', borderBottom: `1px solid ${va.separator}`, textAlign: 'right', position: 'relative' }}>
+                        <span
+                          style={{ color: va.text3, fontSize: 15, cursor: 'pointer', padding: '2px 8px' }}
+                          onClick={e => { e.stopPropagation(); setOpenMenuId(openMenuId === u.id ? null : u.id) }}
+                        >⋯</span>
+                        {openMenuId === u.id && (
+                          <div
+                            style={{ position: 'absolute', right: 14, top: '100%', zIndex: 10, background: va.surface, border: `1px solid ${va.border}`, borderRadius: 7, boxShadow: '0 4px 12px rgba(0,0,0,0.12)', minWidth: 140, overflow: 'hidden' }}
+                            onClick={e => e.stopPropagation()}
+                          >
+                            <div className="va-clickable" style={{ padding: '8px 12px', fontSize: 12, fontWeight: 500 }} onClick={() => openEdit(u)}>Sửa</div>
+                            <div className="va-clickable" style={{ padding: '8px 12px', fontSize: 12, fontWeight: 500, color: u.isActive ? va.err : va.ok }} onClick={() => toggleActive(u)}>
+                              {u.isActive ? 'Vô hiệu hoá' : 'Kích hoạt'}
+                            </div>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -143,6 +195,9 @@ export default function HrPage() {
           </div>
         </VACard>
       </div>
+
+      <UserDialog open={userDialogOpen} user={editingUser} onClose={() => setUserDialogOpen(false)} onSaved={load} />
+      <ManageLookupsDialog open={lookupsOpen} onClose={() => setLookupsOpen(false)} />
     </div>
   )
 }
