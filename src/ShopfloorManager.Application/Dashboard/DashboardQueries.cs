@@ -76,7 +76,8 @@ public class GetProductionKpiQueryHandler(IShopfloorDbContext db)
 {
     public async Task<Result<ProductionKpiDto>> Handle(GetProductionKpiQuery _, CancellationToken ct)
     {
-        var todayStart = DateTimeOffset.UtcNow.Date;
+        var now = DateTimeOffset.UtcNow;
+        var todayStart = new DateTimeOffset(now.Year, now.Month, now.Day, 0, 0, 0, TimeSpan.Zero);
         var todayEnd   = todayStart.AddDays(1);
 
         var runningJobs    = await db.Jobs.CountAsync(j => !j.IsComplete, ct);

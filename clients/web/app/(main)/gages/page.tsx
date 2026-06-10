@@ -61,12 +61,8 @@ export default function GagesPage() {
 
   async function handleReturn(gage: GageDto) {
     if (!userId) { alert('Chưa đăng nhập'); return }
-    const token = localStorage.getItem('auth-token')
-    const txRes = await fetch(`/api/v1/borrow-transactions?gageId=${gage.id}&status=0`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-    const txData = await txRes.json()
-    const tx = txData?.data?.[0]
+    const txRes = await api.gages.activeBorrow(gage.id)
+    const tx = txRes.data?.[0]
     if (!tx) { alert('Không tìm thấy giao dịch mượn đang active'); return }
     const res = await api.gages.returnGage(tx.id)
     if (res.success) load()

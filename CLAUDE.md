@@ -462,6 +462,7 @@ Rule 3: ALLOW nếu Status=Rejected → rename file cũ thành "Rejected_{filena
 - `snake_case` cho tất cả tên bảng/cột
 - Soft delete via `deleted_at TIMESTAMPTZ` trên các entity chính
 - Schema managed by EF Core migrations — `init.sql` chỉ là reference
+- **`DateTimeOffset` + Npgsql `timestamptz`**: Npgsql chỉ chấp nhận offset=0 (UTC) khi ghi/so sánh `timestamp with time zone`. KHÔNG dùng `DateTimeOffset.UtcNow.Date` (trả về `DateTime` Kind=Unspecified → convert ngầm lấy offset local của máy, vd +07:00 → ném `ArgumentException`). Luôn dựng mốc ngày bằng `new DateTimeOffset(y, m, d, 0, 0, 0, TimeSpan.Zero)`.
 
 **Domain enums:**
 ```csharp
@@ -499,7 +500,7 @@ CalibRequestStatus:Pending=0, Approved=1, Completed=2, Cancelled=3
 | Phase 2 — Production Core (Jobs, Parts, OPs, Documents) | ✅ Done |
 | Phase 3 — Quality (Dimensions, FAI, NCR, SPC) | ✅ Done |
 | Phase 4 — Desktop MES (WPF, FAI at machine, SignalR) | ✅ Done |
-| Phase 5 — Advanced (Gage, Planning, MQTT pipeline, Dashboard) | ⏳ |
+| Phase 5 — Advanced (Gage ✅, Planning, MQTT pipeline, Dashboard) | ⏳ |
 | Phase 6 — Polish & Open Source (multi-factory, migration tool, docs) | ⏳ |
 
 **Phase 1 — ✅ Hoàn tất** (2026-05-20)
@@ -712,6 +713,16 @@ Session của người khác trên máy:
 - **SignalR Desktop singleton**: `ISignalRService` đăng ký là **singleton** — connection và event subscriptions sống suốt vòng đời app. `DashboardViewModel` (transient) subscribe/unsubscribe `NcrCreated` trong constructor/Cleanup. `SetPage()` đảm bảo Cleanup được gọi khi navigate away.
 - **SetPage() cleanup pattern**: `MainViewModel.SetPage(vm)` → `CurrentPage?.Cleanup()` → `CurrentPage = vm`. Tất cả ViewModel phải override `Cleanup()` để unsubscribe events (đặc biệt `DashboardViewModel.NcrCreated` và `DispatcherTimer.Stop()`). Không gọi `CurrentPage = vm` trực tiếp — luôn dùng `SetPage()`.
 
+**Phase 5 — Gage & Calibration — ✅ Hoàn tất** (2026-06-04 → 2026-06-10)
+- Entities: `GageType`, `GageLocation`, `GageSlot`, `Gage`, `BorrowTransaction`, `CalibVendor`, `CalibProcedure`, `CalibRequest`, `CalibRecord` — migration `AddGageAndCalibration`
+- `Gage` computed: `IsValid`, `DueDate`, `DaysRemaining` (`due_date = last_calibration + calib_frequency_days`); denormalized `IsBorrowed`, `HasPendingCalib`
+- API: `GET /api/v1/gages` (search/statusCode/gageTypeId/isBorrowed), `GET /api/v1/gages/calib-due`, `POST /api/v1/gages`, `GET /api/v1/gage-types`, `GET /api/v1/gage-locations`, `POST /api/v1/borrow-transactions`, `GET /api/v1/borrow-transactions` (gageId/status filter), `PUT /api/v1/borrow-transactions/{id}/return`, `GET/POST /api/v1/calib-vendors`, `GET/POST /api/v1/calib-requests`, `PUT /api/v1/calib-requests/{id}/approve`, `POST /api/v1/calib-records`
+- Web: `/gages` (KPIs, filter Tất cả/Hợp lệ/Đang mượn/Sắp hết hạn, mượn/trả) + `/calibration` (calib-due list, CreateRequestModal, CompleteModal) — đều dùng `api.*` client thật
+- Migration `SeedGageReferenceData`: seed `calib_procedures` (3), `calib_vendors` (2), `gage_slots` (5, dưới location "GAGE ROOM" id=44)
+- **Lưu ý dữ liệu dev DB**: `gage_types` (36 dòng) và `gage_locations` (89 dòng) đã có sẵn dữ liệu thực import từ legacy MySQL (không phải seed migration) — KHÔNG seed thêm vào 2 bảng này để tránh đụng PK. `gages` cũng đã có 85 dòng thực.
+- **Phát hiện cần điều tra riêng**: `gage_locations` (89 dòng) chứa toàn mã máy/process (300-1, ASY, ENG1-6, GAGE ROOM, WDP...) — giống dữ liệu `machine_groups`/Epicor ResourceGroup hơn là "vị trí lưu trữ gage". `machine_groups` hiện đang trống (0 dòng). Có thể import trước đó đã ghi nhầm bảng — cần xem lại khi làm `17_machines_equipment.md` / migration tool.
+- **GET /api/v1/borrow-transactions**: `GetBorrowTransactionsQueryHandler` trong `GageQueries.cs` — dùng bởi web `handleReturn()` để tìm `BorrowTransaction` đang `Active` theo `gageId` trước khi gọi `return`.
+
 ---
 
 ## Coding Conventions
@@ -852,6 +863,8 @@ Khi implement tính năng, tham khảo business logic tại:
 ---
 
 ## Rules for Claude
+
+**Luôn trả lời bằng tiếng Việt** (kể cả khi người dùng hỏi bằng tiếng Anh).
 
 **Always ask before:**
 - Changing DB schema (EF Core migrations are hard to rollback cleanly)

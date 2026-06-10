@@ -33,6 +33,12 @@ public record CalibRequestDto(
     string? ProcedureName, DateOnly? CalibrationDate,
     string? CalibratedBy, string? AsFoundConditions);
 
+public record BorrowTransactionDto(
+    int Id, int GageId, string GageNo,
+    int BorrowerId, string? BorrowerName,
+    DateOnly BorrowDate, DateOnly? ExpectedReturnDate, DateOnly? ReturnDate,
+    BorrowStatus Status, string? Note);
+
 // ── Gage Queries ──────────────────────────────────────────────────────────
 
 public record GetGagesQuery(
@@ -166,6 +172,38 @@ public class GetCalibRequestsQueryHandler(IShopfloorDbContext db)
             r.RequestDate, r.Status,
             r.Record?.Procedure?.Name, r.Record?.CalibrationDate,
             r.Record?.CalibratedBy, r.Record?.AsFoundConditions
+        )).ToList());
+    }
+}
+
+public record GetBorrowTransactionsQuery(
+    int? GageId = null,
+    BorrowStatus? Status = null,
+    int Page = 1, int PageSize = 50)
+    : IRequest<Result<List<BorrowTransactionDto>>>;
+
+public class GetBorrowTransactionsQueryHandler(IShopfloorDbContext db)
+    : IRequestHandler<GetBorrowTransactionsQuery, Result<List<BorrowTransactionDto>>>
+{
+    public async Task<Result<List<BorrowTransactionDto>>> Handle(GetBorrowTransactionsQuery req, CancellationToken ct)
+    {
+        var q = db.BorrowTransactions
+            .Include(t => t.Gage)
+            .Include(t => t.Borrower)
+            .AsQueryable();
+
+        if (req.GageId.HasValue) q = q.Where(t => t.GageId == req.GageId);
+        if (req.Status.HasValue) q = q.Where(t => t.Status == req.Status);
+
+        var items = await q.OrderByDescending(t => t.BorrowDate)
+            .Skip((req.Page - 1) * req.PageSize).Take(req.PageSize)
+            .ToListAsync(ct);
+
+        return Result.Ok(items.Select(t => new BorrowTransactionDto(
+            t.Id, t.GageId, t.Gage.GageNo,
+            t.BorrowerId, t.Borrower.Name,
+            t.BorrowDate, t.ExpectedReturnDate, t.ReturnDate,
+            t.Status, t.Note
         )).ToList());
     }
 }

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ShopfloorManager.API.Common;
 using ShopfloorManager.Application.GageManagement;
+using ShopfloorManager.Domain.Enums;
 
 namespace ShopfloorManager.API.Controllers;
 
@@ -59,6 +60,15 @@ public class GagesController(IMediator mediator) : ControllerBase
     }
 
     // ── Borrow / Return ───────────────────────────────────────────────────
+
+    [HttpGet("borrow-transactions")]
+    public async Task<IActionResult> GetBorrowTransactions(
+        [FromQuery] int? gageId, [FromQuery] BorrowStatus? status,
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 50)
+    {
+        var result = await mediator.Send(new GetBorrowTransactionsQuery(gageId, status, page, pageSize));
+        return Ok(ApiResponse<List<BorrowTransactionDto>>.Ok(result.Value));
+    }
 
     [HttpPost("borrow-transactions")]
     public async Task<IActionResult> Borrow([FromBody] BorrowGageCommand command)

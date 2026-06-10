@@ -232,6 +232,8 @@ export const api = {
     locations: () => request<GageLocationDto[]>('/api/v1/gage-locations'),
     borrow:   (body: BorrowBody) => request<number>('/api/v1/borrow-transactions', { method: 'POST', body: JSON.stringify(body) }),
     returnGage: (id: number)  => request<null>(`/api/v1/borrow-transactions/${id}/return`, { method: 'PUT', body: '{}' }),
+    activeBorrow: (gageId: number) =>
+      request<BorrowTransactionDto[]>(`/api/v1/borrow-transactions?gageId=${gageId}&status=0`),
   },
   techDocuments: {
     list: (params?: { status?: string; fileTypeCode?: string; page?: number }) => {
@@ -303,6 +305,13 @@ export type CalibRequestDto = {
   requestDate: string; status: number
   procedureName: string | null; calibrationDate: string | null
   calibratedBy: string | null; asFoundConditions: string | null
+}
+
+export type BorrowTransactionDto = {
+  id: number; gageId: number; gageNo: string
+  borrowerId: number; borrowerName: string | null
+  borrowDate: string; expectedReturnDate: string | null; returnDate: string | null
+  status: number; note: string | null
 }
 
 export type CreateGageBody = {
