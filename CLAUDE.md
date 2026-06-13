@@ -261,8 +261,8 @@ Hệ thống hỗ trợ 2 ngôn ngữ: **English** và **Tiếng Việt**. Web d
 - `app/layout.tsx` (Server Component, async): đọc `getLocale()`/`getMessages()`, set `<html lang={locale}>`, wrap `{children}` trong `<NextIntlClientProvider>`
 - `components/va/lang-switcher.tsx` (`VALangSwitcher`) — đặt trong `VASidebar` footer, mọi route đều thấy
 
-**Đã dịch (pattern mẫu):** `components/va/sidebar.tsx` (namespace `nav` + `common`), `app/(main)/dashboard/page.tsx` (namespace `dashboard`)
-**Chưa dịch (theo cùng pattern):** `/jobs`, `/parts`, `/fai`, `/ncrs`, `/gages`, `/calibration`, `/documents`, `/hr`, `/master`, `/planning`, `/cnc`, `/(auth)/login`
+**Đã dịch (pattern mẫu):** `components/va/sidebar.tsx` (namespace `nav` + `common`), `app/(main)/dashboard/page.tsx` (namespace `dashboard`), `app/(main)/parts/page.tsx` + `app/(main)/parts/[id]/operations/page.tsx` + `components/parts/*-dialog.tsx` (namespace `parts`), `app/(main)/dimsheet/page.tsx` (namespace `dimsheet`), `app/(main)/documents/page.tsx` (namespace `documents`) — toàn bộ nhóm sidebar "Kỹ thuật" đã dịch xong (2026-06-13)
+**Chưa dịch (theo cùng pattern):** `/jobs`, `/fai`, `/ncrs`, `/gages`, `/calibration`, `/hr`, `/master`, `/planning`, `/cnc`, `/(auth)/login`
 
 **Cách thêm trang mới:**
 1. Thêm namespace mới (tên route, vd `jobs`) vào CẢ `messages/vi.json` VÀ `messages/en.json` — cùng cấu trúc key, khác giá trị
@@ -913,6 +913,114 @@ Desktop app: build riêng bằng dotnet publish, deploy thủ công lên từng 
 - Application layer: `MachineCommands.cs`, `OpTypeCommands.cs`, `DimensionCategoryCommands.cs`, `FileTypeCommands.cs` (mới) + `MachineQueries.cs` cập nhật DTO thêm `IsActive`/`SerialNumber`
 - Web `/master`: nút "+ Thêm mục" + click vào dòng để sửa → `MasterItemDialog` (`components/master/master-item-dialog.tsx`) — 1 dialog dùng chung cho cả 5 tab, field theo `kind`; mỗi bảng thêm cột "Trạng thái" (`VABadge` Hoạt động/Đã ẩn)
 - `api-client.ts`: `machines`/`machineGroups`/`opTypes`/`dimCategories`/`fileTypes2` đều có `list(activeOnly)`, `create()`, `update()`; types mới `MachineDto`, `MachineGroupDto`, `OpTypeDto`, `DimensionCategoryDto`, `FileTypeDto` (thêm `isActive`)
+
+**`/parts` — CRUD Drawing Rev/Routing Rev/OP + Excel import + i18n** (2026-06-11)
+- 3 dialog mới (`components/parts/`): `AddRevisionDialog` (`POST /parts/{id}/revisions`, helper text "tự tạo Routing Standard R1"), `AddRoutingRevDialog` (`POST /parts/routing-revs`, copy OP từ rev active), `AddOpDialog` (`POST /operations`, chọn OpType từ `api.opTypes.list(true)`)
+- `/parts` và `/parts/[id]`: VACard "Drawing Rev"/"Routing Rev"/"Operations" đều có nút "+" trong `right` prop để mở dialog tương ứng; mỗi OP row có nút "⤓ Dims" để import dimensions cho riêng OP đó
+- **Import Excel — Operations**: `POST /api/v1/operations/import` (`multipart/form-data`: `file` + `routingRevId`, role Administrator/Manager/Engineer) — upsert theo `OpNumber` (đã tồn tại → update Description/OpType/SetupTime/ProdTime, giữ nguyên Dimensions/TechDocuments; chưa có → tạo mới). Cột Excel (header không phân biệt hoa/thường, bỏ space): `OpNumber`/`Op`, `OpType` (code, vd "CNC"/"GRIND" — không match → warning, vẫn import với OpTypeId=null), `Description`, `Setup`/`SetupTime`, `Prod`/`ProdTime`
+- **Import Excel — Dimensions**: `POST /api/v1/operations/{opId}/dimensions/import` (role +QC Inspector) — chỉ tạo mới, bỏ qua (skip) nếu `BalloonNumber` đã tồn tại trong OP đó. Cột Excel: `BalloonNumber`/`Balloon`, `Code`, `Description`, `Nominal` (numeric → dimension số với `TolPlus`/`TolMinus`/`Unit`(default mm)/tính `MaxValue`/`MinValue`; không parse được số → `IsTextType=true`, lưu `NominalText`), `TolPlus`/`Tol+`, `TolMinus`/`Tol-`, `Unit`, `Category` (code LIN/ANG/THD/GEO/SFC — không match → warning, vẫn tạo với CategoryId=null)
+- Cả 2 import endpoint trả `ImportResultDto { created, updated, skipped, errors: [{ rowNumber, message }] }` — `ImportOpsDialog`/`ImportDimensionsDialog` hiển thị kết quả + danh sách lỗi/cảnh báo theo dòng
+- `ExcelImportReader` (`src/ShopfloorManager.API/Common/`): đọc sheet đầu, dòng 1 = header (normalize lower+trim+bỏ space); **trả về `List<Dictionary<string,string>>` (giá trị cell đã extract sẵn)**, KHÔNG trả `IXLRow` — vì `XLWorkbook` bị dispose (`using`) trước khi LINQ `.Select().ToList()` ở controller chạy → `ObjectDisposedException` nếu giữ reference `IXLRow`
+- i18n: namespace `parts` đầy đủ cho `/parts`, `/parts/[id]` và 5 dialog mới (`addRevision`/`addRoutingRev`/`addOp`/`importOps`/`importDims`)
+
+**Web UI Redesign — kế hoạch (Claude design, 2026-06-12)**
+
+Đã nhận bộ thiết kế mới (AI design tool, dựa trên `Project_Documents/01-13`) — tái cấu trúc sidebar thành 5 nhóm + thêm trang "Dimension Sheet" + cập nhật nội dung nhiều trang. Quyết định đã chốt với user:
+- Nhóm sidebar cuối cùng vẫn giữ tên **"Hệ thống"** (HR + Master Data) — không đổi thành "Master Data"
+- Theme color **giữ nguyên `#6D3B1A`** — không đổi sang preset "caphe" `#553421` trong mockup
+- NCR: **redesign đầy đủ** theo workflow 5 bước (Phát hiện → Phân loại → Quyết định → Xác minh → Đóng) — cần migration, thiết kế chi tiết ở `07_ncr.md` (mục "UI Redesign — Phase I")
+- Master Data: **redesign theo mockup** (`va-master.jsx`) — chi tiết ở `13_master_data.md` (mục "UI Redesign — Phase K"), cần xử lý lại tab MachineGroup đã có CRUD (2026-06-10) nhưng không có trong mockup
+
+| Phase | Nội dung | File thiết kế chi tiết | Trạng thái |
+|---|---|---|---|
+| A | Sidebar 5 nhóm (Tổng quan/Kỹ thuật/Sản xuất/Chất lượng/Hệ thống) + i18n, thêm placeholder route `dimsheet` | `messages/*.json`, `components/va/sidebar.tsx` | ✅ |
+| B | Trang "Dimension Sheet" (`/dimsheet`) — bảng tổng hợp dimension toàn Part across OP | `04_routing_operations.md` § UI Redesign — Phase B | ✅ |
+| C | FAI: stat strip (Inspector, Pass/Fail/Pending, Pass rate%) | `06_dimensions_fai.md` § UI Redesign — Phase C | ⏳ |
+| D | Jobs: "Tiến độ đo kiểm" progress bar + routing OP strip thành read-only reference → Part&Routing | `03_job_management.md` § UI Redesign — Phase D | ⏳ |
+| E | Documents: cascading filter Part→Drawing Rev→Routing Rev→OP cho truy cập top-level | `05_technical_documents.md` § UI Redesign — Phase E | ✅ |
+| F | Jobs: Serial/Product grid 4 trạng thái (available/claimed/inprogress/complete) — cần ProductionSession status trong ProductDto | `03_job_management.md` § UI Redesign — Phase F | ⏳ |
+| G | Part & Routing: KPI strip, revision history timeline, drawing 2D placeholder, OP detail tabs (Tài liệu/Dimension) — điều chỉnh: tách 2 trang `/parts` (list+overview) và `/parts/[id]/operations` (OP detail) | `04_routing_operations.md` § UI Redesign — Phase G | ✅ |
+| H | HR: org tree phòng ban (bên trái) + user table (bên phải) | `02_hr.md` § UI Redesign — Phase H | ⏳ |
+| I | NCR: redesign đầy đủ — workflow 5 bước, thêm bước "Xác minh" (Verification) | `07_ncr.md` § UI Redesign — Phase I | ⏳ |
+| J | FAI: panel "Chi tiết Balloon" — measure history + distribution chart + "Mở NCR cho ô này" | `06_dimensions_fai.md` § UI Redesign — Phase J | ⏳ |
+| K | Master Data: redesign theo `va-master.jsx` — Machines/OpTypes/DimCategories/Fixtures(mới)/DocumentTypes, xử lý lại MachineGroup | `13_master_data.md` § UI Redesign — Phase K | ⏳ |
+
+**Quy trình triển khai (bắt buộc theo từng phase):**
+1. Mô tả chi tiết việc sẽ làm + thay đổi dự kiến (UI, API, schema nếu có) cho phase đó
+2. User review → confirm
+3. Implement (theo Clean Architecture, đúng quy trình "Triển khai tính năng — quy trình bắt buộc")
+4. Build (`dotnet build` / `npm run build` hoặc dev server) — kiểm tra thực tế trên browser
+5. Cập nhật log kết quả vào CLAUDE.md (mục tương ứng phase), đánh dấu ✅
+
+**Phase G — Part & Routing tách 2 trang (✅ 2026-06-12)**
+- Theo yêu cầu user, Phase G tách thành 2 trang thay vì 1 trang duy nhất như mockup gốc:
+  - **`/parts` (Page 1)** — giữ master-detail Part list + Drawing Rev/Routing Rev selector + OP table, **bỏ OP detail panel**. Thêm KPI strip (Operations/Jobs/Dimensions/Current Routing — `t('kpi.*')`), card "Bản vẽ 2D" (link sang `/documents?partRevId=...`), info "Tạo bởi {name} · {date}" trên Drawing Rev card. OP table thêm cột "Documents"/"Dim" (số lượng), bỏ nút action — click row → điều hướng `/parts/{id}/operations?routingRevId=...&opId=...`. Sidebar Part list hiển thị thêm routing code + op/job count + ngày tạo.
+  - **`/parts/[id]/operations` (Page 2, file mới)** — master-detail: danh sách OP bên trái (click chọn), detail bên phải gồm `VASeg` 2 tab "Tài liệu"/"Dimension" (đúng nội dung OP detail panel trong mockup). Tab Tài liệu: bảng TechDocument + link "Quản lý tài liệu →" sang `/documents?partOpId=...`. Tab Dimension: bảng Dimension (balloon/category/nominal/tol/max/min/unit/final) + nút "⤓ Dims" mở `ImportDimensionsDialog` (chuyển từ Page 1 sang đây).
+  - Xoá `app/(main)/parts/[id]/page.tsx` (trang detail cũ, 1 trang duy nhất) — đã được thay thế hoàn toàn bởi Page 1 + Page 2.
+- i18n: thêm đầy đủ key `parts.operationsLink`, `parts.kpi.*`, `parts.drawing2d.*`, `parts.drawingRev.createdBy`, `parts.opTable.headers.dim`, `parts.opDetail.*` (breadcrumb/opList/selectOp/tabs/documents/dimensions) cho cả `vi.json` và `en.json`.
+- Build: `npm run build` — 0 lỗi TypeScript, 18 routes (bao gồm `/parts` và `/parts/[id]/operations` — cả 2 đều `ƒ` dynamic). Lưu ý: sau khi xoá `parts/[id]/page.tsx`, cần `rm -rf .next` để xoá stale Turbopack type-check cache trước khi build lại.
+- Verify: dev server log cho thấy đã duyệt qua `/parts/105/operations?routingRevId=105&opId=...` cho cả 12 OP của part 105 — load thành công, không lỗi runtime.
+- **Out of scope (deferred — cần migration riêng)**: Part status (draft/active/complete) + "Confirm Part" workflow, `Part.material`/`Part.type` fields.
+
+**Phase B — Dimension Sheet (✅ 2026-06-12)**
+- Backend: `GetDimensionsByRoutingRevQuery` (`FaiCommands.cs`) → `RoutingRevDimensionDto` (opId/opNumber/opNumberSort, balloon/balloonSort, nominal/tol/max/min, unit, isTextType/nominalText, categoryCode, isCritical/isFinal, sortOrder) — join Dimension → PartOp → RoutingRev, order by `opNumberSort` rồi `balloonSort`. Endpoint `GET /api/v1/routing-revs/{routingRevId}/dimensions` (absolute route trong `OperationsController`).
+- Backend: `UpdateDimensionCommand`/Validator/Handler — `PUT /api/v1/dimensions/{id}` nhận `{nominalValue, tolerancePlus, toleranceMinus}`, tự tính lại `MaxValue/MinValue`, chặn sửa dimension `IsTextType=true`.
+- Frontend `/dimsheet` (mới): layout master-detail giống `/parts` — panel trái search/chọn Part (`api.parts.list`), panel phải `DimSheetDetail` cascading load: `api.parts.revisions(partId)` → active PartRev → `api.parts.routingRevs(revId)` → active RoutingRev → `api.routingRevs.dimensions(routingRevId)`. Bảng 10 cột (OP/Balloon/Loại/Nominal/Tol+/Tol-/Max/Min/ĐV/Final) + cột action inline-edit (✎ → 3 input Nominal/Tol+/Tol- + preview Max/Min realtime → ✓ lưu/✕ huỷ), dimension `IsTextType` hiện colSpan thay vì input.
+- `api-client.ts`: thêm `RoutingRevDimensionDto`, `routingRevs.dimensions(id)`, `dimensions.update(id, body)`.
+- i18n: namespace `dimsheet` đầy đủ (vi+en) — title/breadcrumb/search/table headers/edit tooltip.
+- Sidebar: `dimsheet` nav item đổi `live: false` → `true` (bỏ badge "SOON").
+- **Lưu ý quan trọng — API process phải restart sau khi thêm route mới**: route `GET /api/v1/routing-revs/{id}/dimensions` trả 404 khi test qua `curl` dù code đã build thành công — vì tiến trình `dotnet run` đang chạy là build CŨ (trước khi thêm controller method). Build riêng từng `.csproj` (để tránh file-lock) KHÔNG cập nhật code của process đang chạy — phải kill process cũ (`Stop-Process`) và `dotnet run` lại để route mới có hiệu lực.
+- **Lesson — KHÔNG chạy `npm run build` (production) khi `npm run dev` đang chạy trên cùng `.next`**: 2 process tranh nhau ghi `.next`, làm dev server trả "Internal Server Error" cho mọi route. Nếu cần build production để kiểm tra type-check, dừng dev server trước hoặc build ra dir riêng (`-o`); dev server (Turbopack) đã tự type-check khi chạy.
+- Verify: browser test part "00210155402" (RING,SHOULDER-STAB) — Routing 001 · 9 dim, bảng hiển thị đúng 9 dòng (kể cả 2 dòng `IsTextType` SFC "Rq" colSpan). Inline-edit dimension `1*` (balloon LIN, Nominal 8.6254/Tol±0.004) — sửa Nominal→8.7, lưu → `PUT /api/v1/dimensions/10120` thành công, Max/Min cập nhật 8.704/8.696; sửa lại về 8.6254 → Max/Min trả về 8.6294/8.6214 đúng. Không có lỗi console (chỉ warning a11y "form field thiếu id/name" — pattern có sẵn từ các trang khác).
+
+**Phase E — Documents redesign: flat-list filter (✅ 2026-06-13, thay thế cascading selector 2026-06-12)**
+- User phản hồi UI cascading selector (Phase E gốc, 2026-06-12) không đúng — yêu cầu viết lại `/documents` theo mockup `va-docs.jsx` (flat-list filterable, 1 trang duy nhất, không qua nhiều bước chọn).
+- Xoá `components/documents/doc-selector.tsx` + thư mục `components/documents/` (component `DocSelector` của Phase E gốc không còn dùng).
+- Migration `AddFileSizeToTechDocuments`: thêm `tech_documents.file_size_bytes BIGINT NULL`. `TechDocument` entity thêm `FileSizeBytes`; `TechDocDto`/`TechDocListDto`/`UploadRequest`/`UploadDocBody` đều có `fileSizeBytes`; `RequestUpload` lưu `req.FileSizeBytes` (cả nhánh tạo mới và nhánh update existing/Rejected).
+- `documents/page.tsx` viết lại toàn bộ — flat list + filter bar:
+  - `GET /api/v1/tech-documents` (không filter) → load TOÀN BỘ docs 1 lần; lọc client-side qua `useMemo`
+  - Filter bar: Part · Drawing Rev · Routing Rev · OP (cascading theo `fPart` — chọn Part reset 3 filter sau) + separator + Loại (file type) + Trạng thái + tìm tên file; đếm `{filtered.length}/{docs.length}` + "✕ Xóa lọc"
+  - Type legend chips (DRW/GCD/RTC/FXT/THD/TLS/CAM/CAD, màu riêng từng loại) — click để filter nhanh theo `fType`, click lại để bỏ
+  - KPI strip (Tổng/Chờ duyệt/Đã duyệt/Từ chối) + pending banner "N tài liệu chờ Inspector duyệt"
+  - Bảng 10 cột: Tên file/Loại/Part/Routing/OP/Rev/Trạng thái/Người tạo/**Kích thước**/action — cột Kích thước dùng `formatBytes()` (B/KB/MB, `—` nếu null)
+  - Vẫn giữ context-aware behavior cho 3 inbound link cũ (`/parts`, `/parts/[id]/operations`, `/jobs/[id]`): query params `partRevId`/`partOpId`/`jobId`/`backHref` pre-seed filter (`fPart`/`fRev`/`fOp`) + hiện nút "← Quay lại" + nút "⬆ Upload" (chỉ hiện khi `hasContext`)
+- Verify browser (4 scenario, console không lỗi — chỉ warning a11y có sẵn):
+  1. `/documents?partRevId=105&partNumber=00210155402&revCode=E&backHref=%2Fparts` — filter pre-seed đúng (Part=00210155402, Rev=E), 2/9 rows, "← Quay lại" → `/parts`, "⬆ Upload" hiện
+  2. `/documents` (sidebar, không context) — Upload ẩn, full list, "✕ Xóa lọc" hoạt động đúng (reset → hiện thêm option Rev/Routing/OP mới)
+  3. Type legend toggle GCD → lọc đúng 2 file `.nc`, toggle lại → bỏ lọc
+  4. **Upload + Approve + Reject + Xem (đầy đủ vòng đời)**: upload `test_tls_upload.txt` (loại TLS) → xuất hiện "Chờ duyệt" 47 B, KPI Pending 1 → "Duyệt" → KPI Approved 8/Pending 0, badge "Đã duyệt" → "Xem →" mở presigned MinIO URL đúng path `tools/00210155402/E/test_tls_upload.txt`; upload `test_cam_reject.txt` (loại CAM) → "Từ chối" (prompt lý do) → KPI Rejected 1, badge "Từ chối" — toàn bộ luồng hoạt động đúng, `fileSizeBytes` lưu/hiển thị chính xác.
+- **Lưu ý**: `formatBytes()` hiện `—` cho các doc cũ chưa có `fileSizeBytes` (test_drw_v2.pdf, test_model.step — tạo trước khi có cột này) — đúng như thiết kế.
+
+**`/documents` — filter bar combobox gõ để tìm (✅ 2026-06-13)**
+- User phản hồi: số lượng Part trong thực tế rất lớn, `<select>` thường không khả dụng để chọn Part — cần gõ để tìm (type-to-search), áp dụng cho mọi combobox trong filter bar.
+- Component mới `components/va/combobox.tsx` (`VACombobox` + type `VAComboboxOption{value,label}`), export qua `components/va/index.ts` — dựng trên `@base-ui/react` `Combobox` primitive (dependency có sẵn, không cần thêm package). `Combobox.Root` controlled bằng `value`/`onValueChange` + `isItemEqualToValue` (so theo `value` vì object option tạo lại mỗi render) + `itemToStringLabel` (filter theo label).
+- Áp dụng cho cả 6 combobox filter bar `/documents`: Part, Drawing Rev, Routing Rev, OP, Loại, Trạng thái — mỗi combobox có list option riêng (`partOptions`/`revOptions`/`routOptions`/`opOptions`/`typeOptions`/`statusOptions`, đều `useMemo`), thay thế `<select>` cũ.
+- CSS mới trong `globals.css`: `.va-combobox-group:focus-within` (viền cam khi focus), `.va-combobox-item[data-highlighted]`/`[data-selected]` (highlight item trong dropdown).
+- **Lesson**: `Combobox.Input` không tự select-all text khi focus — click vào sẽ đặt cursor giữa label hiện tại, gõ tiếp sẽ chèn vào giữa (vd "Tất cả paSHAFTrt") thay vì thay thế. Fix: `onFocus={e => e.currentTarget.select()}` trên `Combobox.Input`.
+- Verify browser: `/documents` → 6 combobox đều render `role=combobox` + nút `▾` riêng (thay `<select>`); gõ "SHAFT" vào Part → input hiện đúng "SHAFT" (không bị chèn giữa), dropdown lọc còn "SHAFT-50H6" → ArrowDown+Enter chọn → bảng lọc 4/9 (đúng 4 doc của SHAFT-50H6), Drawing/Routing/OP reset về "Mọi..." (cascading `pickPart`); "✕ Xóa lọc" → Part về "Tất cả part", bảng về 9/9. Không lỗi console.
+- **Tái sử dụng**: `VACombobox` là component chung — có thể áp dụng cho các select danh sách lớn khác trong app (vd `/parts`, `/jobs` filter) khi cần, ngoài phạm vi đợt này.
+
+**Dimension Sheet (`/dimsheet`) — redesign theo mockup `va-dimsheet.jsx` (✅ 2026-06-13)**
+- User cung cấp mockup mới (`Shopfloor Manage.zip` trên OneDrive, file `src/va-dimsheet.jsx`) — viết lại toàn bộ panel phải (`DimSheetDetail`) của `/dimsheet` theo layout này. Panel trái (Part list + ô tìm kiếm) giữ nguyên theo yêu cầu user.
+- Header: part number (mono, lớn) + `VABadge kind="primary"` "Bản vẽ Rev {rev}" (từ `partRevCode` — active PartRev) + description.
+- KPI strip (4 `VAKpi`): Tổng dimension (`dims.length`), Balloon unique (`new Set(dims.map(d=>d.balloonNumber)).size`), FAI Final (`dims.filter(d=>d.isFinal).length`, sub "chỉ QC nhập"), Số OP có dim (`ops.filter(o=>o.dimCount>0).length` / tổng `ops.length`, qua `api.operations.listForRoutingRev`).
+- Filter bar (1 dòng, `VACard`-style): select OP (sort theo `opNumberSort`) · category chips (`ALL_CATS` + `CAT_COLORS = {LIN: va.primary, ANG: va.accent, THD: va.primaryLt, GEO: '#5D4037', SFC: '#795548'}`, đếm số dim mỗi loại) · checkbox "Chỉ FAI Final" · input tìm balloon + counter `{filtered.length}/{dims.length}`.
+- Master table (`TABLE_COLS` thứ tự mới: OP/Balloon/Loại/Nominal/Tol+/Tol-/Max/Min/ĐV/Final + action): balloon hiện dạng circle badge (viền đỏ nếu `isCritical`), OP hiện badge nền `va.primary`, category code màu theo `CAT_COLORS`, Max màu `va.ok` xanh / Min màu `va.err` đỏ, Tol+/- có dấu `+`/`−`, Final hiện `●` (primary) hoặc `—`. Dimension `isTextType` dùng `colSpan={5}` hiện `nominalText`. Inline-edit (✎/✓/✕) giữ nguyên logic cũ (`startEdit`/`handleSave`/`previewLimit`), không cho edit dimension text-type.
+- Empty states mới: `noRouting` (Part chưa có Routing active), `empty` (chưa có dimension nào), `noMatch` (filter không khớp).
+- Footnote cuối trang giải thích balloon có thể đo lại nhiều OP + dòng Final là điểm chốt FAI.
+- i18n: thêm key mới vào `dimsheet` namespace (vi+en) — `revBadge`, `noMatch`, `footnote`, `kpi.*`, `filter.*`.
+- **Bỏ khỏi mockup (chưa có API/tránh nửa vời)**: cột "Dụng cụ đo" (gage) — chưa có liên kết Dimension↔Gage; nút "⬆ Export Excel" — chưa có endpoint export.
+- Verify: `npx tsc --noEmit` 0 lỗi. Browser test 2 part: `00210155402` (9 dim, LIN/SFC, "2/12 OP") và `002H061671800` (36 dim, LIN/GEO, "3/10 OP") — KPI đúng, filter category chip (LIN → 7/9), checkbox "Chỉ FAI Final" (→7/9), tìm balloon không khớp → `noMatch` 0/9, inline-edit mở/huỷ vẫn hoạt động, đổi Part reset filter + load lại đúng. Không lỗi console (chỉ warning a11y có sẵn).
+- **Bổ sung — combobox gõ để tìm cho filter OP (✅ 2026-06-13)**: select OP trong filter bar đổi sang `VACombobox` (cùng component dùng ở `/documents`) — options `[{value:'all', label:t('filter.allOps')}, ...sortedOps.map(...)]`. Verify: gõ "70" → dropdown lọc còn đúng option "70", Enter chọn → bảng lọc 4/9 (đúng 4 dim OP=70); xoá input → list đầy đủ tất cả OP, gõ "Tất" → chọn "Tất cả" → reset về 9/9. Không lỗi console.
+
+**`/documents` — i18n English (✅ 2026-06-13)**
+- Hoàn tất nhóm sidebar "Kỹ thuật" (3 view: `/parts`+`/parts/[id]/operations`, `/dimsheet`, `/documents`) — `/documents` là view cuối cùng còn hardcode tiếng Việt 100% (0 `useTranslations`).
+- Thêm namespace `documents` đầy đủ vào `messages/vi.json` + `messages/en.json`: `title`/`breadcrumb`/`backLink`/`queueButton`/`uploadButton`/`loading`, `kpi.*` (total/pending/approved/rejected), `pendingBanner.*` (title có `{count}`, sub, action), `upload.*` (title/fileType/fileTypePlaceholder/revision/revisionPlaceholder/file/description/cancel/submit/submitting/errorGeneric), `filter.*` (part/drawingRev/routingRev/op/type/status/search/searchPlaceholder/clear + 11 option label: allParts/allRevs/noRev/revPrefix `{rev}`/allRouting/noRouting/allOps/noOp/opPrefix `{op}`/allTypes/allStatuses), `table.*` (headers.* 9 cột + empty/noMatch/clearFilter), `actions.*` (reject/approve/view/rejectPrompt/errApprove/errReject/errViewUrl), `status.*` (Pending/Approved/Rejected).
+- `STATUS_META: Record<string,{label,kind}>` → tách thành `STATUS_KIND: Record<string,VaBadgeKind>` (chỉ giữ màu badge); label lấy qua `t(\`status.${d.status}\`)` (pattern key động giống dashboard production/quality cards).
+- 6 combobox option list (`partOptions`/`revOptions`/`routOptions`/`opOptions`/`typeOptions`/`statusOptions`) đổi label hardcode → `t('filter.allX')` + `t('filter.revPrefix', {rev})`/`t('filter.opPrefix', {op})`/`t('filter.noRev')`/`t('filter.noRouting')`/`t('filter.noOp')`.
+- `alert`/`prompt` messages (lỗi duyệt/từ chối/upload, "Lý do từ chối:", "Không tải được URL tài liệu") → `t('actions.*')`/`t('upload.errorGeneric')`.
+- Date cột "Người tạo": `new Date(d.createdAt).toLocaleDateString('vi-VN')` (hardcode) → `useLocale()` + `toLocaleDateString(locale === 'vi' ? 'vi-VN' : 'en-US')` — đúng pattern chuẩn của dự án.
+- Verify: `npx tsc --noEmit` 0 lỗi. Browser test VI→EN qua `VALangSwitcher`: toàn bộ topbar/KPI/banner/filter bar (label + placeholder + 6 combobox option)/type legend/table header/status badge/action button đều dịch đúng; ngày "13/6/2026" (VI) ↔ "6/13/2026" (EN); dropdown Drawing Rev hiện "Rev A"/"Rev E"/"Rev NONE" (EN) đúng `revPrefix`. Không lỗi console ở cả 2 ngôn ngữ.
 
 **Phase 6 chi tiết:**
 - Multi-factory support (FactoryId đã chuẩn bị trên Machine entity)

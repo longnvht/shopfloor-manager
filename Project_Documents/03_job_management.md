@@ -177,3 +177,25 @@ GET    /api/v1/mes/jobs/{id}/products   -- Danh sách serial + completion per se
 - **Part không có revision**: revision có thể NULL, khi đó unique constraint chỉ trên `part_number`.
 - **Xóa Job có Products đã đo kiểm**: không cho xóa, chỉ có thể đánh dấu complete.
 - **ship_by trong quá khứ**: cho phép nhập nhưng hiển thị cảnh báo trong Dashboard ("Overdue").
+
+---
+
+## UI Redesign — Phase D (đề xuất, chưa triển khai)
+
+**`/jobs/[id]` — Tiến độ đo kiểm + routing reference**
+
+- Thêm progress bar "Tiến độ đo kiểm" = `CompleteDim / TotalDim` (đúng định nghĩa §4 "Theo dõi tiến độ Job"). **API mới**: `GET /api/v1/jobs/{id}/progress` → trả `{ totalDim, completeDim, passDim, failDim }` (additive query, aggregate MeasureValue theo Dimension của routing hiệu lực của Job).
+- OP routing strip hiện tại trong `/jobs/[id]` (danh sách PartOp) chuyển thành **card tham chiếu read-only**: hiển thị số OP + link "Xem chi tiết routing →" sang `/parts/[id]` (Part & Routing, Phase G) — bỏ các action edit trùng lặp đang có ở trang Jobs (routing chỉ sửa từ `/parts`).
+
+---
+
+## UI Redesign — Phase F (đề xuất, chưa triển khai)
+
+**`/jobs/[id]` — Serial/Product grid 4 trạng thái**
+
+- Đổi bảng serial hiện tại thành card grid 4 màu trạng thái — giống Desktop `ProductListPage`:
+  - `available` — chưa ai chọn (không có ProductionSession nào)
+  - `claimed` — đã chọn (có session nhưng `started_at IS NULL`)
+  - `inprogress` — đang gia công (session `started_at IS NOT NULL`, chưa complete)
+  - `complete` — đã hoàn thành (`product.is_complete = true`)
+- **Cần bổ sung `ProductDto`** (additive field, không migration): `sessionStatus` (`"none" | "claimed" | "inprogress" | "complete"`) + `claimedByName` — derive trong query handler từ `ProductionSession` mới nhất (theo `product_id`, chưa cancelled) tại thời điểm query.

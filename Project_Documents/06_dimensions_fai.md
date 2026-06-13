@@ -273,3 +273,22 @@ Nội dung báo cáo:
 - **Precision**: Legacy Vinam-MES lưu `MeasureValue` dạng `FLOAT` → mất chính xác ở chữ số thập phân 4+. Hệ thống mới dùng `DECIMAL(14,4)` cho tất cả giá trị đo — cải thiện quan trọng khi migrate/import dữ liệu cũ.
 - **NominalDimension dạng text trong legacy**: Legacy lưu `NominalDimension` là `VARCHAR` chứa cả số lẫn ký tự (ví dụ `"72°"`, `"M10x1.5"`). Khi import → parse tách `is_text_type=true` và `nominal_text` thay vì ép sang số.
 - **Gage thu hồi/hỏng**: Nếu gage bị kết luận hỏng sau khi đã đo → cần xác định tất cả `measure_values` dùng `gage_id` đó trong khoảng thời gian → xem xét re-inspect. `gage_id` trong `measure_values` là key truy vết quan trọng (hiện để null — cần implement gage selection).
+
+---
+
+## UI Redesign — Phase C (đề xuất, chưa triển khai)
+
+**FAI stat strip** trên `/fai` và `/jobs/[id]/fai`
+
+- Thêm dải KPI phía trên `FaiMatrix`: Inspector (người đo gần nhất), số dimension Pass/Fail/Pending, Pass rate %.
+- 100% client-side aggregate từ `FaiSheetDto` đã load (đã chứa toàn bộ MeasureValue theo dimension × product) — **không cần API mới**.
+
+---
+
+## UI Redesign — Phase J (đề xuất, chưa triển khai)
+
+**Panel "Chi tiết Balloon"** — click vào 1 ô trong `FaiMatrix`
+
+- Mở panel/dialog hiển thị: Nominal/Tolerance/Category của Dimension, danh sách lịch sử đo (mọi `MeasureValue` của `dimensionId` + `productId`, kể cả các lần đo lại — theo nguyên tắc "không upsert, giữ lịch sử" ở §3.6/Edge Cases), và biểu đồ phân bố giá trị nếu có nhiều lần đo (dùng Apache ECharts — đã có trong tech stack Phase 5).
+- **API cần thêm**: `GET /api/v1/dimensions/{id}/history?productId=` — đã có trong mục 6 "API Endpoints" của tài liệu này nhưng **chưa implement** → cần viết `GetMeasureValueHistoryQuery` (additive, không migration), trả `MeasureValueDto[]` sort theo `measured_at` desc.
+- **Nút "Mở NCR cho ô này"**: chỉ hiện khi ô đang Fail — pre-fill form tạo NCR (Phase I, `07_ncr.md`) với `dimensionId`/`productId`/`measureValueId`/`jobId`/`partOpId` từ context balloon hiện tại.

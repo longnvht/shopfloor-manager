@@ -232,3 +232,16 @@ Import rule: `OpNumberSort = decimal.Parse(OpNumber)` nếu parse được, nế
 - **Xóa Dimension Category đang có Dimensions**: không cho xóa.
 - **Machine config không tìm thấy**: Desktop MES hiện màn hình chọn máy thủ công — không crash.
 - **Multi-factory (tương lai)**: đã chuẩn bị `factory_id` trên các bảng liên quan, nhưng Phase 0-4 chỉ support 1 factory.
+
+---
+
+## UI Redesign — Phase K (đề xuất, chưa triển khai)
+
+**`/master` — redesign theo `va-master.jsx`**
+
+Mockup có các tab: Machines / OpTypes / DimCategories / Fixtures (mới) / DocumentTypes.
+
+- **Machines, OpTypes, DimCategories**: giữ nguyên `MasterItemDialog` + API hiện có (`MasterDataController`, 2026-06-10) — chỉ cần đổi UI/layout cho khớp mockup (tab style, table style).
+- **MachineGroup** (CRUD đã implement 2026-06-10, **không có trong mockup**): không xoá bỏ — đưa vào làm **sub-filter/tab phụ trong tab "Machines"** (mỗi Machine thuộc 1 MachineGroup, filter bảng Machines theo Group + quản lý danh sách Group ngay trong panel đó). Tránh mất tính năng đã làm.
+- **DocumentTypes**: map sang `FileType` (đã có `fileTypes2` API + `MasterItemDialog` kind tương ứng) — chỉ đổi label hiển thị tab thành "Loại tài liệu".
+- **Fixtures** (mới — `FixtureType`/`FixtureLocation`/`FixtureSlot`/`FixtureCategory`, §2.5, **chưa có entity**): Phase K chỉ làm UI khung tab "Đồ gá" với trạng thái "Sắp ra mắt" (placeholder) — không block phase K vì thiếu backend. Implement entity/API đầy đủ để Phase 5/6 riêng.

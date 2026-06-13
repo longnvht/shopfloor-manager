@@ -250,3 +250,61 @@ GET    /api/v1/mes/ncr/departments
 - **Rework xong nhưng FAI Final vẫn fail**: tạo NCR mới từ FAI Final, NCR cũ vẫn giữ nguyên để trace lịch sử.
 - **NCR của Job đã hoàn thành**: chỉ xem, không được tạo mới.
 - **NCRCode.sequence reset năm mới**: cần migration/cron job reset `sequence` counter đầu năm, không phải DB reset.
+
+---
+
+## UI Redesign — Phase I (đề xuất, chưa triển khai)
+
+> ⚠️ Phần này mô tả **hướng thiết kế**, chưa phải kế hoạch migration cuối cùng. Theo CLAUDE.md ("Always ask before: Changing DB schema"), schema change cụ thể sẽ được trình bày riêng để xác nhận trước khi chạy `dotnet ef migrations add`.
+
+### Bối cảnh: model đã implement KHÁC với §2/§5 ở trên
+
+Mô hình `NCRCode → {CPAR, Rework}` ở §2 và §5 là **thiết kế ban đầu, chưa implement**. Thực tế (từ 2026-05-20) đã implement một model đơn giản hơn:
+
+```csharp
+// Domain/Entities/Ncr.cs
+Ncr { Id, NcrNumber, YearCode, Sequence, JobId, ProductId?, PartOpId?, MeasureValueId?,
+      ReasonId?, DepartmentId?, MachineCode?, Description,
+      Status (Open/Closed), RaisedBy, RaisedAt, ClosedBy?, ClosedAt?, Logs: NcrLog[] }
+
+// Domain/Entities/NcrLog.cs
+NcrLog { Id, NcrId, Action (Pending/Approve/Rework/Reject), Note?, ActionBy, ActionAt }
+```
+
+- `POST /api/v1/ncrs` — tạo NCR (Phát hiện + Phân loại trong 1 bước, từ MES quick-create hoặc Web)
+- `POST /api/v1/ncrs/{id}/actions` — ghi `NcrLog` với Action = Approve/Rework/Reject — **hiện tại Approve/Rework/Reject đều tự đóng NCR ngay** (`Status = Closed`)
+
+Không có `CPAR`/`Rework`/`NcrCode` entity riêng. Mockup yêu cầu stepper 5 bước **Phát hiện → Phân loại → Quyết định → Xác minh → Đóng** — cần thêm bước **"Xác minh"** mà model hiện tại không có (Rework đang tự đóng ngay, bỏ qua xác nhận FAI Final).
+
+### Đề xuất ánh xạ 5 bước vào model hiện có (additive, KHÔNG xây lại CPAR/Rework/NcrCode)
+
+| Bước | Điều kiện "hoàn thành" | Field/Logic |
+|---|---|---|
+| 1. Phát hiện | luôn hoàn thành khi NCR được tạo | `RaisedBy`/`RaisedAt` (đã có) |
+| 2. Phân loại | `ReasonId != null` | đã có (set khi tạo NCR) |
+| 3. Quyết định | tồn tại `NcrLog` với `Action ∈ {Approve, Rework, Reject}` | đã có (lấy log mới nhất) |
+| 4. Xác minh | xem dưới | **MỚI** |
+| 5. Đóng | `Status == Closed` | đã có |
+
+**Bước 4 "Xác minh" theo nhánh quyết định:**
+- `Approve` (Use As Is) hoặc `Reject` (Scrap): không cần xác minh thêm → bước 4 tự động "hoàn thành" ngay khi có quyết định, NCR đóng ngay (giữ behavior hiện tại cho 2 nhánh này).
+- `Rework`: **NCR KHÔNG tự đóng nữa** — chuyển sang chờ xác minh. Inspector xác nhận sau khi FAI Final của dimension/product liên quan đạt Pass (link sang `06_dimensions_fai.md` §4.2 + Phase J "Mở NCR cho ô này").
+
+### Schema change cần thiết (additive, sẽ xin xác nhận riêng)
+
+Thêm vào bảng `ncrs` (migration `AddNcrVerification`):
+```sql
+verified_by  → users [nullable]
+verified_at  [timestamptz, nullable]
+```
+
+### API changes
+
+- `AddNcrActionCommand`: nhánh `Rework` → KHÔNG set `Status = Closed` nữa (giữ `Open`, ghi `NcrLog` như hiện tại).
+- **Mới**: `POST /api/v1/ncrs/{id}/verify` (role QC Inspector/Manager/Administrator) — set `VerifiedBy`/`VerifiedAt` + `Status = Closed` + `ClosedBy`/`ClosedAt`. Dùng cho nhánh Rework sau khi FAI Final pass.
+- `NcrDto`/`NcrDetailDto` bổ sung field tính toán `currentStep` (1-5) — server tính từ `Status` + `Logs` + `VerifiedAt` để frontend render stepper nhất quán.
+
+### UI
+
+- `/ncrs` (list) + `/ncrs/[id]` (detail): mỗi NCR hiển thị stepper ngang 5 bước (Phát hiện/Phân loại/Quyết định/Xác minh/Đóng), bước hiện tại highlight. Filter list theo `currentStep`.
+- Nút hành động theo step hiện tại: step 3 → 3 nút Approve/Rework/Reject (gọi `POST /actions`); step 4 (chỉ khi Rework) → nút "Xác nhận đã rework + FAI Final Pass" (gọi `POST /verify`).

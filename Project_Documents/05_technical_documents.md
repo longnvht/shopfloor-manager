@@ -214,3 +214,17 @@ GET    /api/v1/mes/files/{storageKey}/url  -- Pre-signed URL để xem file
 - **Revision cũ sau khi có revision mới**: file revision cũ vẫn `approved`, nhưng khi hiển thị trên MES chỉ lấy revision mới nhất.
 - **G-code segment**: nếu `is_segment = true` cho file type, upload phải có `segment` field. Khi xem trên MES, download tất cả segment theo thứ tự.
 - **File bị reject nhưng sản xuất đang chạy**: sản xuất vẫn tiếp tục với file approved trước đó (nếu có). Hiện cảnh báo cho Engineer.
+
+---
+
+## UI Redesign — Phase E (đề xuất, chưa triển khai)
+
+**`/documents` — cascading filter cho truy cập top-level (sidebar nhóm "Kỹ thuật")**
+
+- Hiện `/documents` chỉ filter hiệu quả khi có query params truyền từ context (`partRevId`/`partOpId`/`jobId`, từ `/parts/[id]` hoặc `/jobs/[id]`). Khi vào trực tiếp từ sidebar (top-level), trang không có context để lọc.
+- Thêm bộ chọn xếp lớp (cascading selector) phía trên bảng: **Part** (search) → **Drawing Rev** → (tùy chọn) **Routing Rev** → **OP**.
+  - Chọn Part → load `api.parts.revisions(partId)` (đã có)
+  - Chọn Drawing Rev → load `api.parts.routingRevs(revId)` (đã có)
+  - Chọn Routing Rev → load `api.operations.listForRoutingRev(rrId)` (đã có)
+  - Chọn OP (tùy chọn) → set `partOpId`; nếu dừng ở Drawing Rev → set `partRevId`
+- Sau khi chọn xong, set query params tương ứng → tái sử dụng 100% logic filter/hiển thị hiện có của `/documents` — **không cần API mới**.

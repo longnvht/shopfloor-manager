@@ -163,3 +163,27 @@ GET    /api/v1/mes/jobs/{jobId}/ops             -- Compact: id, op_number, op_ty
 - **Xóa OP đã có MeasureValue**: cấm tuyệt đối vì ảnh hưởng đến audit trail chất lượng.
 - **Import OP**: nếu OPNumber đã tồn tại thì update (không tạo mới) — giữ dimensions và tài liệu đính kèm.
 - **op_number_sort khi OPNumber không phải số**: ví dụ "10A" → CAST sẽ fail → set `op_number_sort = NULL`, sort về cuối danh sách.
+
+---
+
+## UI Redesign — Phase B (đề xuất, chưa triển khai)
+
+**Trang mới "Dimension Sheet" (`/dimsheet`)** — sidebar nhóm "Kỹ thuật".
+
+- Mục đích: 1 trang tổng hợp toàn bộ Dimension của một Part (theo RoutingRev active), thay vì phải mở từng OP riêng lẻ — đúng workflow "Dimension Sheet" mà Engineer làm hàng ngày.
+- Luồng: chọn Part (search) → tự load PartRev active + RoutingRev active → hiển thị bảng tổng hợp tất cả Dimension thuộc các PartOp của RoutingRev đó.
+- Cột bảng: OP Number | Balloon | Nominal | Tol(+/−) | Max/Min | Category | IsFinal | IsTextType | Unit.
+- Sort: theo `op_number_sort` rồi `balloon_sort`.
+- **API mới (additive, không migration)**: `GET /api/v1/routing-revs/{id}/dimensions` → query mới `GetDimensionsByRoutingRevQuery` — JOIN PartOp → Dimension cho tất cả PartOp thuộc RoutingRev (`is_for_job_only = false`, ForJobOnly OP thuộc Job nên không xuất hiện ở đây), trả `DimensionDto[]` kèm `opId`/`opNumber`/`opNumberSort` để group/hiển thị.
+- Inline edit Nominal/Tolerance: tái sử dụng API `PUT /api/v1/dimensions/{id}` đã có.
+
+---
+
+## UI Redesign — Phase G (đề xuất, chưa triển khai)
+
+**Redesign `/parts/[id]` (Part & Routing detail)**
+
+- **KPI strip** đầu trang: tổng số OP, tổng số Dimension (toàn routing), số tài liệu Approved/Pending — client-side aggregate từ data đã load (ops + dimensions per OP), không cần API mới.
+- **Revision history timeline**: liệt kê PartRev + RoutingRev theo `created_at` (đã có sẵn từ `BaseEntity`), kèm `changeNote` (RoutingRev đã có field này) — hiển thị dạng timeline dọc thay cho dãy chip ngang hiện tại.
+- **Drawing 2D placeholder**: khu vực preview bản vẽ DRW mới nhất (approved) của PartRev đang chọn — dùng presigned download URL từ TechDocument (API đã có `GET /api/v1/tech-documents/{id}/download-url`), hiển thị ảnh/PDF embed cạnh thông tin Part.
+- **OP detail tabs**: thay 2 nút rời "Tài liệu →" / "⤓ Dims" bằng panel chi tiết OP có 2 tab — "Tài liệu" (list TechDocument theo `partOpId`, link `/documents?partOpId=...`) và "Dimension" (list Dimension theo OP, link sang `/dimsheet` lọc theo OP — Phase B).
