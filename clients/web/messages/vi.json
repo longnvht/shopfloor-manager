@@ -366,5 +366,139 @@
       "Approved": "Đã duyệt",
       "Rejected": "Từ chối"
     }
+  },
+  "jobs": {
+    "title": "Lệnh SX & Sản phẩm",
+    "breadcrumb": "Sản xuất › Job · Serial · Tiến độ",
+    "createButton": "+ Tạo Job",
+    "searchPlaceholder": "Tìm job, part…",
+    "loading": "Đang tải…",
+    "selectPrompt": "Chọn một Job để xem chi tiết",
+    "status": {
+      "complete": "Hoàn thành",
+      "overdue": "Quá hạn",
+      "atRisk": "Có nguy cơ",
+      "running": "Đang chạy"
+    },
+    "fai": {
+      "modalTitle": "Chọn OP để xem FAI",
+      "empty": "Không có OP nào.",
+      "open": "FAI →"
+    },
+    "serialStatus": {
+      "available": "Sẵn sàng",
+      "claimed": "Đã claim",
+      "inprogress": "Đang làm",
+      "complete": "Hoàn tất"
+    },
+    "detail": {
+      "partRoutingLink": "Part & Routing →",
+      "pcsSuffix": "pcs",
+      "shipBy": "giao {date}",
+      "createdLine": "tạo {date} · Routing {routing}",
+      "errorLoad": "Không tải được chi tiết.",
+      "noRunQty": "Job chưa có RunQty",
+      "generateConfirm": "Tạo {qty} serial products cho {job}?",
+      "errorGenerate": "Lỗi tạo products",
+      "kpi": {
+        "progress": "Hoàn thành (đo kiểm)",
+        "produced": "Đã sản xuất",
+        "passFai": "Pass FAI",
+        "fail": "Fail",
+        "ncr": "NCR liên quan"
+      },
+      "progress": {
+        "title": "Tiến độ đo kiểm",
+        "sub": "TotalDim {total} · {qty} serial × {perSerial} dim/serial",
+        "pass": "Pass",
+        "fail": "Fail",
+        "pending": "Chưa đo",
+        "completeDim": "CompleteDim"
+      },
+      "routing": {
+        "title": "Routing",
+        "subInherited": "kế thừa từ Part · {count} OP",
+        "subWithCustom": "kế thừa từ Part · {count} OP · {customCount} OP riêng",
+        "openInEngineering": "Mở trong Chi tiết kỹ thuật →",
+        "addCustomOp": "+ OP riêng",
+        "done": "✓ Done",
+        "customLabel": "OP riêng · Chi tiết",
+        "footerInfo": "ⓘ Routing & dimension được định nghĩa ở ",
+        "footerInfoStrong": "Chi tiết kỹ thuật",
+        "footerInfoAfter": " — Job chỉ kế thừa & theo dõi sản xuất.",
+        "footerCustomInfo": " OP viền nét đứt (cam) là ",
+        "footerCustomInfoStrong": "OP riêng",
+        "footerCustomInfoAfter": " — chỉ tồn tại trong job này, bấm để quản lý tài liệu."
+      },
+      "serial": {
+        "title": "Serial / Product",
+        "shown": "hiển thị {shown} / {total}",
+        "total": "{count} serial",
+        "generating": "Đang tạo…",
+        "generate": "+ Tạo {qty} serials",
+        "faiSheet": "FAI Sheet",
+        "emptyNoRunQty": "Chưa có serial. Job chưa có RunQty.",
+        "emptyWithRunQty": "Chưa có serial. Bấm \"+ Tạo serials\" để tạo.",
+        "more": "nữa"
+      }
+    },
+    "createDialog": {
+      "title": "Tạo Job mới",
+      "jobNumber": "Job Number",
+      "partRevId": "Part Rev ID",
+      "routingRevId": "Routing Rev ID",
+      "runQty": "Run Qty",
+      "shipBy": "Ship By",
+      "errorRequired": "Bắt buộc",
+      "errorGeneric": "Lỗi tạo job",
+      "submitting": "Đang tạo...",
+      "submit": "Tạo Job",
+      "cancel": "Huỷ"
+    },
+    "operations": {
+      "breadcrumb": "Sản xuất › OP riêng",
+      "back": "← Quay lại Job",
+      "sidebarTitle": "OP riêng — chỉ job này",
+      "jobLabel": "Job {job}",
+      "loading": "Đang tải…",
+      "noOps": "Job này chưa có OP riêng.",
+      "opFallback": "OP {op}",
+      "docCount": "{count} tài liệu",
+      "dimCount": "{count} dim",
+      "selectPrompt": "Chọn một OP riêng để xem chi tiết",
+      "badge": "OP riêng",
+      "done": "Done",
+      "setupRun": "Setup: {setup} · Run: {prod}",
+      "tabs": {
+        "documents": "Tài liệu",
+        "dimension": "Dimension"
+      },
+      "documents": {
+        "openAll": "Mở tất cả tài liệu →",
+        "empty": "Chưa có tài liệu nào cho OP này.",
+        "headers": {
+          "type": "Loại",
+          "description": "Mô tả",
+          "status": "Trạng thái",
+          "createdBy": "Người tạo",
+          "createdAt": "Ngày tạo"
+        }
+      },
+      "dimensions": {
+        "importExcel": "⤓ Import Excel",
+        "empty": "Chưa có dimension nào cho OP này.",
+        "headers": {
+          "balloon": "Balloon",
+          "category": "Loại",
+          "nominal": "Nominal",
+          "tolPlus": "Tol+",
+          "tolMinus": "Tol-",
+          "max": "Max",
+          "min": "Min",
+          "unit": "ĐV",
+          "final": "Final"
+        }
+      }
+    }
   }
 }

@@ -366,5 +366,139 @@
       "Approved": "Approved",
       "Rejected": "Rejected"
     }
+  },
+  "jobs": {
+    "title": "Jobs & Products",
+    "breadcrumb": "Production › Job · Serial · Progress",
+    "createButton": "+ New Job",
+    "searchPlaceholder": "Search job, part…",
+    "loading": "Loading…",
+    "selectPrompt": "Select a Job to view details",
+    "status": {
+      "complete": "Complete",
+      "overdue": "Overdue",
+      "atRisk": "At risk",
+      "running": "Running"
+    },
+    "fai": {
+      "modalTitle": "Select OP to view FAI",
+      "empty": "No OPs available.",
+      "open": "FAI →"
+    },
+    "serialStatus": {
+      "available": "Available",
+      "claimed": "Claimed",
+      "inprogress": "In progress",
+      "complete": "Complete"
+    },
+    "detail": {
+      "partRoutingLink": "Part & Routing →",
+      "pcsSuffix": "pcs",
+      "shipBy": "ship {date}",
+      "createdLine": "created {date} · Routing {routing}",
+      "errorLoad": "Failed to load details.",
+      "noRunQty": "Job has no RunQty",
+      "generateConfirm": "Generate {qty} serial products for {job}?",
+      "errorGenerate": "Failed to generate products",
+      "kpi": {
+        "progress": "Completion (inspection)",
+        "produced": "Produced",
+        "passFai": "Pass FAI",
+        "fail": "Fail",
+        "ncr": "Related NCRs"
+      },
+      "progress": {
+        "title": "Inspection progress",
+        "sub": "TotalDim {total} · {qty} serial × {perSerial} dim/serial",
+        "pass": "Pass",
+        "fail": "Fail",
+        "pending": "Not measured",
+        "completeDim": "CompleteDim"
+      },
+      "routing": {
+        "title": "Routing",
+        "subInherited": "inherited from Part · {count} OP",
+        "subWithCustom": "inherited from Part · {count} OP · {customCount} custom OP",
+        "openInEngineering": "Open in Engineering Data →",
+        "addCustomOp": "+ Custom OP",
+        "done": "✓ Done",
+        "customLabel": "Custom OP · Details",
+        "footerInfo": "ⓘ Routing & dimensions are defined in ",
+        "footerInfoStrong": "Engineering Data",
+        "footerInfoAfter": " — this Job only inherits & tracks production.",
+        "footerCustomInfo": " Dashed (orange) OPs are ",
+        "footerCustomInfoStrong": "custom OPs",
+        "footerCustomInfoAfter": " — they only exist in this job; click to manage documents."
+      },
+      "serial": {
+        "title": "Serial / Product",
+        "shown": "showing {shown} / {total}",
+        "total": "{count} serials",
+        "generating": "Generating…",
+        "generate": "+ Generate {qty} serials",
+        "faiSheet": "FAI Sheet",
+        "emptyNoRunQty": "No serials yet. Job has no RunQty.",
+        "emptyWithRunQty": "No serials yet. Click \"+ Generate serials\" to create.",
+        "more": "more"
+      }
+    },
+    "createDialog": {
+      "title": "Create New Job",
+      "jobNumber": "Job Number",
+      "partRevId": "Part Rev ID",
+      "routingRevId": "Routing Rev ID",
+      "runQty": "Run Qty",
+      "shipBy": "Ship By",
+      "errorRequired": "Required",
+      "errorGeneric": "Failed to create job",
+      "submitting": "Creating...",
+      "submit": "Create Job",
+      "cancel": "Cancel"
+    },
+    "operations": {
+      "breadcrumb": "Production › Custom OPs",
+      "back": "← Back to Job",
+      "sidebarTitle": "Custom OPs — this job only",
+      "jobLabel": "Job {job}",
+      "loading": "Loading…",
+      "noOps": "This job has no custom OPs.",
+      "opFallback": "OP {op}",
+      "docCount": "{count} documents",
+      "dimCount": "{count} dim",
+      "selectPrompt": "Select a custom OP to view details",
+      "badge": "Custom OP",
+      "done": "Done",
+      "setupRun": "Setup: {setup} · Run: {prod}",
+      "tabs": {
+        "documents": "Documents",
+        "dimension": "Dimension"
+      },
+      "documents": {
+        "openAll": "Open all documents →",
+        "empty": "No documents for this OP yet.",
+        "headers": {
+          "type": "Type",
+          "description": "Description",
+          "status": "Status",
+          "createdBy": "Created by",
+          "createdAt": "Created at"
+        }
+      },
+      "dimensions": {
+        "importExcel": "⤓ Import Excel",
+        "empty": "No dimensions for this OP yet.",
+        "headers": {
+          "balloon": "Balloon",
+          "category": "Category",
+          "nominal": "Nominal",
+          "tolPlus": "Tol+",
+          "tolMinus": "Tol-",
+          "max": "Max",
+          "min": "Min",
+          "unit": "Unit",
+          "final": "Final"
+        }
+      }
+    }
   }
 }

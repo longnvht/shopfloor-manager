@@ -227,8 +227,9 @@ clients/web/
 **Design system — VA warm industrial** (từ template `D:\Temple\Shopfloor Manage`):
 - Sidebar 224px nâu `#6D3B1A`, accent cam `#F57C00`, nền kem `#FFF8F0`
 - Fonts: Inter (body) + Fraunces (serif title) + JetBrains Mono (numbers/code)
-- Components: `VASidebar`, `VATopbar`, `VABadge`, `VAKpi`, `VACard`, `VABtn`, `VASeg`
+- Components: `VASidebar`, `VATopbar`, `VABadge`, `VAKpi`, `VACard`, `VABtn`, `VASeg`, `VACombobox`
 - Inline styles với `va.*` tokens — không dùng Tailwind bên trong VA components
+- **Design Language đầy đủ (layout patterns: master-detail, KPI strip, filter bar, table, inline-edit, tabs, i18n, checklist)**: xem [`Project_Documents/18_web_design_language.md`](Project_Documents/18_web_design_language.md) — rút ra từ `/parts`, `/dimsheet`, `/documents` (2026-06-13), áp dụng cho mọi view mới
 
 **Trang dùng API thật:** `/jobs` (Lệnh SX & Sản phẩm), `/parts` (Chi tiết kỹ thuật), `/ncrs`, `/hr` (Nhân sự & Tài khoản), `/fai` (FAI & Đo kiểm — chọn Job/OP rồi xem matrix thật)
 **Trang dùng mock data (chờ Phase 5 API):** `/planning`, `/cnc`, `/gages`, `/calibration`, `/documents`, `/master`
@@ -923,7 +924,7 @@ Desktop app: build riêng bằng dotnet publish, deploy thủ công lên từng 
 - `ExcelImportReader` (`src/ShopfloorManager.API/Common/`): đọc sheet đầu, dòng 1 = header (normalize lower+trim+bỏ space); **trả về `List<Dictionary<string,string>>` (giá trị cell đã extract sẵn)**, KHÔNG trả `IXLRow` — vì `XLWorkbook` bị dispose (`using`) trước khi LINQ `.Select().ToList()` ở controller chạy → `ObjectDisposedException` nếu giữ reference `IXLRow`
 - i18n: namespace `parts` đầy đủ cho `/parts`, `/parts/[id]` và 5 dialog mới (`addRevision`/`addRoutingRev`/`addOp`/`importOps`/`importDims`)
 
-**Web UI Redesign — kế hoạch (Claude design, 2026-06-12)**
+**Web UI Redesign — kế hoạch (Claude design, 2026-06-12; trình tự theo nhóm sidebar cập nhật 2026-06-13)**
 
 Đã nhận bộ thiết kế mới (AI design tool, dựa trên `Project_Documents/01-13`) — tái cấu trúc sidebar thành 5 nhóm + thêm trang "Dimension Sheet" + cập nhật nội dung nhiều trang. Quyết định đã chốt với user:
 - Nhóm sidebar cuối cùng vẫn giữ tên **"Hệ thống"** (HR + Master Data) — không đổi thành "Master Data"
@@ -931,19 +932,25 @@ Desktop app: build riêng bằng dotnet publish, deploy thủ công lên từng 
 - NCR: **redesign đầy đủ** theo workflow 5 bước (Phát hiện → Phân loại → Quyết định → Xác minh → Đóng) — cần migration, thiết kế chi tiết ở `07_ncr.md` (mục "UI Redesign — Phase I")
 - Master Data: **redesign theo mockup** (`va-master.jsx`) — chi tiết ở `13_master_data.md` (mục "UI Redesign — Phase K"), cần xử lý lại tab MachineGroup đã có CRUD (2026-06-10) nhưng không có trong mockup
 
-| Phase | Nội dung | File thiết kế chi tiết | Trạng thái |
-|---|---|---|---|
-| A | Sidebar 5 nhóm (Tổng quan/Kỹ thuật/Sản xuất/Chất lượng/Hệ thống) + i18n, thêm placeholder route `dimsheet` | `messages/*.json`, `components/va/sidebar.tsx` | ✅ |
-| B | Trang "Dimension Sheet" (`/dimsheet`) — bảng tổng hợp dimension toàn Part across OP | `04_routing_operations.md` § UI Redesign — Phase B | ✅ |
-| C | FAI: stat strip (Inspector, Pass/Fail/Pending, Pass rate%) | `06_dimensions_fai.md` § UI Redesign — Phase C | ⏳ |
-| D | Jobs: "Tiến độ đo kiểm" progress bar + routing OP strip thành read-only reference → Part&Routing | `03_job_management.md` § UI Redesign — Phase D | ⏳ |
-| E | Documents: cascading filter Part→Drawing Rev→Routing Rev→OP cho truy cập top-level | `05_technical_documents.md` § UI Redesign — Phase E | ✅ |
-| F | Jobs: Serial/Product grid 4 trạng thái (available/claimed/inprogress/complete) — cần ProductionSession status trong ProductDto | `03_job_management.md` § UI Redesign — Phase F | ⏳ |
-| G | Part & Routing: KPI strip, revision history timeline, drawing 2D placeholder, OP detail tabs (Tài liệu/Dimension) — điều chỉnh: tách 2 trang `/parts` (list+overview) và `/parts/[id]/operations` (OP detail) | `04_routing_operations.md` § UI Redesign — Phase G | ✅ |
-| H | HR: org tree phòng ban (bên trái) + user table (bên phải) | `02_hr.md` § UI Redesign — Phase H | ⏳ |
-| I | NCR: redesign đầy đủ — workflow 5 bước, thêm bước "Xác minh" (Verification) | `07_ncr.md` § UI Redesign — Phase I | ⏳ |
-| J | FAI: panel "Chi tiết Balloon" — measure history + distribution chart + "Mở NCR cho ô này" | `06_dimensions_fai.md` § UI Redesign — Phase J | ⏳ |
-| K | Master Data: redesign theo `va-master.jsx` — Machines/OpTypes/DimCategories/Fixtures(mới)/DocumentTypes, xử lý lại MachineGroup | `13_master_data.md` § UI Redesign — Phase K | ⏳ |
+**Trình tự triển khai — theo nhóm sidebar** (hoàn thiện toàn bộ view trong 1 nhóm rồi mới sang nhóm kế tiếp). Tổng quan + Kỹ thuật đã ✅ xong. Thứ tự 3 nhóm còn lại: **Sản xuất → Chất lượng → Hệ thống**. Trong mỗi nhóm, làm các phase đã có thiết kế trước (D/F, C/I/J, H/K); các view đang mock 100% chưa có thiết kế (Planning/CNC trong Sản xuất, Gages/Calibration trong Chất lượng) làm sau cùng trong nhóm — vẫn theo đúng quy trình "mô tả thiết kế → user confirm → implement" trước khi code, dùng [`18_web_design_language.md`](18_web_design_language.md) làm chuẩn UI.
+
+| Nhóm | Phase | Nội dung | File thiết kế chi tiết | Trạng thái |
+|---|---|---|---|---|
+| Tổng quan | A | Sidebar 5 nhóm (Tổng quan/Kỹ thuật/Sản xuất/Chất lượng/Hệ thống) + i18n; `/dashboard` đã dùng API thật | `messages/*.json`, `components/va/sidebar.tsx` | ✅ |
+| Kỹ thuật | B | Trang "Dimension Sheet" (`/dimsheet`) — bảng tổng hợp dimension toàn Part across OP | `04_routing_operations.md` § UI Redesign — Phase B | ✅ |
+| Kỹ thuật | E | Documents: flat-list filter Part→Drawing Rev→Routing Rev→OP + combobox gõ-để-tìm | `05_technical_documents.md` § UI Redesign — Phase E | ✅ |
+| Kỹ thuật | G | Part & Routing: KPI strip, revision history, OP detail tabs (Tài liệu/Dimension) — tách `/parts` + `/parts/[id]/operations` | `04_routing_operations.md` § UI Redesign — Phase G | ✅ |
+| **Sản xuất** | D | Jobs: "Tiến độ đo kiểm" progress bar + routing OP strip thành read-only reference → Part&Routing | `03_job_management.md` § UI Redesign — Phase D | ✅ |
+| Sản xuất | F | Jobs: Serial/Product grid 4 trạng thái (available/claimed/inprogress/complete) — cần ProductionSession status trong ProductDto | `03_job_management.md` § UI Redesign — Phase F | ✅ |
+| Sản xuất | L (mới) | Planning: redesign theo `18_web_design_language.md` + API thật (Gantt tuần) — cần viết thiết kế trước | `10_planning.md` — cần viết § UI Redesign — Phase L | 🆕 cần thiết kế |
+| Sản xuất | M (mới) | CNC Live: redesign theo `18_web_design_language.md` + dữ liệu MQTT thật — cần viết thiết kế trước | `12_cnc_mqtt.md` — cần viết § UI Redesign — Phase M | 🆕 cần thiết kế |
+| Chất lượng | C | FAI: stat strip (Inspector, Pass/Fail/Pending, Pass rate%) | `06_dimensions_fai.md` § UI Redesign — Phase C | ⏳ |
+| Chất lượng | J | FAI: panel "Chi tiết Balloon" — measure history + distribution chart + "Mở NCR cho ô này" | `06_dimensions_fai.md` § UI Redesign — Phase J | ⏳ |
+| Chất lượng | I | NCR: redesign đầy đủ — workflow 5 bước, thêm bước "Xác minh" (Verification), cần migration | `07_ncr.md` § UI Redesign — Phase I | ⏳ |
+| Chất lượng | N (mới) | Gages: redesign theo `18_web_design_language.md` + API thật — cần viết thiết kế trước | `08_gage_management.md` — cần viết § UI Redesign — Phase N | 🆕 cần thiết kế |
+| Chất lượng | O (mới) | Calibration: redesign theo `18_web_design_language.md` + API thật — cần viết thiết kế trước | `09_calibration.md` — cần viết § UI Redesign — Phase O | 🆕 cần thiết kế |
+| Hệ thống | H | HR: org tree phòng ban (bên trái) + user table (bên phải) | `02_hr.md` § UI Redesign — Phase H | ⏳ |
+| Hệ thống | K | Master Data: redesign theo `va-master.jsx` — Machines/OpTypes/DimCategories/Fixtures(mới)/DocumentTypes, xử lý lại MachineGroup | `13_master_data.md` § UI Redesign — Phase K | ⏳ |
 
 **Quy trình triển khai (bắt buộc theo từng phase):**
 1. Mô tả chi tiết việc sẽ làm + thay đổi dự kiến (UI, API, schema nếu có) cho phase đó
@@ -951,6 +958,39 @@ Desktop app: build riêng bằng dotnet publish, deploy thủ công lên từng 
 3. Implement (theo Clean Architecture, đúng quy trình "Triển khai tính năng — quy trình bắt buộc")
 4. Build (`dotnet build` / `npm run build` hoặc dev server) — kiểm tra thực tế trên browser
 5. Cập nhật log kết quả vào CLAUDE.md (mục tương ứng phase), đánh dấu ✅
+
+**Web Design Language (áp dụng cho các phase ⏳ còn lại — H/I/J/K)**: `/parts`, `/dimsheet`, `/documents` đã thống nhất 1 bộ pattern UI chung (master-detail, KPI strip, filter bar + `VACombobox`, table sticky header + `va-scroll`, inline-edit ✎/✓/✕, status badge `STATUS_KIND` + `t('status.*')`, tabs `VASeg`...) — xem [`Project_Documents/18_web_design_language.md`](Project_Documents/18_web_design_language.md) và áp dụng các pattern phù hợp khi implement Phase H/I/J/K.
+
+**Phase D + F — Jobs: progress card + routing reference + serial/product grid (✅ 2026-06-13)**
+- Dựa trên mockup `va-jobs.jsx` (`Shopfloor Manage.zip`) — viết lại toàn bộ panel phải (`JobDetail`) của `/jobs`.
+- Backend: `JobDto`/`JobDetailDto` thêm `partId`; `GetJobProgressQuery`/Handler mới → `JobProgressDto {totalDim, completeDim, passDim, failDim}` (join Dimension theo routing hiệu lực của job × Product, lấy `MeasureValue` mới nhất theo `(DimensionId, ProductId)`) — endpoint `GET /api/v1/jobs/{id}/progress`. `ProductDto` thêm `sessionStatus` ("none"/"claimed"/"inprogress") + `claimedByName` — derive từ `ProductionSession` đang `open` (`started_at` null → claimed, có giá trị → inprogress) — endpoint `GET /api/v1/jobs/{id}/products` dùng `ProductDtoMapper.MapAsync`. `IJobRepository.GetNcrCountAsync` không cần thêm — dùng `api.ncrs.list(1, undefined, jobId)` có sẵn, lấy `pagination.total`.
+- Frontend `JobDetail` viết lại hoàn toàn:
+  - **Header**: jobNumber (mono 24px) + `VABadge` status; line 2 link `{partNumber} · Rev {revCode}` → `/parts/{partId}/operations` + runQty + shipBy; line 3 "tạo {date} · Routing {routingRevCode}"; nút duy nhất "Part & Routing →". Bỏ nút "Sửa" và dòng PO/customer (chưa có entity tương ứng).
+  - **KPI strip** (5 `VAKpi`): Hoàn thành (đo kiểm) %, Đã sản xuất, Pass FAI/totalDim, Fail, NCR liên quan (đỏ nếu >0).
+  - **"Tiến độ đo kiểm" card**: stacked bar Pass(xanh)/Fail(đỏ) trên tổng `totalDim`, legend Pass/Fail/Chưa đo/CompleteDim.
+  - **"Routing (tham chiếu)" card** (chỉ hiện nếu có template OP): OP strip ngang (số OP + tên OpType, `✓ Done` nếu complete) nối bằng line, link "Mở trong Chi tiết kỹ thuật →" → `/parts/{partId}/operations`, footer "Routing & dimension được định nghĩa ở Chi tiết kỹ thuật — Job chỉ kế thừa & theo dõi sản xuất."
+  - **"Serial / Product" card**: grid 4 trạng thái (`SERIAL_META`: available=Sẵn sàng/xám, claimed=Đã claim/vàng, inprogress=Đang làm/xanh active, complete=Hoàn tất/xanh ok) — viền top 3px màu theo state; legend + nút "FAI Sheet"; hiển thị tối đa 48 serial + card "+N nữa" nếu nhiều hơn.
+  - "Custom OPs — chỉ job này" card giữ nguyên như cũ.
+- `/jobs/[id]/page.tsx` (trang detail standalone cũ, shadcn-based) → đổi thành redirect `router.replace('/jobs?jobId={id}')`; `/jobs/page.tsx` thêm `useSearchParams().get('jobId')` → `api.jobs.get(id)` → `setSelJob`. Các back-link cũ từ `/jobs/[id]/fai` và `/jobs/[id]/documents` vẫn hoạt động đúng (redirect qua `/jobs?jobId=...`).
+- Verify browser (sau khi kill PID cũ + `dotnet run` lại để route `/progress`+`/products` có hiệu lực): job "00006535" (480 dim, 81 pcs, 20 product đã tạo) — KPI 7%/33 Pass/480 dim/4 NCR đúng; progress bar xanh 7%; Routing strip 11 OP đúng thứ tự; Serial grid 20 ô "Sẵn sàng". Job "J2026-001" (SHAFT-50H6, 3 pcs) — progress bar xanh+đỏ 50% (Pass 2/Fail 1), KPI Fail=1 đỏ, NCR=1 đỏ, Routing 1 OP "20 CNC Machining". `/jobs/100` → redirect `/jobs?jobId=100` chọn đúng job "00006535". Không lỗi console ở cả 2 trang.
+
+**Jobs — gộp card "Routing (tham chiếu)" + "Custom OPs" thành 1 card (✅ 2026-06-13)**
+- Theo yêu cầu user: 2 card riêng biệt (Routing tham chiếu + Custom OPs — chỉ job này) gộp thành 1 card duy nhất "Routing", custom OP (ForJobOnly) hiển thị style khác để phân biệt với template OP.
+- `AddOpDialog` (`components/parts/add-op-dialog.tsx`, dùng chung với `/parts/[id]/operations`) tổng quát hoá: `routingRevId` đổi thành optional, thêm `jobId?: number` — cả 2 field truyền vào `api.operations.create()`. Backend `CreatePartOpCommandHandler` đã set `ForJobOnly = JobId.HasValue && !RoutingRevId.HasValue` sẵn → không cần đổi backend.
+- Card "Routing" (`/jobs` JobDetail): `sub` hiện `kế thừa từ Part · {templateOps.length} OP{customOps.length > 0 ? ` · {customOps.length} OP riêng` : ''}`; `right` có cả link "Mở trong Chi tiết kỹ thuật →" và nút `+ OP riêng` (mở `AddOpDialog` với `jobId`, `onCreated` gọi `loadDetail()`).
+- OP strip ngang: `templateOps` giữ style cũ (box đặc `va.primary`/`va.ok`); nếu có `customOps`, thêm separator dọc (`va.borderStr`) rồi render `customOps` với box viền nét đứt `va.accent` + nền `va.accentBg`, label "OP riêng · Tài liệu", mỗi box là `Link` → `/jobs/{jobId}/documents?opId=...&opNumber=...`.
+- Footer card thêm câu giải thích "OP viền nét đứt (cam) là OP riêng — chỉ tồn tại trong job này, bấm để quản lý tài liệu" khi `customOps.length > 0`.
+- Xoá hoàn toàn card "Custom OPs — chỉ job này (N)" cũ (danh sách dọc).
+- Verify: `npx tsc --noEmit` 0 lỗi. Browser test job "00006535" (job 100, 2 custom OP sẵn có: OP 80/100) — card "Routing" hiện 11 OP đặc + separator + 2 OP nét đứt cam "80"/"100" đúng style, sub "11 OP · 2 OP riêng". Bấm "+ OP riêng" → dialog "Thêm Operation" mở đúng (giống `/parts` AddOpDialog) → tạo OP "120" mô tả "Test Custom OP" → xuất hiện ngay trong strip dạng nét đứt cam, sub cập nhật "3 OP riêng", link đúng `/jobs/100/documents?opId=1078&opNumber=120`. Không lỗi console.
+
+**Jobs — trang quản lý chi tiết OP riêng `/jobs/[id]/operations` (✅ 2026-06-13)**
+- Hoàn thiện view chi tiết cho OP riêng (ForJobOnly) — tương tự OP tham chiếu ở `/parts/[id]/operations`: cũng có danh sách Dimension + Tài liệu, không chỉ "Tài liệu" như trước.
+- Không cần thay đổi backend — `tech-documents`/`operations/{opId}/dimensions/definitions`/`operations/{opId}/dimensions/import` đều scoped theo `partOpId`, không quan tâm `forJobOnly`; `/documents` đã hỗ trợ context chỉ có `partOpId` (không cần `partRevId`).
+- File mới `app/(main)/jobs/[id]/operations/page.tsx` — master-detail mirror `/parts/[id]/operations`: trái = danh sách OP riêng của job (`api.jobs.get(id).operations.filter(o => o.forJobOnly)`), phải = header (badge OP number nét đứt cam, op type, "OP riêng", Done) + `VASeg` 2 tab "Tài liệu"/"Dimension" + `ImportDimensionsDialog`. Topbar "← Quay lại Job" → `/jobs?jobId={id}`. Giữ tiếng Việt hardcode (đồng bộ với `/jobs` hiện tại chưa i18n).
+- Tab "Tài liệu" có link "Mở tất cả tài liệu →" → `/documents?partOpId=...&opNumber=...&jobNumber=...&backHref=/jobs/{id}/operations?opId=...`.
+- `/jobs/page.tsx`: link OP riêng trong card "Routing" đổi từ `/jobs/{id}/documents?opId=...&opNumber=...` → `/jobs/{id}/operations?opId=...`, label đổi "OP riêng · Tài liệu" → "OP riêng · Chi tiết".
+- Xoá `app/(main)/jobs/[id]/documents/` (trang cũ shadcn-based, chỉ có 1 inbound link — đã repoint).
+- Verify: `npx tsc --noEmit` 0 lỗi. Browser test job "00006535" (job 100) — click OP "120 Test Custom OP" → `/jobs/100/operations?opId=1078`, hiện đúng 3 OP riêng (80/100/120) bên trái, header "Test Custom OP" + badge "OP riêng", tab Tài liệu "Chưa có tài liệu nào", tab Dimension "Chưa có dimension nào", nút "Mở tất cả tài liệu →" → URL đúng. "← Quay lại Job" → `/jobs?jobId=100` đúng. Không lỗi console.
 
 **Phase G — Part & Routing tách 2 trang (✅ 2026-06-12)**
 - Theo yêu cầu user, Phase G tách thành 2 trang thay vì 1 trang duy nhất như mockup gốc:
@@ -1021,6 +1061,15 @@ Desktop app: build riêng bằng dotnet publish, deploy thủ công lên từng 
 - `alert`/`prompt` messages (lỗi duyệt/từ chối/upload, "Lý do từ chối:", "Không tải được URL tài liệu") → `t('actions.*')`/`t('upload.errorGeneric')`.
 - Date cột "Người tạo": `new Date(d.createdAt).toLocaleDateString('vi-VN')` (hardcode) → `useLocale()` + `toLocaleDateString(locale === 'vi' ? 'vi-VN' : 'en-US')` — đúng pattern chuẩn của dự án.
 - Verify: `npx tsc --noEmit` 0 lỗi. Browser test VI→EN qua `VALangSwitcher`: toàn bộ topbar/KPI/banner/filter bar (label + placeholder + 6 combobox option)/type legend/table header/status badge/action button đều dịch đúng; ngày "13/6/2026" (VI) ↔ "6/13/2026" (EN); dropdown Drawing Rev hiện "Rev A"/"Rev E"/"Rev NONE" (EN) đúng `revPrefix`. Không lỗi console ở cả 2 ngôn ngữ.
+
+**`/jobs` — i18n English (✅ 2026-06-13)**
+- Thêm namespace `jobs` đầy đủ vào `messages/vi.json` + `messages/en.json` cho `/jobs` (master-detail Job list + `JobDetail`), `/jobs/[id]/operations` (custom OP detail), và `CreateJobDialog`: `title`/`breadcrumb`/`createButton`/`searchPlaceholder`/`loading`/`selectPrompt`, `status.*` (complete/overdue/atRisk/running), `fai.*` (modal chọn OP để xem FAI), `serialStatus.*` (available/claimed/inprogress/complete), `detail.*` (KPI strip, progress card, routing card, serial/product card — kèm interpolation `{count}`/`{date}`/`{qty}`/`{job}`...), `createDialog.*` (title/labels/errorRequired/errorGeneric/submit/cancel), `operations.*` (breadcrumb, sidebar, tabs Tài liệu/Dimension, table headers).
+- `jobStatus()` đổi return type từ `{ label, kind }` → `{ statusKey: 'complete'|'overdue'|'atRisk'|'running', kind }` — label lấy qua `t(\`status.${statusKey}\`)`.
+- `SERIAL_META` bỏ field `label` — label lấy qua `t(\`serialStatus.${k}\`)`.
+- Footer text "OP viền nét đứt (cam) là OP riêng..." tách thành nhiều key riêng (`footerInfo`/`footerInfoStrong`/`footerInfoAfter`/`footerCustomInfo*`) vì codebase không dùng `t.rich()` — ghép lại bằng JSX `<strong>` xen giữa các `t()`.
+- `/jobs/[id]/operations/page.tsx`: `STATUS_META` (Pending/Approved/Rejected) giữ nguyên tiếng Anh hardcode — theo đúng precedent của `/parts/[id]/operations`.
+- `CreateJobDialog`: thêm `useTranslations('jobs.createDialog')`; bỏ message Zod `'Bắt buộc'` (dùng `.min(1)` không message) → render `{t('errorRequired')}` khi `errors.field` — theo pattern `AddOpDialog`. Field label "Job Number"/"Part Rev ID"/"Routing Rev ID"/"Run Qty"/"Ship By" giữ nguyên thuật ngữ kỹ thuật ở cả 2 locale.
+- Verify: `npx tsc --noEmit` 0 lỗi. Browser test job "00006535" (job 100, có 3 OP riêng) ở cả VI và EN qua `VALangSwitcher`: header/breadcrumb/KPI strip/progress card/routing card (kể cả footer 2 đoạn có `<strong>`)/serial grid/legend đều dịch đúng; `/jobs/100/operations?opId=1078` (OP riêng "120") dịch đúng cả 2 tab Tài liệu/Dimension; dialog "+ Tạo Job"/"+ New Job" hiện đúng title/labels/buttons, bấm submit rỗng → "Required"/"Bắt buộc" hiện đúng theo locale; dialog "+ OP riêng" (`AddOpDialog`, đã i18n từ trước) vẫn hoạt động đúng. Không lỗi console (chỉ a11y warning có sẵn).
 
 **Phase 6 chi tiết:**
 - Multi-factory support (FactoryId đã chuẩn bị trên Machine entity)
@@ -1094,6 +1143,7 @@ Mỗi module có file tài liệu trong `Project_Documents/`. Trước khi imple
 | Desktop MES (WPF, FAI at machine) | [`Project_Documents/14_desktop_mes.md`](Project_Documents/14_desktop_mes.md) |
 | Desktop MES — Dashboard UI | [`Project_Documents/15_dashboard_desktop.md`](Project_Documents/15_dashboard_desktop.md) |
 | Desktop MES — Design Language | [`Project_Documents/16_design_language.md`](Project_Documents/16_design_language.md) |
+| Web App — Design Language (VA components, layout patterns) | [`Project_Documents/18_web_design_language.md`](Project_Documents/18_web_design_language.md) |
 
 **Tài liệu là nguồn sự thật duy nhất về business logic.** Nếu code cũ (ManageData, Vinam-MES) và tài liệu mâu thuẫn → ưu tiên tài liệu.
 

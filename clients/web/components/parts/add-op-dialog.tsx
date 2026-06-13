@@ -20,9 +20,9 @@ const schema = z.object({
 })
 type FormData = z.infer<typeof schema>
 
-type Props = { open: boolean; routingRevId: number; onClose: () => void; onCreated: (op: PartOpDto) => void }
+type Props = { open: boolean; routingRevId?: number; jobId?: number; onClose: () => void; onCreated: (op: PartOpDto) => void }
 
-export function AddOpDialog({ open, routingRevId, onClose, onCreated }: Props) {
+export function AddOpDialog({ open, routingRevId, jobId, onClose, onCreated }: Props) {
   const t = useTranslations('parts.addOp')
   const [error, setError] = useState<string | null>(null)
   const [opTypes, setOpTypes] = useState<OpTypeDto[]>([])
@@ -41,6 +41,7 @@ export function AddOpDialog({ open, routingRevId, onClose, onCreated }: Props) {
     setError(null)
     const res = await api.operations.create({
       routingRevId,
+      jobId,
       opNumber: data.opNumber,
       opTypeId: data.opTypeId ? Number(data.opTypeId) : undefined,
       description: data.description || undefined,

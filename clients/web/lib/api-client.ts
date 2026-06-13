@@ -64,7 +64,7 @@ export type RoutingRevDto = {
 
 export type JobDto = {
   id: number; jobNumber: string
-  partRevId: number; partNumber: string; revCode: string
+  partId: number; partRevId: number; partNumber: string; revCode: string
   routingRevId: number; routingRevCode: string
   runQty: number | null; completedCount: number; shipBy: string | null; isComplete: boolean; createdAt: string
 }
@@ -84,7 +84,13 @@ export type JobDetailDto = JobDto & {
   products: ProductDto[]
 }
 
-export type ProductDto = { id: number; serialNumber: string; jobId: number; isComplete: boolean; sortOrder: number | null }
+// sessionStatus: "none" | "claimed" | "inprogress" — kết hợp với isComplete ở UI để ra 4 trạng thái hiển thị
+export type ProductDto = {
+  id: number; serialNumber: string; jobId: number; isComplete: boolean; sortOrder: number | null
+  sessionStatus: string; claimedByName: string | null
+}
+
+export type JobProgressDto = { totalDim: number; completeDim: number; passDim: number; failDim: number }
 
 export type DimensionDto = {
   id: number; partOpId: number
@@ -180,6 +186,8 @@ export const api = {
     create: (body: { jobNumber: string; partRevId: number; routingRevId: number; runQty?: number; shipBy?: string }) =>
       request<JobDto>('/api/v1/jobs', { method: 'POST', body: JSON.stringify(body) }),
     operations: (id: number) => request<PartOpDto[]>(`/api/v1/jobs/${id}/operations`),
+    products: (id: number) => request<ProductDto[]>(`/api/v1/jobs/${id}/products`),
+    progress: (id: number) => request<JobProgressDto>(`/api/v1/jobs/${id}/progress`),
     generateProducts: (id: number, quantity: number) =>
       request<ProductDto[]>(`/api/v1/jobs/${id}/products/generate`, {
         method: 'POST', body: JSON.stringify({ quantity }),
@@ -211,8 +219,8 @@ export const api = {
       request<DimensionDto>(`/api/v1/dimensions/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   },
   ncrs: {
-    list: (page = 1, status?: string) =>
-      request<NcrDto[]>(`/api/v1/ncrs?page=${page}&pageSize=20${status ? `&status=${status}` : ''}`),
+    list: (page = 1, status?: string, jobId?: number) =>
+      request<NcrDto[]>(`/api/v1/ncrs?page=${page}&pageSize=20${status ? `&status=${status}` : ''}${jobId ? `&jobId=${jobId}` : ''}`),
     get: (id: number) => request<NcrDetailDto>(`/api/v1/ncrs/${id}`),
     create: (body: { jobId: number; productId?: number; partOpId?: number; description: string }) =>
       request<NcrDto>('/api/v1/ncrs', { method: 'POST', body: JSON.stringify(body) }),

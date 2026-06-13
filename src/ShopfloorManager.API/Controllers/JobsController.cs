@@ -67,10 +67,19 @@ public class JobsController(IMediator mediator, IShopfloorDbContext db) : Contro
     {
         var products = await db.Products
             .Where(p => p.JobId == id)
-            .OrderBy(p => p.SortOrder ?? p.Id)
-            .Select(p => new ProductDto(p.Id, p.SerialNumber, p.JobId, p.IsComplete, p.SortOrder))
             .ToListAsync();
-        return Ok(ApiResponse<List<ProductDto>>.Ok(products));
+        var dtos = await ProductDtoMapper.MapAsync(db, products, HttpContext.RequestAborted);
+        return Ok(ApiResponse<List<ProductDto>>.Ok(dtos));
+    }
+
+    /// <summary>Tiến độ đo kiểm của Job: TotalDim/CompleteDim/PassDim/FailDim.</summary>
+    [HttpGet("{id:int}/progress")]
+    public async Task<IActionResult> GetProgress(int id)
+    {
+        var result = await mediator.Send(new GetJobProgressQuery(id));
+        return result.IsSuccess
+            ? Ok(ApiResponse<JobProgressDto>.Ok(result.Value))
+            : NotFound(ApiResponse<JobProgressDto>.Fail(result.Errors));
     }
 
     [HttpPost("{id:int}/products/generate")]

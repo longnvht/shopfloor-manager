@@ -2,21 +2,23 @@
 
 import { useState, useEffect, useCallback, type CSSProperties } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { api, type JobDto, type JobDetailDto, type PartOpDto } from '@/lib/api-client'
-import { VATopbar, VABadge, VACard, VABtn } from '@/components/va'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { useTranslations, useLocale } from 'next-intl'
+import { api, type JobDto, type JobDetailDto, type PartOpDto, type ProductDto, type JobProgressDto } from '@/lib/api-client'
+import { VATopbar, VABadge, VACard, VABtn, VAKpi } from '@/components/va'
 import { va } from '@/lib/va-tokens'
 import { CreateJobDialog } from '@/components/jobs/create-job-dialog'
+import { AddOpDialog } from '@/components/parts/add-op-dialog'
 
 // ── Status helpers ─────────────────────────────────────────────────────────
-function jobStatus(job: JobDto): { label: string; kind: 'ok' | 'warn' | 'err' | 'neutral' | 'running' } {
-  if (job.isComplete) return { label: 'Hoàn thành', kind: 'ok' }
+function jobStatus(job: JobDto): { statusKey: 'complete' | 'overdue' | 'atRisk' | 'running'; kind: 'ok' | 'warn' | 'err' | 'neutral' | 'running' } {
+  if (job.isComplete) return { statusKey: 'complete', kind: 'ok' }
   if (job.shipBy) {
     const days = Math.ceil((new Date(job.shipBy).getTime() - Date.now()) / 86400000)
-    if (days < 0) return { label: 'Quá hạn',    kind: 'err'  }
-    if (days < 3) return { label: 'Có nguy cơ', kind: 'warn' }
+    if (days < 0) return { statusKey: 'overdue', kind: 'err'  }
+    if (days < 3) return { statusKey: 'atRisk',  kind: 'warn' }
   }
-  return { label: 'Đang chạy', kind: 'neutral' }
+  return { statusKey: 'running', kind: 'neutral' }
 }
 
 function progressPct(job: JobDto) {
@@ -35,13 +37,14 @@ function progressColor(job: JobDto) {
 // ── FAI OP selector modal ──────────────────────────────────────────────────
 function FaiOpModal({ job, ops, onClose }: { job: JobDto; ops: PartOpDto[]; onClose: () => void }) {
   const router = useRouter()
+  const t = useTranslations('jobs')
   const overlay: React.CSSProperties = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }
   const box: React.CSSProperties = { background: va.surface, borderRadius: 12, padding: 24, width: 400, maxHeight: '80vh', overflow: 'auto', boxShadow: va.shadowLg }
   return (
     <div style={overlay} onClick={e => e.target === e.currentTarget && onClose()}>
       <div style={box}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: va.text }}>Chọn OP để xem FAI</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: va.text }}>{t('fai.modalTitle')}</div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: va.text3 }}>✕</button>
         </div>
         {ops.filter(o => !o.forJobOnly).map(op => (
@@ -49,28 +52,54 @@ function FaiOpModal({ job, ops, onClose }: { job: JobDto; ops: PartOpDto[]; onCl
             style={{ padding: '12px 14px', borderBottom: `1px solid ${va.separator}`, display: 'flex', alignItems: 'center', gap: 12 }}>
             <span style={{ fontFamily: va.mono, fontWeight: 700, color: va.text, minWidth: 40 }}>{op.opNumber}</span>
             <span style={{ fontSize: 12.5, color: va.text2, flex: 1 }}>{op.opTypeName ?? ''} {op.description ? `· ${op.description}` : ''}</span>
-            <span style={{ fontSize: 11, color: va.accent, fontWeight: 600 }}>FAI →</span>
+            <span style={{ fontSize: 11, color: va.accent, fontWeight: 600 }}>{t('fai.open')}</span>
           </div>
         ))}
         {ops.filter(o => !o.forJobOnly).length === 0 && (
-          <div style={{ fontSize: 12, color: va.text3 }}>Không có OP nào.</div>
+          <div style={{ fontSize: 12, color: va.text3 }}>{t('fai.empty')}</div>
         )}
       </div>
     </div>
   )
 }
 
+// ── Serial/Product state helpers ───────────────────────────────────────────
+const SERIAL_META: Record<string, { fg: string; bg: string }> = {
+  available:  { fg: va.text3,  bg: va.surface2 },
+  claimed:    { fg: va.warn,   bg: va.warnBg },
+  inprogress: { fg: va.active, bg: va.activeBg },
+  complete:   { fg: va.ok,     bg: va.okBg },
+}
+
+function productState(p: ProductDto): keyof typeof SERIAL_META {
+  if (p.isComplete) return 'complete'
+  if (p.sessionStatus === 'inprogress') return 'inprogress'
+  if (p.sessionStatus === 'claimed') return 'claimed'
+  return 'available'
+}
+
 // ── Job detail panel ───────────────────────────────────────────────────────
 function JobDetail({ job: jobSummary }: { job: JobDto }) {
+  const t = useTranslations('jobs')
+  const locale = useLocale()
   const [detail, setDetail] = useState<JobDetailDto | null>(null)
+  const [progress, setProgress] = useState<JobProgressDto | null>(null)
+  const [ncrCount, setNcrCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [showFaiPicker, setShowFaiPicker] = useState(false)
+  const [showAddOp, setShowAddOp] = useState(false)
   const [generating, setGenerating] = useState(false)
 
   const loadDetail = useCallback(() => {
-    setLoading(true); setDetail(null)
-    api.jobs.get(jobSummary.id).then(res => {
-      if (res.success) setDetail(res.data)
+    setLoading(true); setDetail(null); setProgress(null)
+    Promise.all([
+      api.jobs.get(jobSummary.id),
+      api.jobs.progress(jobSummary.id),
+      api.ncrs.list(1, undefined, jobSummary.id),
+    ]).then(([jobRes, progRes, ncrRes]) => {
+      if (jobRes.success) setDetail(jobRes.data)
+      if (progRes.success) setProgress(progRes.data)
+      setNcrCount(ncrRes.pagination?.total ?? 0)
       setLoading(false)
     })
   }, [jobSummary.id])
@@ -78,127 +107,198 @@ function JobDetail({ job: jobSummary }: { job: JobDto }) {
   useEffect(() => { loadDetail() }, [loadDetail])
 
   async function handleGenerateProducts() {
-    if (!jobSummary.runQty) { alert('Job chưa có RunQty'); return }
-    if (!confirm(`Tạo ${jobSummary.runQty} serial products cho ${jobSummary.jobNumber}?`)) return
+    if (!jobSummary.runQty) { alert(t('detail.noRunQty')); return }
+    if (!confirm(t('detail.generateConfirm', { qty: jobSummary.runQty, job: jobSummary.jobNumber }))) return
     setGenerating(true)
     const res = await api.jobs.generateProducts(jobSummary.id, jobSummary.runQty)
     if (res.success) loadDetail()
-    else alert(res.error ?? 'Lỗi tạo products')
+    else alert(res.error ?? t('detail.errorGenerate'))
     setGenerating(false)
   }
 
   const s = jobStatus(jobSummary)
-  const pct = progressPct(jobSummary)
+
+  const totalDim    = progress?.totalDim ?? 0
+  const completeDim = progress?.completeDim ?? 0
+  const passDim     = progress?.passDim ?? 0
+  const failDim     = progress?.failDim ?? 0
+  const pendDim     = Math.max(0, totalDim - completeDim)
+  const dimPct      = totalDim > 0 ? Math.round(completeDim / totalDim * 100) : 0
+  const dimPer      = jobSummary.runQty ? Math.round(totalDim / jobSummary.runQty) : 0
+
+  const templateOps = detail?.operations.filter(o => !o.forJobOnly) ?? []
+  const customOps   = detail?.operations.filter(o => o.forJobOnly) ?? []
+  const products    = detail?.products ?? []
+  const shown       = Math.min(products.length, 48)
 
   return (
     <div className="va-scroll" style={{ flex: 1, overflow: 'auto', padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-        <div style={{ flex: 1 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <h2 style={{ margin: 0, fontFamily: va.mono, fontSize: 22, fontWeight: 700, color: va.text }}>{jobSummary.jobNumber}</h2>
-            <VABadge kind={s.kind} dot>{s.label}</VABadge>
+            <h2 style={{ margin: 0, fontFamily: va.mono, fontSize: 24, fontWeight: 700, color: va.text }}>{jobSummary.jobNumber}</h2>
+            <VABadge kind={s.kind} dot>{t(`status.${s.statusKey}`)}</VABadge>
           </div>
-          <div style={{ fontSize: 12.5, color: va.text2, marginTop: 4, display: 'flex', gap: 16 }}>
-            <span style={{ fontFamily: va.mono }}>{jobSummary.partNumber}</span>
-            <span>Rev <strong>{jobSummary.revCode}</strong></span>
-            <span>Routing <strong>{jobSummary.routingRevCode}</strong></span>
-            {jobSummary.shipBy && <span>Giao <strong>{new Date(jobSummary.shipBy).toLocaleDateString('vi-VN')}</strong></span>}
+          <div style={{ fontSize: 13, color: va.text2, marginTop: 6 }}>
+            <Link href={`/parts/${jobSummary.partId}/operations`} style={{ color: va.primary, fontWeight: 600, textDecoration: 'none' }}>
+              {jobSummary.partNumber} · Rev {jobSummary.revCode}
+            </Link>
+            <span> · {jobSummary.runQty ?? '—'} {t('detail.pcsSuffix')}</span>
+            {jobSummary.shipBy && <span> · {t('detail.shipBy', { date: new Date(jobSummary.shipBy).toLocaleDateString(locale === 'vi' ? 'vi-VN' : 'en-US') })}</span>}
+          </div>
+          <div style={{ fontSize: 11.5, color: va.text3, marginTop: 4, fontFamily: va.mono }}>
+            {t('detail.createdLine', { date: new Date(jobSummary.createdAt).toLocaleDateString(locale === 'vi' ? 'vi-VN' : 'en-US'), routing: jobSummary.routingRevCode })}
           </div>
         </div>
-        <Link href={`/jobs/${jobSummary.id}`}>
-          <VABtn kind="ghost">Chi tiết →</VABtn>
+        <Link href={`/parts/${jobSummary.partId}/operations`}>
+          <VABtn kind="primary">{t('detail.partRoutingLink')}</VABtn>
         </Link>
       </div>
 
-      {/* Progress */}
-      <div style={{ background: va.surface, border: `1px solid ${va.border}`, borderRadius: 11, padding: '14px 18px', boxShadow: va.shadow }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: 12, color: va.text2 }}>
-          <span style={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5, fontSize: 10.5 }}>Tiến độ sản xuất</span>
-          <span style={{ fontFamily: va.mono, fontWeight: 600, color: va.text }}>{jobSummary.completedCount ?? 0} / {jobSummary.runQty ?? '—'} sp hoàn thành ({pct}%)</span>
-        </div>
-        <div style={{ height: 10, background: va.surface2, borderRadius: 5, overflow: 'hidden' }}>
-          <div style={{ height: '100%', width: `${pct}%`, background: progressColor(jobSummary), transition: 'width 0.3s' }} />
-        </div>
-      </div>
-
       {loading ? (
-        <div style={{ padding: 16, fontSize: 12, color: va.text3 }}>Đang tải…</div>
+        <div style={{ padding: 16, fontSize: 12, color: va.text3 }}>{t('loading')}</div>
       ) : !detail ? (
-        <div style={{ padding: 16, fontSize: 12, color: va.err }}>Không tải được chi tiết.</div>
+        <div style={{ padding: 16, fontSize: 12, color: va.err }}>{t('detail.errorLoad')}</div>
       ) : (
         <>
-          {/* OP Flow */}
-          {detail.operations.filter(o => !o.forJobOnly).length > 0 && (
-            <div className="va-scroll" style={{ display: 'flex', alignItems: 'center', padding: '13px 16px', background: va.surface, border: `1px solid ${va.border}`, borderRadius: 11, boxShadow: va.shadow, overflowX: 'auto', gap: 0 }}>
-              {detail.operations.filter(o => !o.forJobOnly).map((op, i, arr) => (
-                <div key={op.id} style={{ display: 'flex', alignItems: 'center' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, minWidth: 68, flexShrink: 0 }}>
-                    <div style={{ minWidth: 48, height: 34, borderRadius: 7, background: op.isComplete ? va.ok : va.primary, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: va.mono, fontWeight: 700, fontSize: 12.5 }}>{op.opNumber}</div>
-                    <span style={{ fontSize: 10, color: va.text2, textAlign: 'center', maxWidth: 66 }}>{op.opTypeName ?? ''}</span>
-                    {op.isComplete && <span style={{ fontSize: 9, color: va.ok, fontWeight: 700 }}>✓</span>}
-                  </div>
-                  {i < arr.length - 1 && <div style={{ width: 20, height: 2, background: va.border, flexShrink: 0 }} />}
+          {/* KPI strip */}
+          <div style={{ display: 'flex', gap: 13, flexWrap: 'wrap' }}>
+            <VAKpi label={t('detail.kpi.progress')} value={`${dimPct}%`} accent={s.kind === 'err' ? va.err : va.ok} />
+            <VAKpi label={t('detail.kpi.produced')} value={`${jobSummary.completedCount ?? 0}`} sub={`/ ${jobSummary.runQty ?? '—'} ${t('detail.pcsSuffix')}`} />
+            <VAKpi label={t('detail.kpi.passFai')} value={`${passDim}`} sub={`/ ${totalDim} dim`} accent={va.ok} />
+            <VAKpi label={t('detail.kpi.fail')} value={`${failDim}`} accent={failDim > 0 ? va.err : va.text} />
+            <VAKpi label={t('detail.kpi.ncr')} value={`${ncrCount}`} accent={ncrCount > 0 ? va.err : va.text} />
+          </div>
+
+          {/* Tiến độ đo kiểm */}
+          <VACard title={t('detail.progress.title')} sub={t('detail.progress.sub', { total: totalDim, qty: jobSummary.runQty ?? 0, perSerial: dimPer })}>
+            <div style={{ display: 'flex', height: 12, borderRadius: 6, overflow: 'hidden', background: va.surface2 }}>
+              {totalDim > 0 && (
+                <>
+                  <div style={{ width: `${passDim / totalDim * 100}%`, background: va.ok }} />
+                  <div style={{ width: `${failDim / totalDim * 100}%`, background: va.err }} />
+                </>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: 22, marginTop: 12, fontSize: 12, flexWrap: 'wrap' }}>
+              {[
+                { c: va.ok, label: t('detail.progress.pass'), v: passDim },
+                { c: va.err, label: t('detail.progress.fail'), v: failDim },
+                { c: va.border, label: t('detail.progress.pending'), v: pendDim },
+                { c: va.text2, label: t('detail.progress.completeDim'), v: completeDim },
+              ].map(x => (
+                <div key={x.label} style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                  <span style={{ width: 10, height: 10, borderRadius: 3, background: x.c, flexShrink: 0 }} />
+                  <span style={{ color: va.text2 }}>{x.label}</span>
+                  <span style={{ fontFamily: va.mono, fontWeight: 700, color: va.text }}>{x.v}</span>
                 </div>
               ))}
             </div>
+          </VACard>
+
+          {/* Routing (tham chiếu) + Custom OPs */}
+          {(templateOps.length > 0 || customOps.length > 0) && (
+            <VACard
+              title={t('detail.routing.title')}
+              sub={customOps.length > 0
+                ? t('detail.routing.subWithCustom', { count: templateOps.length, customCount: customOps.length })
+                : t('detail.routing.subInherited', { count: templateOps.length })}
+              pad={false}
+              right={
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                  <Link href={`/parts/${jobSummary.partId}/operations`} style={{ fontSize: 11, color: va.primary, fontWeight: 600, textDecoration: 'none' }}>
+                    {t('detail.routing.openInEngineering')}
+                  </Link>
+                  <VABtn kind="ghost" style={{ height: 28, fontSize: 11 }} onClick={() => setShowAddOp(true)}>{t('detail.routing.addCustomOp')}</VABtn>
+                </div>
+              }
+            >
+              <div className="va-scroll" style={{ display: 'flex', alignItems: 'center', padding: '16px 18px', overflowX: 'auto', gap: 0 }}>
+                {templateOps.map((op, i, arr) => (
+                  <div key={op.id} style={{ display: 'flex', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, minWidth: 76, flexShrink: 0 }}>
+                      <div style={{ minWidth: 52, height: 38, borderRadius: 8, background: op.isComplete ? va.ok : va.primary, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: va.mono, fontWeight: 700, fontSize: 13.5 }}>{op.opNumber}</div>
+                      <span style={{ fontSize: 10.5, color: va.text2, fontWeight: 600, textAlign: 'center', maxWidth: 74, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{op.opTypeName ?? ''}</span>
+                      {op.isComplete && <span style={{ fontSize: 9, color: va.ok, fontWeight: 700 }}>{t('detail.routing.done')}</span>}
+                    </div>
+                    {i < arr.length - 1 && <div style={{ width: 26, height: 2, background: va.border, flexShrink: 0 }} />}
+                  </div>
+                ))}
+
+                {customOps.length > 0 && (
+                  <>
+                    {templateOps.length > 0 && <div style={{ width: 1, alignSelf: 'stretch', background: va.borderStr, margin: '0 16px', flexShrink: 0 }} />}
+                    {customOps.map((op, i, arr) => (
+                      <div key={op.id} style={{ display: 'flex', alignItems: 'center' }}>
+                        <Link href={`/jobs/${jobSummary.id}/operations?opId=${op.id}`} style={{ textDecoration: 'none' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, minWidth: 76, flexShrink: 0, cursor: 'pointer' }}>
+                            <div style={{ minWidth: 52, height: 38, borderRadius: 8, border: `2px dashed ${va.accent}`, background: va.accentBg, color: va.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: va.mono, fontWeight: 700, fontSize: 13.5 }}>{op.opNumber}</div>
+                            <span style={{ fontSize: 10.5, color: va.accent, fontWeight: 600, textAlign: 'center', maxWidth: 74, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{op.description ?? op.opTypeName ?? '—'}</span>
+                            <span style={{ fontSize: 9, color: va.accent, fontWeight: 700 }}>{t('detail.routing.customLabel')}</span>
+                          </div>
+                        </Link>
+                        {i < arr.length - 1 && <div style={{ width: 26, height: 2, background: va.accentBg, flexShrink: 0 }} />}
+                      </div>
+                    ))}
+                  </>
+                )}
+              </div>
+              <div style={{ padding: '10px 18px', borderTop: `1px solid ${va.separator}`, fontSize: 11, color: va.text3, background: va.surface2 }}>
+                {t('detail.routing.footerInfo')}<strong style={{ color: va.text2 }}>{t('detail.routing.footerInfoStrong')}</strong>{t('detail.routing.footerInfoAfter')}
+                {customOps.length > 0 && <>{t('detail.routing.footerCustomInfo')}<strong style={{ color: va.accent }}>{t('detail.routing.footerCustomInfoStrong')}</strong>{t('detail.routing.footerCustomInfoAfter')}</>}
+              </div>
+            </VACard>
           )}
 
-          {/* Product / Serial grid */}
+          {/* Serial / Product */}
           <VACard
-            title={`Sản phẩm — ${detail.products.length} serial`}
-            pad={false}
+            title={t('detail.serial.title')}
+            sub={products.length > shown ? t('detail.serial.shown', { shown, total: products.length }) : t('detail.serial.total', { count: products.length })}
             right={
-              <div style={{ display: 'flex', gap: 8 }}>
-                {detail.products.length === 0 && jobSummary.runQty && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                <div style={{ display: 'flex', gap: 12, fontSize: 11, color: va.text2, flexWrap: 'wrap' }}>
+                  {Object.entries(SERIAL_META).map(([k, m]) => (
+                    <span key={k} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <span style={{ width: 9, height: 9, borderRadius: 2, background: m.fg }} />{t(`serialStatus.${k}`)}
+                    </span>
+                  ))}
+                </div>
+                {products.length === 0 && jobSummary.runQty && (
                   <VABtn kind="ghost" style={{ height: 28, fontSize: 11 }} onClick={handleGenerateProducts} disabled={generating}>
-                    {generating ? 'Đang tạo…' : `+ Tạo ${jobSummary.runQty} serials`}
+                    {generating ? t('detail.serial.generating') : t('detail.serial.generate', { qty: jobSummary.runQty })}
                   </VABtn>
                 )}
-                <VABtn kind="accent" style={{ height: 28, fontSize: 11 }} onClick={() => setShowFaiPicker(true)}>FAI Sheet</VABtn>
+                <VABtn kind="accent" style={{ height: 28, fontSize: 11 }} onClick={() => setShowFaiPicker(true)}>{t('detail.serial.faiSheet')}</VABtn>
               </div>
             }
           >
-            {detail.products.length === 0 ? (
-              <div style={{ padding: 16, fontSize: 12, color: va.text3 }}>
-                Chưa có serial. {jobSummary.runQty
-                  ? <span className="va-clickable" style={{ color: va.primary, fontWeight: 600 }} onClick={handleGenerateProducts}>Tạo {jobSummary.runQty} products →</span>
-                  : 'Job chưa có RunQty.'}
+            {products.length === 0 ? (
+              <div style={{ padding: 4, fontSize: 12, color: va.text3 }}>
+                {jobSummary.runQty ? t('detail.serial.emptyWithRunQty') : t('detail.serial.emptyNoRunQty')}
               </div>
             ) : (
-              <div style={{ padding: 14, display: 'flex', flexWrap: 'wrap', gap: 7 }}>
-                {detail.products.map(p => (
-                  <div key={p.id} style={{
-                    padding: '6px 11px', borderRadius: 7, fontSize: 12, fontFamily: va.mono, fontWeight: 600,
-                    background: p.isComplete ? va.okBg    : va.surface2,
-                    color:      p.isComplete ? va.ok      : va.text2,
-                    border:     `1px solid ${p.isComplete ? va.ok + '44' : va.border}`,
-                    cursor: 'default',
-                  }}>
-                    {p.serialNumber}
-                    {p.isComplete && <span style={{ marginLeft: 4, fontSize: 10 }}>✓</span>}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(92px, 1fr))', gap: 10 }}>
+                {products.slice(0, shown).map(p => {
+                  const st = productState(p)
+                  const m = SERIAL_META[st]
+                  return (
+                    <div key={p.id} style={{ border: `1px solid ${va.border}`, borderTop: `3px solid ${m.fg}`, borderRadius: 8, padding: '12px 8px', textAlign: 'center', background: va.surface }}>
+                      <div style={{ fontFamily: va.mono, fontSize: 18, fontWeight: 700, color: va.text }}>{p.serialNumber}</div>
+                      <div style={{ fontSize: 9.5, fontWeight: 600, color: m.fg, marginTop: 4, textTransform: 'uppercase', letterSpacing: 0.3 }}>{t(`serialStatus.${st}`)}</div>
+                    </div>
+                  )
+                })}
+                {products.length > shown && (
+                  <div style={{ border: `1px dashed ${va.borderStr}`, borderRadius: 8, padding: '12px 8px', textAlign: 'center', background: va.surface2, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                    <div style={{ fontFamily: va.mono, fontSize: 14, fontWeight: 700, color: va.text2 }}>+{products.length - shown}</div>
+                    <div style={{ fontSize: 9.5, color: va.text3, marginTop: 3 }}>{t('detail.serial.more')}</div>
                   </div>
-                ))}
+                )}
               </div>
             )}
           </VACard>
 
-          {/* ForJobOnly OPs (nếu có) */}
-          {detail.operations.filter(o => o.forJobOnly).length > 0 && (
-            <VACard title={`Custom OPs — chỉ job này (${detail.operations.filter(o => o.forJobOnly).length})`} pad={false}>
-              <div style={{ padding: '0 4px' }}>
-                {detail.operations.filter(o => o.forJobOnly).map(op => (
-                  <div key={op.id} style={{ padding: '10px 14px', borderBottom: `1px solid ${va.separator}`, display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <span style={{ fontFamily: va.mono, fontSize: 12, fontWeight: 700, color: va.text, minWidth: 40 }}>{op.opNumber}</span>
-                    <span style={{ fontSize: 12, color: va.text2, flex: 1 }}>{op.description ?? op.opTypeName ?? '—'}</span>
-                    <Link href={`/jobs/${jobSummary.id}/documents?opId=${op.id}&opNumber=${op.opNumber}`}>
-                      <VABtn kind="ghost" style={{ height: 26, fontSize: 11 }}>Tài liệu</VABtn>
-                    </Link>
-                  </div>
-                ))}
-              </div>
-            </VACard>
-          )}
         </>
       )}
 
@@ -210,12 +310,27 @@ function JobDetail({ job: jobSummary }: { job: JobDto }) {
           onClose={() => setShowFaiPicker(false)}
         />
       )}
+
+      {/* Add custom OP (ForJobOnly) */}
+      {showAddOp && (
+        <AddOpDialog
+          open={showAddOp}
+          jobId={jobSummary.id}
+          onClose={() => setShowAddOp(false)}
+          onCreated={() => loadDetail()}
+        />
+      )}
     </div>
   )
 }
 
 // ── Main page ──────────────────────────────────────────────────────────────
 export default function JobsPage() {
+  const t = useTranslations('jobs')
+  const locale = useLocale()
+  const searchParams = useSearchParams()
+  const jobIdParam = searchParams.get('jobId')
+
   const [jobs, setJobs]         = useState<JobDto[]>([])
   const [total, setTotal]       = useState(0)
   const [page, setPage]         = useState(1)
@@ -237,12 +352,20 @@ export default function JobsPage() {
 
   useEffect(() => { load() }, [load])
 
+  // Deep-link: /jobs?jobId=123 (vd. quay lại từ FAI/Documents) → chọn job đó
+  useEffect(() => {
+    if (!jobIdParam) return
+    api.jobs.get(Number(jobIdParam)).then(res => {
+      if (res.success) setSelJob(res.data)
+    })
+  }, [jobIdParam])
+
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0, background: va.bg }}>
       <VATopbar
-        title="Lệnh SX & Sản phẩm"
-        breadcrumb="Sản xuất › Job · Serial · Tiến độ"
-        right={<VABtn kind="primary" onClick={() => setShowCreate(true)}>+ Tạo Job</VABtn>}
+        title={t('title')}
+        breadcrumb={t('breadcrumb')}
+        right={<VABtn kind="primary" onClick={() => setShowCreate(true)}>{t('createButton')}</VABtn>}
       />
 
       <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
@@ -255,13 +378,13 @@ export default function JobsPage() {
               <input
                 value={search}
                 onChange={e => { setSearch(e.target.value); setPage(1) }}
-                placeholder="Tìm job, part…"
+                placeholder={t('searchPlaceholder')}
                 style={{ border: 'none', background: 'transparent', outline: 'none', flex: 1, fontSize: 12.5, color: va.text, fontFamily: va.font }}
               />
             </div>
           </div>
 
-          {loading && <div style={{ padding: 16, fontSize: 12, color: va.text3 }}>Đang tải…</div>}
+          {loading && <div style={{ padding: 16, fontSize: 12, color: va.text3 }}>{t('loading')}</div>}
 
           {jobs.map(job => {
             const on  = selJob?.id === job.id
@@ -275,7 +398,7 @@ export default function JobsPage() {
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 5 }}>
                   <span style={{ fontFamily: va.mono, fontSize: 12.5, fontWeight: 700, color: va.text }}>{job.jobNumber}</span>
                   <span style={{ fontSize: 12, color: va.text2, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{job.partNumber}</span>
-                  <VABadge kind={s.kind}>{s.label}</VABadge>
+                  <VABadge kind={s.kind}>{t(`status.${s.statusKey}`)}</VABadge>
                 </div>
                 {/* Progress bar */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -283,7 +406,7 @@ export default function JobsPage() {
                     <div style={{ height: '100%', width: `${pct}%`, background: progressColor(job) }} />
                   </div>
                   <span style={{ fontFamily: va.mono, fontSize: 10.5, color: va.text2, minWidth: 72, textAlign: 'right' }}>
-                    {job.completedCount ?? 0}/{job.runQty ?? '?'} · {job.shipBy ? new Date(job.shipBy).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }) : '—'}
+                    {job.completedCount ?? 0}/{job.runQty ?? '?'} · {job.shipBy ? new Date(job.shipBy).toLocaleDateString(locale === 'vi' ? 'vi-VN' : 'en-US', { day: '2-digit', month: '2-digit' }) : '—'}
                   </span>
                 </div>
               </div>
@@ -304,7 +427,7 @@ export default function JobsPage() {
         {selJob
           ? <JobDetail key={selJob.id} job={selJob} />
           : <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: va.text3, fontSize: 13 }}>
-              Chọn một Job để xem chi tiết
+              {t('selectPrompt')}
             </div>
         }
       </div>
