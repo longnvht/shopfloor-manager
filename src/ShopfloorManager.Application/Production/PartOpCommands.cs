@@ -13,7 +13,8 @@ public record PartOpDto(
     int? OpTypeId, string? OpTypeName,
     string? Description, string? Note,
     decimal? SetupTime, decimal? ProdTime,
-    bool IsVisible, bool IsComplete);
+    bool IsVisible, bool IsComplete,
+    int DimCount, int DocCount);
 
 // ── Queries ───────────────────────────────────────────────────
 
@@ -47,7 +48,7 @@ public class GetJobOpsQueryHandler(IShopfloorDbContext db)
             .OrderBy(o => o.OpNumberSort ?? 0)
             .Select(o => new PartOpDto(o.Id, o.RoutingRevId, o.JobId, o.ForJobOnly,
                 o.OpNumber, o.OpNumberSort, o.OpTypeId, o.OpType != null ? o.OpType.Name : null,
-                o.Description, o.Note, o.SetupTime, o.ProdTime, o.IsVisible, o.IsComplete))
+                o.Description, o.Note, o.SetupTime, o.ProdTime, o.IsVisible, o.IsComplete, 0, 0))
             .ToList();
 
         return Result.Ok(all);
@@ -67,7 +68,9 @@ public class GetRoutingRevOpsQueryHandler(IShopfloorDbContext db)
             .OrderBy(o => o.OpNumberSort ?? 0)
             .Select(o => new PartOpDto(o.Id, o.RoutingRevId, o.JobId, o.ForJobOnly,
                 o.OpNumber, o.OpNumberSort, o.OpTypeId, o.OpType != null ? o.OpType.Name : null,
-                o.Description, o.Note, o.SetupTime, o.ProdTime, o.IsVisible, o.IsComplete))
+                o.Description, o.Note, o.SetupTime, o.ProdTime, o.IsVisible, o.IsComplete,
+                db.Dimensions.Count(d => d.PartOpId == o.Id),
+                db.TechDocuments.Count(td => td.PartOpId == o.Id && td.DeletedAt == null)))
             .ToListAsync(ct);
         return Result.Ok(items);
     }
@@ -119,6 +122,87 @@ public class CreatePartOpCommandHandler(IShopfloorDbContext db)
 
         return Result.Ok(new PartOpDto(op.Id, op.RoutingRevId, op.JobId, op.ForJobOnly,
             op.OpNumber, op.OpNumberSort, op.OpTypeId, opType?.Name,
-            op.Description, op.Note, op.SetupTime, op.ProdTime, op.IsVisible, op.IsComplete));
+            op.Description, op.Note, op.SetupTime, op.ProdTime, op.IsVisible, op.IsComplete, 0, 0));
+    }
+}
+
+// ── Import Operations từ Excel ───────────────────────────────
+
+public record ImportOpRow(string OpNumber, string? OpTypeCode, string? Description, decimal? SetupTime, decimal? ProdTime);
+
+public record ImportOpsCommand(int RoutingRevId, List<ImportOpRow> Rows, int? RequesterId)
+    : IRequest<Result<ImportResultDto>>;
+
+public class ImportOpsCommandValidator : AbstractValidator<ImportOpsCommand>
+{
+    public ImportOpsCommandValidator()
+    {
+        RuleFor(x => x.RoutingRevId).GreaterThan(0);
+        RuleFor(x => x.Rows).NotEmpty();
+    }
+}
+
+public class ImportOpsCommandHandler(IShopfloorDbContext db)
+    : IRequestHandler<ImportOpsCommand, Result<ImportResultDto>>
+{
+    public async Task<Result<ImportResultDto>> Handle(ImportOpsCommand req, CancellationToken ct)
+    {
+        var existingOps = await db.PartOps
+            .Where(o => o.RoutingRevId == req.RoutingRevId)
+            .ToDictionaryAsync(o => o.OpNumber, ct);
+
+        var opTypes = await db.OpTypes.ToListAsync(ct);
+
+        var errors = new List<ImportRowError>();
+        int created = 0, updated = 0;
+
+        for (var i = 0; i < req.Rows.Count; i++)
+        {
+            var row = req.Rows[i];
+            var rowNumber = i + 2; // dòng 1 là header
+
+            if (string.IsNullOrWhiteSpace(row.OpNumber))
+            {
+                errors.Add(new ImportRowError(rowNumber, "Thiếu OpNumber."));
+                continue;
+            }
+
+            int? opTypeId = null;
+            if (!string.IsNullOrWhiteSpace(row.OpTypeCode))
+            {
+                var opType = opTypes.FirstOrDefault(t => string.Equals(t.Code, row.OpTypeCode, StringComparison.OrdinalIgnoreCase));
+                if (opType is null)
+                    errors.Add(new ImportRowError(rowNumber, $"Không tìm thấy OpType '{row.OpTypeCode}'."));
+                else
+                    opTypeId = opType.Id;
+            }
+
+            if (existingOps.TryGetValue(row.OpNumber, out var existing))
+            {
+                existing.Description = row.Description;
+                existing.OpTypeId = opTypeId;
+                existing.SetupTime = row.SetupTime;
+                existing.ProdTime = row.ProdTime;
+                updated++;
+            }
+            else
+            {
+                decimal.TryParse(row.OpNumber, out var sort);
+                db.PartOps.Add(new PartOp
+                {
+                    RoutingRevId = req.RoutingRevId,
+                    OpNumber = row.OpNumber, OpNumberSort = sort,
+                    OpTypeId = opTypeId,
+                    Description = row.Description,
+                    SetupTime = row.SetupTime, ProdTime = row.ProdTime,
+                    CreatedBy = req.RequesterId
+                });
+                created++;
+            }
+        }
+
+        await db.SaveChangesAsync(ct);
+
+        return Result.Ok(new ImportResultDto(created, updated, 0, errors));
     }
 }

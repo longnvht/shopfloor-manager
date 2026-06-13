@@ -44,6 +44,38 @@ public class OperationsController(IMediator mediator) : ControllerBase
         return Ok(ApiResponse<IReadOnlyList<DimensionDto>>.Ok(result.Value.Dimensions));
     }
 
+    /// <summary>Danh sách dimensions định nghĩa của một OP — không cần JobId (dùng cho trang Part &amp; Routing).</summary>
+    [HttpGet("{opId:int}/dimensions/definitions")]
+    public async Task<IActionResult> GetDimensionDefinitions(int opId)
+    {
+        var result = await mediator.Send(new GetOpDimensionsQuery(opId));
+        return result.IsSuccess
+            ? Ok(ApiResponse<IReadOnlyList<DimensionDto>>.Ok(result.Value))
+            : BadRequest(ApiResponse<IReadOnlyList<DimensionDto>>.Fail(result.Errors));
+    }
+
+    /// <summary>Tổng hợp toàn bộ Dimension của các PartOp template thuộc một RoutingRev — dùng cho trang "Dimension Sheet".</summary>
+    [HttpGet("/api/v1/routing-revs/{routingRevId:int}/dimensions")]
+    public async Task<IActionResult> GetRoutingRevDimensions(int routingRevId)
+    {
+        var result = await mediator.Send(new GetDimensionsByRoutingRevQuery(routingRevId));
+        return result.IsSuccess
+            ? Ok(ApiResponse<List<RoutingRevDimensionDto>>.Ok(result.Value))
+            : BadRequest(ApiResponse<List<RoutingRevDimensionDto>>.Fail(result.Errors));
+    }
+
+    /// <summary>Sửa Nominal/Tolerance của một Dimension (inline edit từ Dimension Sheet).</summary>
+    [HttpPut("/api/v1/dimensions/{id:long}")]
+    [Authorize(Roles = "Administrator,Manager,Engineer,QC Inspector")]
+    public async Task<IActionResult> UpdateDimension(long id, [FromBody] UpdateDimensionRequest req)
+    {
+        var result = await mediator.Send(new UpdateDimensionCommand(
+            id, req.NominalValue, req.TolerancePlus, req.ToleranceMinus, UserId));
+        return result.IsSuccess
+            ? Ok(ApiResponse<DimensionDto>.Ok(result.Value))
+            : BadRequest(ApiResponse<DimensionDto>.Fail(result.Errors));
+    }
+
     /// <summary>Thêm dimension vào OP (theo 06_dimensions_fai.md).</summary>
     [HttpPost("{opId:int}/dimensions")]
     [Authorize(Roles = "Administrator,Manager,Engineer,QC Inspector")]
@@ -68,6 +100,55 @@ public class OperationsController(IMediator mediator) : ControllerBase
             ? Ok(ApiResponse<SpcDto>.Ok(result.Value))
             : BadRequest(ApiResponse<SpcDto>.Fail(result.Errors));
     }
+
+    /// <summary>Import Operations từ file Excel — upsert theo OpNumber (cập nhật nếu đã tồn tại).</summary>
+    [HttpPost("import")]
+    [Authorize(Roles = "Administrator,Manager,Engineer")]
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> ImportOps([FromForm] IFormFile file, [FromForm] int routingRevId)
+    {
+        await using var stream = file.OpenReadStream();
+        var (_, rows) = ExcelImportReader.Read(stream);
+
+        var importRows = rows.Select(row => new ImportOpRow(
+            ExcelImportReader.Cell(row, "opnumber", "op") ?? string.Empty,
+            ExcelImportReader.Cell(row, "optype"),
+            ExcelImportReader.Cell(row, "description"),
+            ExcelImportReader.CellDecimal(row, "setup", "setuptime"),
+            ExcelImportReader.CellDecimal(row, "prod", "prodtime")
+        )).ToList();
+
+        var result = await mediator.Send(new ImportOpsCommand(routingRevId, importRows, UserId));
+        return result.IsSuccess
+            ? Ok(ApiResponse<ImportResultDto>.Ok(result.Value))
+            : BadRequest(ApiResponse<ImportResultDto>.Fail(result.Errors));
+    }
+
+    /// <summary>Import Dimensions từ file Excel — bỏ qua balloon đã tồn tại.</summary>
+    [HttpPost("{opId:int}/dimensions/import")]
+    [Authorize(Roles = "Administrator,Manager,Engineer,QC Inspector")]
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> ImportDimensions(int opId, [FromForm] IFormFile file)
+    {
+        await using var stream = file.OpenReadStream();
+        var (_, rows) = ExcelImportReader.Read(stream);
+
+        var importRows = rows.Select(row => new ImportDimensionRow(
+            ExcelImportReader.Cell(row, "balloonnumber", "balloon") ?? string.Empty,
+            ExcelImportReader.Cell(row, "code"),
+            ExcelImportReader.Cell(row, "description"),
+            ExcelImportReader.Cell(row, "nominal"),
+            ExcelImportReader.CellDecimal(row, "tolplus", "tol+"),
+            ExcelImportReader.CellDecimal(row, "tolminus", "tol-"),
+            ExcelImportReader.Cell(row, "unit"),
+            ExcelImportReader.Cell(row, "category")
+        )).ToList();
+
+        var result = await mediator.Send(new ImportDimensionsCommand(opId, importRows, UserId));
+        return result.IsSuccess
+            ? Ok(ApiResponse<ImportResultDto>.Ok(result.Value))
+            : BadRequest(ApiResponse<ImportResultDto>.Fail(result.Errors));
+    }
 }
 
 public record CreateOpRequest(
@@ -80,3 +161,5 @@ public record CreateDimensionRequest(
     string Unit,
     bool IsTextType = false, string? NominalText = null, int? CategoryId = null,
     bool IsCritical = false, bool IsFinal = false, int SortOrder = 0);
+
+public record UpdateDimensionRequest(decimal? NominalValue, decimal? TolerancePlus, decimal? ToleranceMinus);

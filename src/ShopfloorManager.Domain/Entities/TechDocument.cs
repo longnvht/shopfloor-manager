@@ -49,6 +49,9 @@ public class TechDocument
     /// <summary>Loại máy CNC: Fanuc/MAZAK/WC... Chỉ set cho GCD.</summary>
     public string? MachineType { get; set; }
 
+    /// <summary>Kích thước file (bytes) — client gửi kèm lúc request upload.</summary>
+    public long? FileSizeBytes { get; set; }
+
     public FileStatus Status { get; set; } = FileStatus.Pending;
     public int? InspectorId { get; set; }
     public DateTimeOffset? InspectedAt { get; set; }

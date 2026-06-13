@@ -10,11 +10,13 @@ namespace ShopfloorManager.Application.Production;
 
 // ── DTOs ─────────────────────────────────────────────────────
 
-public record PartDto(int Id, string PartNumber, string Description, DateTimeOffset CreatedAt);
+public record PartDto(
+    int Id, string PartNumber, string Description, DateTimeOffset CreatedAt,
+    string? CurrentRoutingRevCode, int OpCount, int JobCount);
 
 public record PartRevDto(
     int Id, int PartId, string PartNumber, string RevCode, string? Description,
-    bool IsActive, bool IsReleased, DateTimeOffset CreatedAt);
+    bool IsActive, bool IsReleased, DateTimeOffset CreatedAt, string? CreatedByName);
 
 public record RoutingDto(int Id, int PartRevId, string Name, string? Description, bool IsActive);
 
@@ -40,7 +42,16 @@ public class GetPartsQueryHandler(IShopfloorDbContext db)
         var total = await q.CountAsync(ct);
         var items = await q.OrderBy(p => p.PartNumber)
             .Skip((req.Page - 1) * req.PageSize).Take(req.PageSize)
-            .Select(p => new PartDto(p.Id, p.PartNumber, p.Description, p.CreatedAt))
+            .Select(p => new PartDto(p.Id, p.PartNumber, p.Description, p.CreatedAt,
+                db.RoutingRevs
+                    .Where(rr => rr.IsActive && rr.Routing.IsActive
+                        && rr.Routing.PartRev.PartId == p.Id && rr.Routing.PartRev.IsActive)
+                    .Select(rr => rr.RevCode)
+                    .FirstOrDefault(),
+                db.PartOps.Count(o => o.IsVisible && o.RoutingRev != null
+                    && o.RoutingRev.IsActive && o.RoutingRev.Routing.IsActive
+                    && o.RoutingRev.Routing.PartRev.PartId == p.Id && o.RoutingRev.Routing.PartRev.IsActive),
+                db.Jobs.Count(j => j.PartRev.PartId == p.Id)))
             .ToListAsync(ct);
 
         return Result.Ok(new PagedResult<PartDto>(items, req.Page, req.PageSize, total));
@@ -83,8 +94,11 @@ public class CreatePartCommandHandler(IShopfloorDbContext db)
 
         await db.SaveChangesAsync(ct);
 
+        var creatorName = req.RequesterId.HasValue
+            ? (await db.Users.FindAsync([req.RequesterId.Value], ct))?.Name : null;
+
         return Result.Ok(new PartRevDto(rev.Id, part.Id, part.PartNumber, rev.RevCode,
-            rev.Description, rev.IsActive, rev.IsReleased, rev.CreatedAt));
+            rev.Description, rev.IsActive, rev.IsReleased, rev.CreatedAt, creatorName));
     }
 }
 
@@ -102,7 +116,8 @@ public class GetPartRevsQueryHandler(IShopfloorDbContext db)
             .Where(r => r.PartId == req.PartId)
             .OrderByDescending(r => r.CreatedAt)
             .Select(r => new PartRevDto(r.Id, r.PartId, r.Part.PartNumber, r.RevCode,
-                r.Description, r.IsActive, r.IsReleased, r.CreatedAt))
+                r.Description, r.IsActive, r.IsReleased, r.CreatedAt,
+                db.Users.Where(u => u.Id == r.CreatedBy).Select(u => u.Name).FirstOrDefault()))
             .ToListAsync(ct);
         return Result.Ok(items);
     }
@@ -136,8 +151,11 @@ public class AddPartRevCommandHandler(IShopfloorDbContext db)
 
         await db.SaveChangesAsync(ct);
 
+        var creatorName = req.RequesterId.HasValue
+            ? (await db.Users.FindAsync([req.RequesterId.Value], ct))?.Name : null;
+
         return Result.Ok(new PartRevDto(rev.Id, part.Id, part.PartNumber, rev.RevCode,
-            rev.Description, rev.IsActive, rev.IsReleased, rev.CreatedAt));
+            rev.Description, rev.IsActive, rev.IsReleased, rev.CreatedAt, creatorName));
     }
 }
 

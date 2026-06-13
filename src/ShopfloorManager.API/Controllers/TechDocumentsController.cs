@@ -17,7 +17,7 @@ public class TechDocumentsController(IShopfloorDbContext db, IMinioService minio
     private int UserId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0");
 
     /// <summary>
-    /// Danh sách tài liệu theo context:
+    /// Danh sách tài liệu — không truyền filter → trả toàn bộ (dùng cho trang "Tài liệu kỹ thuật" flat list).
     ///   ?partRevId=  → Part-level docs (DRW, CAD)
     ///   ?partOpId=   → OP-level docs (GCD, RTC, FXT...) cho standard hoặc ForJobOnly OP
     ///   ?jobId=      → tất cả docs của job (ForJobOnly OPs)
@@ -29,10 +29,7 @@ public class TechDocumentsController(IShopfloorDbContext db, IMinioService minio
         [FromQuery] int? jobId,
         [FromQuery] string? status)
     {
-        var q = db.TechDocuments
-            .Include(t => t.FileType)
-            .Include(t => t.Creator)
-            .AsQueryable();
+        var q = IncludeForDto(db.TechDocuments.AsQueryable());
 
         if (partRevId.HasValue) q = q.Where(t => t.PartRevId == partRevId.Value);
         if (partOpId.HasValue)  q = q.Where(t => t.PartOpId  == partOpId.Value);
@@ -46,12 +43,7 @@ public class TechDocumentsController(IShopfloorDbContext db, IMinioService minio
             .OrderByDescending(t => t.CreatedAt)
             .ToListAsync();
 
-        return Ok(ApiResponse<List<TechDocDto>>.Ok(
-            docs.Select(t => new TechDocDto(
-                t.Id, t.FileType.Code, t.FileType.Name,
-                t.PartRevId, t.PartOpId, t.JobId,
-                t.Description, t.Revision, t.Code, t.Segment, t.MachineType,
-                t.Status.ToString(), t.Creator.Name, t.CreatedAt)).ToList()));
+        return Ok(ApiResponse<List<TechDocDto>>.Ok(docs.Select(ToDto).ToList()));
     }
 
     /// <summary>
@@ -146,13 +138,14 @@ public class TechDocumentsController(IShopfloorDbContext db, IMinioService minio
                 await minio.RenameAsync(existing.StoragePath, rejectedKey);
             }
 
-            existing.StoragePath = objectKey;
-            existing.Description = req.Description;
-            existing.Revision    = req.Revision;
-            existing.Code        = req.Code;
-            existing.Segment     = req.Segment;
-            existing.MachineType = req.MachineType;
-            existing.Status      = FileStatus.Pending;
+            existing.StoragePath   = objectKey;
+            existing.Description   = req.Description;
+            existing.Revision      = req.Revision;
+            existing.Code          = req.Code;
+            existing.Segment       = req.Segment;
+            existing.MachineType   = req.MachineType;
+            existing.FileSizeBytes = req.FileSizeBytes;
+            existing.Status        = FileStatus.Pending;
             existing.InspectorId = null;
             existing.InspectedAt = null;
             existing.InspectNote = null;
@@ -166,17 +159,18 @@ public class TechDocumentsController(IShopfloorDbContext db, IMinioService minio
 
         var doc = new TechDocument
         {
-            FileTypeId  = req.FileTypeId,
-            PartRevId   = req.PartRevId,
-            PartOpId    = req.PartOpId,
-            JobId       = req.JobId,
-            StoragePath = objectKey,
-            Description = req.Description,
-            Revision    = req.Revision,
-            Code        = req.Code,
-            Segment     = req.Segment,
-            MachineType = req.MachineType,
-            CreatedBy   = UserId
+            FileTypeId    = req.FileTypeId,
+            PartRevId     = req.PartRevId,
+            PartOpId      = req.PartOpId,
+            JobId         = req.JobId,
+            StoragePath   = objectKey,
+            Description   = req.Description,
+            Revision      = req.Revision,
+            Code          = req.Code,
+            Segment       = req.Segment,
+            MachineType   = req.MachineType,
+            FileSizeBytes = req.FileSizeBytes,
+            CreatedBy     = UserId
         };
         db.TechDocuments.Add(doc);
         await db.SaveChangesAsync();
@@ -201,9 +195,7 @@ public class TechDocumentsController(IShopfloorDbContext db, IMinioService minio
     [Authorize(Roles = "Administrator,Manager,QC Inspector")]
     public async Task<IActionResult> Inspect(long id, [FromBody] InspectRequest req)
     {
-        var doc = await db.TechDocuments
-            .Include(t => t.FileType)
-            .Include(t => t.Creator)
+        var doc = await IncludeForDto(db.TechDocuments.AsQueryable())
             .FirstOrDefaultAsync(t => t.Id == id);
 
         if (doc is null) return NotFound(ApiResponse<TechDocDto>.Fail("Không tìm thấy tài liệu."));
@@ -216,11 +208,7 @@ public class TechDocumentsController(IShopfloorDbContext db, IMinioService minio
         doc.InspectNote = req.Note;
         await db.SaveChangesAsync();
 
-        return Ok(ApiResponse<TechDocDto>.Ok(new TechDocDto(
-            doc.Id, doc.FileType.Code, doc.FileType.Name,
-            doc.PartRevId, doc.PartOpId, doc.JobId,
-            doc.Description, doc.Revision, doc.Code, doc.Segment, doc.MachineType,
-            doc.Status.ToString(), doc.Creator.Name, doc.CreatedAt)));
+        return Ok(ApiResponse<TechDocDto>.Ok(ToDto(doc)));
     }
 
     /// <summary>
@@ -230,19 +218,76 @@ public class TechDocumentsController(IShopfloorDbContext db, IMinioService minio
     [Authorize(Roles = "Administrator,Manager,QC Inspector")]
     public async Task<IActionResult> GetPending()
     {
-        var docs = await db.TechDocuments
-            .Include(t => t.FileType)
-            .Include(t => t.Creator)
+        var docs = await IncludeForDto(db.TechDocuments.AsQueryable())
             .Where(t => t.Status == FileStatus.Pending)
             .OrderBy(t => t.CreatedAt)
             .ToListAsync();
 
-        return Ok(ApiResponse<List<TechDocDto>>.Ok(
-            docs.Select(t => new TechDocDto(
-                t.Id, t.FileType.Code, t.FileType.Name,
-                t.PartRevId, t.PartOpId, t.JobId,
-                t.Description, t.Revision, t.Code, t.Segment, t.MachineType,
-                t.Status.ToString(), t.Creator.Name, t.CreatedAt)).ToList()));
+        return Ok(ApiResponse<List<TechDocDto>>.Ok(docs.Select(ToDto).ToList()));
+    }
+
+    /// <summary>Includes cần thiết để derive PartNumber/DrawingRevCode/RoutingRevCode/OpNumber trong <see cref="ToDto"/>.</summary>
+    private static IQueryable<TechDocument> IncludeForDto(IQueryable<TechDocument> q) => q
+        .Include(t => t.FileType)
+        .Include(t => t.Creator)
+        .Include(t => t.PartRev).ThenInclude(pr => pr!.Part)
+        .Include(t => t.PartOp).ThenInclude(o => o!.RoutingRev).ThenInclude(rr => rr!.Routing).ThenInclude(r => r.PartRev).ThenInclude(pr => pr.Part)
+        .Include(t => t.PartOp).ThenInclude(o => o!.Job).ThenInclude(j => j!.PartRev).ThenInclude(pr => pr.Part)
+        .Include(t => t.PartOp).ThenInclude(o => o!.Job).ThenInclude(j => j!.RoutingRev)
+        .Include(t => t.Job).ThenInclude(j => j!.PartRev).ThenInclude(pr => pr.Part)
+        .Include(t => t.Job).ThenInclude(j => j!.RoutingRev);
+
+    /// <summary>
+    /// PartNumber/DrawingRevCode/RoutingRevCode/OpNumber được derive từ:
+    ///   - Part-level doc (PartRevId set)  → PartRev.Part / PartRev.RevCode
+    ///   - Standard OP doc (PartOp.RoutingRev set) → routing's PartRev + RoutingRev.RevCode + OpNumber
+    ///   - ForJobOnly OP doc (PartOp.Job set)      → job's PartRev/RoutingRev + OpNumber
+    /// </summary>
+    private static TechDocDto ToDto(TechDocument t)
+    {
+        var fileName = t.StoragePath.Contains('/')
+            ? t.StoragePath[(t.StoragePath.LastIndexOf('/') + 1)..]
+            : t.StoragePath;
+
+        string? partNumber = null, drawingRevCode = null, routingRevCode = null, opNumber = null;
+
+        if (t.PartRev is not null)
+        {
+            partNumber     = t.PartRev.Part.PartNumber;
+            drawingRevCode = t.PartRev.RevCode;
+        }
+
+        if (t.PartOp is not null)
+        {
+            opNumber = t.PartOp.OpNumber;
+            if (t.PartOp.RoutingRev is not null)
+            {
+                routingRevCode = t.PartOp.RoutingRev.RevCode;
+                partNumber     ??= t.PartOp.RoutingRev.Routing.PartRev.Part.PartNumber;
+                drawingRevCode ??= t.PartOp.RoutingRev.Routing.PartRev.RevCode;
+            }
+            else if (t.PartOp.Job is not null)
+            {
+                routingRevCode ??= t.PartOp.Job.RoutingRev.RevCode;
+                partNumber     ??= t.PartOp.Job.PartRev.Part.PartNumber;
+                drawingRevCode ??= t.PartOp.Job.PartRev.RevCode;
+            }
+        }
+
+        if (t.Job is not null)
+        {
+            partNumber     ??= t.Job.PartRev.Part.PartNumber;
+            drawingRevCode ??= t.Job.PartRev.RevCode;
+            routingRevCode ??= t.Job.RoutingRev.RevCode;
+        }
+
+        return new TechDocDto(
+            t.Id, t.FileType.Code, t.FileType.Name,
+            t.PartRevId, t.PartOpId, t.JobId,
+            t.Description, t.Revision, t.Code, t.Segment, t.MachineType,
+            t.Status.ToString(), t.Creator.Name, t.CreatedAt,
+            fileName, partNumber, drawingRevCode, routingRevCode, opNumber,
+            t.FileSizeBytes);
     }
 }
 
@@ -251,7 +296,9 @@ public record TechDocDto(
     int? PartRevId, int? PartOpId, int? JobId,
     string? Description, string? Revision,
     string? Code, string? Segment, string? MachineType,
-    string Status, string CreatedByName, DateTimeOffset CreatedAt);
+    string Status, string CreatedByName, DateTimeOffset CreatedAt,
+    string FileName, string? PartNumber, string? DrawingRevCode, string? RoutingRevCode, string? OpNumber,
+    long? FileSizeBytes);
 
 public record UploadRequest(
     int FileTypeId,
@@ -263,7 +310,8 @@ public record UploadRequest(
     string? Revision,
     string? Code,
     string? Segment,
-    string? MachineType);
+    string? MachineType,
+    long? FileSizeBytes);
 
 public record UploadResponse(long DocumentId, string ObjectKey, string UploadUrl);
 public record InspectRequest(bool Approve, string? Note);

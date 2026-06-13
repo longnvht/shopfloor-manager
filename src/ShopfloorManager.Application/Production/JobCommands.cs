@@ -91,7 +91,7 @@ public class GetJobByIdQueryHandler(IShopfloorDbContext db)
             .OrderBy(o => o.OpNumberSort ?? 0)
             .Select(o => new PartOpDto(o.Id, o.RoutingRevId, o.JobId, o.ForJobOnly,
                 o.OpNumber, o.OpNumberSort, o.OpTypeId, o.OpType?.Name,
-                o.Description, o.Note, o.SetupTime, o.ProdTime, o.IsVisible, o.IsComplete))
+                o.Description, o.Note, o.SetupTime, o.ProdTime, o.IsVisible, o.IsComplete, 0, 0))
             .ToList();
 
         var products = job.Products

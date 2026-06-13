@@ -84,6 +84,70 @@ public class GetFaiSheetQueryHandler(IShopfloorDbContext db)
     }
 }
 
+// ── Dimensions (định nghĩa, không gắn Job) ──────────────────────
+
+/// <summary>
+/// Danh sách Dimension định nghĩa cho một PartOp — dùng cho trang Part & Routing
+/// (không cần JobId, khác với GetFaiSheetQuery dùng cho FAI matrix theo Job).
+/// </summary>
+public record GetOpDimensionsQuery(int PartOpId) : IRequest<Result<IReadOnlyList<DimensionDto>>>;
+
+public class GetOpDimensionsQueryHandler(IShopfloorDbContext db)
+    : IRequestHandler<GetOpDimensionsQuery, Result<IReadOnlyList<DimensionDto>>>
+{
+    public async Task<Result<IReadOnlyList<DimensionDto>>> Handle(GetOpDimensionsQuery req, CancellationToken ct)
+    {
+        var dims = await db.Dimensions
+            .Include(d => d.Category)
+            .Where(d => d.PartOpId == req.PartOpId)
+            .OrderBy(d => d.BalloonSort ?? 9999).ThenBy(d => d.BalloonNumber)
+            .Select(d => new DimensionDto(
+                d.Id, d.PartOpId, d.BalloonNumber, d.BalloonSort, d.Code, d.Description,
+                d.NominalValue, d.TolerancePlus, d.ToleranceMinus, d.MaxValue, d.MinValue, d.Unit,
+                d.IsTextType, d.NominalText, d.Category != null ? d.Category.Code : null,
+                d.IsCritical, d.IsFinal, d.SortOrder))
+            .ToListAsync(ct);
+
+        return Result.Ok<IReadOnlyList<DimensionDto>>(dims);
+    }
+}
+
+/// <summary>
+/// Tổng hợp toàn bộ Dimension của các PartOp template (ForJobOnly=false) thuộc một RoutingRev — dùng cho trang "Dimension Sheet".
+/// </summary>
+public record RoutingRevDimensionDto(
+    long Id, int OpId, string OpNumber, decimal? OpNumberSort,
+    string BalloonNumber, decimal? BalloonSort, string? Code, string? Description,
+    decimal? NominalValue, decimal? TolerancePlus, decimal? ToleranceMinus,
+    decimal? MaxValue, decimal? MinValue, string Unit,
+    bool IsTextType, string? NominalText,
+    string? CategoryCode, bool IsCritical, bool IsFinal, int SortOrder);
+
+public record GetDimensionsByRoutingRevQuery(int RoutingRevId) : IRequest<Result<List<RoutingRevDimensionDto>>>;
+
+public class GetDimensionsByRoutingRevQueryHandler(IShopfloorDbContext db)
+    : IRequestHandler<GetDimensionsByRoutingRevQuery, Result<List<RoutingRevDimensionDto>>>
+{
+    public async Task<Result<List<RoutingRevDimensionDto>>> Handle(GetDimensionsByRoutingRevQuery req, CancellationToken ct)
+    {
+        var items = await db.Dimensions
+            .Include(d => d.Category)
+            .Include(d => d.PartOp)
+            .Where(d => d.PartOp.RoutingRevId == req.RoutingRevId && !d.PartOp.ForJobOnly && d.PartOp.IsVisible)
+            .OrderBy(d => d.PartOp.OpNumberSort ?? 9999).ThenBy(d => d.PartOp.OpNumber)
+            .ThenBy(d => d.BalloonSort ?? 9999).ThenBy(d => d.BalloonNumber)
+            .Select(d => new RoutingRevDimensionDto(
+                d.Id, d.PartOpId, d.PartOp.OpNumber, d.PartOp.OpNumberSort,
+                d.BalloonNumber, d.BalloonSort, d.Code, d.Description,
+                d.NominalValue, d.TolerancePlus, d.ToleranceMinus, d.MaxValue, d.MinValue, d.Unit,
+                d.IsTextType, d.NominalText, d.Category != null ? d.Category.Code : null,
+                d.IsCritical, d.IsFinal, d.SortOrder))
+            .ToListAsync(ct);
+
+        return Result.Ok(items);
+    }
+}
+
 // ── Dimensions ────────────────────────────────────────────────
 
 public record CreateDimensionCommand(
@@ -154,6 +218,157 @@ public class CreateDimensionCommandHandler(IShopfloorDbContext db)
             dim.BalloonNumber, dim.BalloonSort, dim.Code, dim.Description,
             dim.NominalValue, dim.TolerancePlus, dim.ToleranceMinus, dim.MaxValue, dim.MinValue, dim.Unit,
             dim.IsTextType, dim.NominalText, cat?.Code, dim.IsCritical, dim.IsFinal, dim.SortOrder));
+    }
+}
+
+// ── Update Dimension (inline edit từ Dimension Sheet) ────────────
+
+public record UpdateDimensionCommand(
+    long Id, decimal? NominalValue, decimal? TolerancePlus, decimal? ToleranceMinus, int? RequesterId)
+    : IRequest<Result<DimensionDto>>;
+
+public class UpdateDimensionCommandValidator : AbstractValidator<UpdateDimensionCommand>
+{
+    public UpdateDimensionCommandValidator()
+    {
+        RuleFor(x => x.TolerancePlus).GreaterThanOrEqualTo(0).When(x => x.TolerancePlus.HasValue);
+        RuleFor(x => x.ToleranceMinus).GreaterThanOrEqualTo(0).When(x => x.ToleranceMinus.HasValue);
+    }
+}
+
+public class UpdateDimensionCommandHandler(IShopfloorDbContext db)
+    : IRequestHandler<UpdateDimensionCommand, Result<DimensionDto>>
+{
+    public async Task<Result<DimensionDto>> Handle(UpdateDimensionCommand req, CancellationToken ct)
+    {
+        var dim = await db.Dimensions.Include(d => d.Category).FirstOrDefaultAsync(d => d.Id == req.Id, ct);
+        if (dim is null) return Result.Fail($"Không tìm thấy Dimension ID {req.Id}.");
+        if (dim.IsTextType) return Result.Fail("Không thể sửa Nominal/Tolerance của dimension dạng text.");
+
+        dim.NominalValue = req.NominalValue;
+        dim.TolerancePlus = req.TolerancePlus;
+        dim.ToleranceMinus = req.ToleranceMinus;
+        dim.MaxValue = dim.NominalValue.HasValue && dim.TolerancePlus.HasValue ? dim.NominalValue + dim.TolerancePlus : null;
+        dim.MinValue = dim.NominalValue.HasValue && dim.ToleranceMinus.HasValue ? dim.NominalValue - dim.ToleranceMinus : null;
+        dim.UpdatedAt = DateTimeOffset.UtcNow;
+        dim.UpdatedBy = req.RequesterId;
+
+        await db.SaveChangesAsync(ct);
+
+        return Result.Ok(new DimensionDto(dim.Id, dim.PartOpId,
+            dim.BalloonNumber, dim.BalloonSort, dim.Code, dim.Description,
+            dim.NominalValue, dim.TolerancePlus, dim.ToleranceMinus, dim.MaxValue, dim.MinValue, dim.Unit,
+            dim.IsTextType, dim.NominalText, dim.Category?.Code, dim.IsCritical, dim.IsFinal, dim.SortOrder));
+    }
+}
+
+// ── Import Dimensions từ Excel ───────────────────────────────
+
+public record ImportDimensionRow(
+    string BalloonNumber, string? Code, string? Description, string? NominalRaw,
+    decimal? TolPlus, decimal? TolMinus, string? Unit, string? CategoryCode);
+
+public record ImportDimensionsCommand(int PartOpId, List<ImportDimensionRow> Rows, int? RequesterId)
+    : IRequest<Result<ImportResultDto>>;
+
+public class ImportDimensionsCommandValidator : AbstractValidator<ImportDimensionsCommand>
+{
+    public ImportDimensionsCommandValidator()
+    {
+        RuleFor(x => x.PartOpId).GreaterThan(0);
+        RuleFor(x => x.Rows).NotEmpty();
+    }
+}
+
+public class ImportDimensionsCommandHandler(IShopfloorDbContext db)
+    : IRequestHandler<ImportDimensionsCommand, Result<ImportResultDto>>
+{
+    public async Task<Result<ImportResultDto>> Handle(ImportDimensionsCommand req, CancellationToken ct)
+    {
+        var existingBalloons = (await db.Dimensions
+            .Where(d => d.PartOpId == req.PartOpId)
+            .Select(d => d.BalloonNumber)
+            .ToListAsync(ct))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var categories = await db.DimensionCategories.ToListAsync(ct);
+
+        var errors = new List<ImportRowError>();
+        int created = 0, skipped = 0;
+
+        for (var i = 0; i < req.Rows.Count; i++)
+        {
+            var row = req.Rows[i];
+            var rowNumber = i + 2; // dòng 1 là header
+
+            if (string.IsNullOrWhiteSpace(row.BalloonNumber))
+            {
+                errors.Add(new ImportRowError(rowNumber, "Thiếu BalloonNumber."));
+                skipped++;
+                continue;
+            }
+
+            if (existingBalloons.Contains(row.BalloonNumber))
+            {
+                errors.Add(new ImportRowError(rowNumber, $"Balloon '{row.BalloonNumber}' đã tồn tại."));
+                skipped++;
+                continue;
+            }
+
+            // Parse BalloonSort từ phần số đầu BalloonNumber
+            decimal? balloonSort = null;
+            var numPart = new string(row.BalloonNumber.TakeWhile(char.IsDigit).ToArray());
+            if (decimal.TryParse(numPart, out var bs)) balloonSort = bs;
+
+            int? categoryId = null;
+            if (!string.IsNullOrWhiteSpace(row.CategoryCode))
+            {
+                var cat = categories.FirstOrDefault(c => string.Equals(c.Code, row.CategoryCode, StringComparison.OrdinalIgnoreCase));
+                if (cat is null)
+                    errors.Add(new ImportRowError(rowNumber, $"Không tìm thấy Category '{row.CategoryCode}'."));
+                else
+                    categoryId = cat.Id;
+            }
+
+            var dim = new Dimension
+            {
+                PartOpId = req.PartOpId,
+                BalloonNumber = row.BalloonNumber, BalloonSort = balloonSort,
+                Code = row.Code, Description = row.Description,
+                CategoryId = categoryId, CreatedBy = req.RequesterId,
+            };
+
+            if (decimal.TryParse(row.NominalRaw, out var nominal))
+            {
+                var tolPlus = row.TolPlus ?? 0;
+                var tolMinus = row.TolMinus ?? 0;
+                dim.NominalValue = nominal;
+                dim.TolerancePlus = tolPlus;
+                dim.ToleranceMinus = tolMinus;
+                dim.MaxValue = nominal + tolPlus;
+                dim.MinValue = nominal - tolMinus;
+                dim.Unit = string.IsNullOrWhiteSpace(row.Unit) ? "mm" : row.Unit;
+            }
+            else if (!string.IsNullOrWhiteSpace(row.NominalRaw))
+            {
+                dim.IsTextType = true;
+                dim.NominalText = row.NominalRaw;
+            }
+            else
+            {
+                errors.Add(new ImportRowError(rowNumber, "Thiếu Nominal."));
+                skipped++;
+                continue;
+            }
+
+            db.Dimensions.Add(dim);
+            existingBalloons.Add(row.BalloonNumber);
+            created++;
+        }
+
+        await db.SaveChangesAsync(ct);
+
+        return Result.Ok(new ImportResultDto(created, 0, skipped, errors));
     }
 }
 
