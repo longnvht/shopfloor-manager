@@ -7,6 +7,7 @@
     "subtitle": "Manager · Office",
     "groups": {
       "overview": "Overview",
+      "tech": "Engineering",
       "production": "Production",
       "quality": "Quality",
       "system": "System"
@@ -14,6 +15,7 @@
     "items": {
       "dashboard": "Dashboard",
       "parts": "Engineering Data",
+      "dimsheet": "Dimension Sheet",
       "jobs": "Jobs & Products",
       "planning": "Planning",
       "cnc": "CNC Live",
@@ -73,6 +75,296 @@
       "openNcrs": "Open NCRs",
       "closedThisMonth": "NCRs closed this month",
       "noData": "No inspection data yet."
+    }
+  },
+  "parts": {
+    "title": "Engineering Data",
+    "breadcrumb": "Production › Part · Revision · Routing · Operations",
+    "createPart": "+ New Part",
+    "searchPlaceholder": "Search part number…",
+    "loading": "Loading…",
+    "selectPart": "Select a Part to view details",
+    "operationsLink": "Operations →",
+    "backLink": "← Back",
+    "kpi": {
+      "ops": "Operations",
+      "jobs": "Jobs",
+      "dimensions": "Dimensions",
+      "currentRouting": "Current Routing"
+    },
+    "drawing2d": {
+      "title": "2D Drawing",
+      "open": "Open Drawing",
+      "empty": "No drawing yet"
+    },
+    "drawingRev": {
+      "title": "Drawing Rev",
+      "titleFull": "Drawing Revisions",
+      "empty": "No revisions yet.",
+      "active": "Active",
+      "drawingCad": "Drawing / CAD",
+      "drawingCadRev": "Drawing / CAD (Rev {rev})",
+      "createdBy": "Created by {name} · {date}"
+    },
+    "routingRev": {
+      "title": "Routing Rev",
+      "titleFull": "Routing Revisions",
+      "empty": "No routing yet.",
+      "opCount": "{count} OPs",
+      "active": "Active"
+    },
+    "opTable": {
+      "title": "Operations",
+      "titleFull": "Operations",
+      "empty": "No operations yet. Select a Routing Rev to view.",
+      "emptyFull": "No operations yet.",
+      "headers": {
+        "op": "OP",
+        "type": "Type",
+        "description": "Description",
+        "setup": "Setup (h)",
+        "prod": "Run (h)",
+        "prodFull": "Prod (h)",
+        "documents": "Documents",
+        "dim": "Dim",
+        "status": "Status"
+      },
+      "documents": "Documents →",
+      "done": "Done",
+      "active": "Active"
+    },
+    "addRevision": {
+      "trigger": "+",
+      "title": "Add Drawing Revision",
+      "revCode": "Revision Code",
+      "description": "Description",
+      "hint": "Automatically creates a Standard R1 routing for this revision.",
+      "submit": "Create Revision",
+      "submitting": "Creating...",
+      "cancel": "Cancel",
+      "errorRequired": "Required",
+      "errorGeneric": "Failed to create revision"
+    },
+    "addRoutingRev": {
+      "trigger": "+",
+      "title": "Add Routing Revision",
+      "revCode": "Revision Code",
+      "changeNote": "Change Note",
+      "hint": "Copies all OPs from the currently active routing rev.",
+      "submit": "Create Routing Rev",
+      "submitting": "Creating...",
+      "cancel": "Cancel",
+      "errorRequired": "Required",
+      "errorGeneric": "Failed to create routing revision"
+    },
+    "addOp": {
+      "trigger": "+ Add OP",
+      "title": "Add Operation",
+      "opNumber": "OP Number",
+      "opType": "OP Type",
+      "opTypeNone": "— None —",
+      "description": "Description",
+      "setupTime": "Setup (h)",
+      "prodTime": "Run (h)",
+      "submit": "Create OP",
+      "submitting": "Creating...",
+      "cancel": "Cancel",
+      "errorRequired": "Required",
+      "errorGeneric": "Failed to create OP"
+    },
+    "importOps": {
+      "trigger": "Import OPs",
+      "title": "Import Operations from Excel",
+      "description": "Excel file (.xlsx) with columns: OpNumber, OpType, Description, Setup, Prod. First row is header.",
+      "fileLabel": "Choose file",
+      "submit": "Import",
+      "submitting": "Importing...",
+      "close": "Close",
+      "cancel": "Cancel",
+      "result": "Created {created} · Updated {updated}",
+      "rowError": "Row {row}: {message}",
+      "errorGeneric": "Import failed",
+      "errorNoFile": "Choose an Excel file"
+    },
+    "importDims": {
+      "trigger": "⤓ Dims",
+      "title": "Import Dimensions — OP {op}",
+      "description": "Excel file (.xlsx) with columns: BalloonNumber, Code, Description, Nominal, TolPlus, TolMinus, Unit, Category. First row is header.",
+      "fileLabel": "Choose file",
+      "submit": "Import",
+      "submitting": "Importing...",
+      "close": "Close",
+      "cancel": "Cancel",
+      "result": "Created {created} · Skipped {skipped}",
+      "rowError": "Row {row}: {message}",
+      "errorGeneric": "Import failed",
+      "errorNoFile": "Choose an Excel file"
+    },
+    "opDetail": {
+      "breadcrumb": "Production › Engineering Data › {part} › Operations",
+      "opList": "Operation List",
+      "selectOp": "Select an OP to view details",
+      "noOps": "No operations yet.",
+      "tabs": {
+        "documents": "Documents",
+        "dimension": "Dimension"
+      },
+      "documents": {
+        "empty": "No documents yet.",
+        "openAll": "Manage documents →",
+        "headers": {
+          "type": "Type",
+          "description": "Description",
+          "status": "Status",
+          "createdBy": "Created by",
+          "createdAt": "Created at"
+        }
+      },
+      "dimensions": {
+        "empty": "No dimensions yet.",
+        "headers": {
+          "balloon": "Balloon",
+          "category": "Category",
+          "nominal": "Nominal",
+          "tolPlus": "Tol+",
+          "tolMinus": "Tol-",
+          "max": "Max",
+          "min": "Min",
+          "unit": "Unit",
+          "final": "Final"
+        }
+      }
+    }
+  },
+  "dimsheet": {
+    "title": "Dimension Sheet",
+    "breadcrumb": "Production › Engineering Data › Dimension Sheet",
+    "searchPlaceholder": "Search part number…",
+    "loading": "Loading…",
+    "selectPart": "Select a Part to view its Dimension Sheet",
+    "empty": "No dimensions yet.",
+    "noRouting": "Part has no active Routing.",
+    "noMatch": "No dimensions match the filter",
+    "revBadge": "Drawing Rev {rev}",
+    "footnote": "The same balloon may be measured again across multiple OPs (e.g. rough turn → grind → final CMM). A Final ● row is the FAI checkpoint — only QC can enter results.",
+    "kpi": {
+      "totalDims": "Total dimensions",
+      "uniqueBalloons": "Balloons (unique)",
+      "faiFinal": "FAI Final",
+      "faiFinalSub": "QC entry only",
+      "opsWithDims": "OPs with dims",
+      "opsWithDimsSub": "/ {total} OPs"
+    },
+    "filter": {
+      "allOps": "All",
+      "allCategories": "All",
+      "finalOnly": "Final only",
+      "searchBalloon": "Search balloon…"
+    },
+    "table": {
+      "title": "All Dimensions",
+      "headers": {
+        "op": "OP",
+        "balloon": "Balloon",
+        "category": "Category",
+        "nominal": "Nominal",
+        "tolPlus": "Tol+",
+        "tolMinus": "Tol-",
+        "max": "Max",
+        "min": "Min",
+        "unit": "Unit",
+        "final": "Final"
+      }
+    },
+    "edit": {
+      "tooltip": "Edit Nominal/Tolerance",
+      "save": "Save",
+      "cancel": "Cancel",
+      "textTypeNotice": "Cannot edit text-type dimensions"
+    }
+  },
+  "documents": {
+    "title": "Tech Documents",
+    "breadcrumb": "System › Drawing · G-code · Route card",
+    "backLink": "← Back",
+    "queueButton": "Approval Queue ({count})",
+    "uploadButton": "⬆ Upload",
+    "loading": "Loading…",
+    "kpi": {
+      "total": "Total documents",
+      "pending": "Pending",
+      "approved": "Approved",
+      "rejected": "Rejected"
+    },
+    "pendingBanner": {
+      "title": "{count} documents awaiting Inspector approval",
+      "sub": "Only approved files are visible on Desktop MES",
+      "action": "Review now →"
+    },
+    "upload": {
+      "title": "Upload Document",
+      "fileType": "File Type",
+      "fileTypePlaceholder": "— Select type —",
+      "revision": "Revision",
+      "revisionPlaceholder": "A, B, Rev.01...",
+      "file": "File",
+      "description": "Description",
+      "cancel": "Cancel",
+      "submit": "Upload",
+      "submitting": "Uploading…",
+      "errorGeneric": "Upload failed"
+    },
+    "filter": {
+      "part": "Part",
+      "drawingRev": "Drawing Rev",
+      "routingRev": "Routing Rev",
+      "op": "OP",
+      "type": "Type",
+      "status": "Status",
+      "search": "Search filename",
+      "searchPlaceholder": "e.g. _OP20, drawing…",
+      "clear": "✕ Clear filters",
+      "allParts": "All parts",
+      "allRevs": "All revisions",
+      "noRev": "— (none)",
+      "revPrefix": "Rev {rev}",
+      "allRouting": "All routings",
+      "noRouting": "— (Part-level)",
+      "allOps": "All OPs",
+      "noOp": "Part-level (—)",
+      "opPrefix": "OP{op}",
+      "allTypes": "All types",
+      "allStatuses": "All statuses"
+    },
+    "table": {
+      "headers": {
+        "fileName": "File Name",
+        "type": "Type",
+        "part": "Part",
+        "routing": "Routing",
+        "op": "OP",
+        "rev": "Rev",
+        "status": "Status",
+        "createdBy": "Created By",
+        "size": "Size"
+      },
+      "empty": "No documents yet.",
+      "noMatch": "No documents match the filter",
+      "clearFilter": "Clear filters"
+    },
+    "actions": {
+      "reject": "Reject",
+      "approve": "Approve",
+      "view": "View →",
+      "rejectPrompt": "Rejection reason:",
+      "errApprove": "Approval failed",
+      "errReject": "Rejection failed",
+      "errViewUrl": "Could not load document URL"
+    },
+    "status": {
+      "Pending": "Pending",
+      "Approved": "Approved",
+      "Rejected": "Rejected"
     }
   }
 }

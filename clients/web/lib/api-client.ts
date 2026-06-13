@@ -28,13 +28,33 @@ async function request<T>(path: string, init?: RequestInit): Promise<ApiResponse
   return res.json()
 }
 
+// FormData uploads — không set Content-Type, browser tự gắn multipart boundary
+async function requestMultipart<T>(path: string, formData: FormData): Promise<ApiResponse<T>> {
+  const token = getToken()
+  const res = await fetch(`${API_URL}${path}`, {
+    method: 'POST',
+    body: formData,
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  })
+  if (!res.ok && res.status !== 400 && res.status !== 401 && res.status !== 404) {
+    throw new Error(`HTTP ${res.status}`)
+  }
+  return res.json()
+}
+
 // ── Types ─────────────────────────────────────────────────────
 
-export type PartDto = { id: number; partNumber: string; description: string; createdAt: string }
+export type PartDto = {
+  id: number; partNumber: string; description: string; createdAt: string
+  currentRoutingRevCode: string | null; opCount: number; jobCount: number
+}
 
 export type PartRevDto = {
   id: number; partId: number; partNumber: string; revCode: string
   description: string | null; isActive: boolean; isReleased: boolean; createdAt: string
+  createdByName: string | null
 }
 
 export type RoutingRevDto = {
@@ -55,6 +75,7 @@ export type PartOpDto = {
   opTypeId: number | null; opTypeName: string | null
   description: string | null; note: string | null
   setupTime: number | null; prodTime: number | null; isVisible: boolean; isComplete: boolean
+  dimCount: number; docCount: number
 }
 
 export type JobDetailDto = JobDto & {
@@ -67,10 +88,20 @@ export type ProductDto = { id: number; serialNumber: string; jobId: number; isCo
 
 export type DimensionDto = {
   id: number; partOpId: number
-  balloonNumber: string; code: string | null; description: string | null
-  nominal: number; upperTol: number; lowerTol: number
-  upperLimit: number; lowerLimit: number; unit: string
-  isCritical: boolean; sortOrder: number
+  balloonNumber: string; balloonSort: number | null; code: string | null; description: string | null
+  nominalValue: number | null; tolerancePlus: number | null; toleranceMinus: number | null
+  maxValue: number | null; minValue: number | null; unit: string
+  isTextType: boolean; nominalText: string | null
+  categoryCode: string | null; isCritical: boolean; isFinal: boolean; sortOrder: number
+}
+
+export type RoutingRevDimensionDto = {
+  id: number; opId: number; opNumber: string; opNumberSort: number | null
+  balloonNumber: string; balloonSort: number | null; code: string | null; description: string | null
+  nominalValue: number | null; tolerancePlus: number | null; toleranceMinus: number | null
+  maxValue: number | null; minValue: number | null; unit: string
+  isTextType: boolean; nominalText: string | null
+  categoryCode: string | null; isCritical: boolean; isFinal: boolean; sortOrder: number
 }
 
 export type FaiSheetDto = {
@@ -100,6 +131,9 @@ export type NcrLogDto = {
 export type NcrDetailDto = {
   ncr: NcrDto; logs: NcrLogDto[]
 }
+
+export type ImportRowError = { rowNumber: number; message: string }
+export type ImportResultDto = { created: number; updated: number; skipped: number; errors: ImportRowError[] }
 
 export type SpcDto = {
   dimensionId: number; code: string; nominal: number
@@ -173,6 +207,8 @@ export const api = {
   dimensions: {
     list: (opId: number) => request<DimensionDto[]>(`/api/v1/operations/${opId}/dimensions`),
     spc: (opId: number, dimId: number) => request<SpcDto>(`/api/v1/operations/${opId}/dimensions/${dimId}/spc`),
+    update: (id: number, body: { nominalValue: number | null; tolerancePlus: number | null; toleranceMinus: number | null }) =>
+      request<DimensionDto>(`/api/v1/dimensions/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   },
   ncrs: {
     list: (page = 1, status?: string) =>
@@ -198,15 +234,31 @@ export const api = {
     addRoutingRev: (body: { routingId: number; revCode: string; changeNote?: string }) =>
       request<RoutingRevDto>('/api/v1/parts/routing-revs', { method: 'POST', body: JSON.stringify(body) }),
   },
+  routingRevs: {
+    dimensions: (id: number) => request<RoutingRevDimensionDto[]>(`/api/v1/routing-revs/${id}/dimensions`),
+  },
   operations: {
     create: (body: { routingRevId?: number; jobId?: number; opNumber: string; opTypeId?: number; description?: string; note?: string; setupTime?: number; prodTime?: number }) =>
       request<PartOpDto>('/api/v1/operations', { method: 'POST', body: JSON.stringify(body) }),
     listForRoutingRev: (routingRevId: number) =>
       request<PartOpDto[]>(`/api/v1/operations?routingRevId=${routingRevId}`),
+    dimensionDefinitions: (opId: number) =>
+      request<DimensionDto[]>(`/api/v1/operations/${opId}/dimensions/definitions`),
     createDimension: (opId: number, body: { balloonNumber: string; code?: string; description?: string; nominal: number; upperTol: number; lowerTol: number; unit: string; isCritical: boolean; sortOrder: number }) =>
       request<DimensionDto>(`/api/v1/operations/${opId}/dimensions`, { method: 'POST', body: JSON.stringify(body) }),
     spc: (opId: number, dimId: number) =>
       request<SpcDto>(`/api/v1/operations/${opId}/dimensions/${dimId}/spc`),
+    importOps: (routingRevId: number, file: File) => {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('routingRevId', String(routingRevId))
+      return requestMultipart<ImportResultDto>('/api/v1/operations/import', formData)
+    },
+    importDimensions: (opId: number, file: File) => {
+      const formData = new FormData()
+      formData.append('file', file)
+      return requestMultipart<ImportResultDto>(`/api/v1/operations/${opId}/dimensions/import`, formData)
+    },
   },
   opTypes: {
     list:   (activeOnly = false) => request<OpTypeDto[]>(`/api/v1/op-types?activeOnly=${activeOnly}`),
@@ -390,6 +442,9 @@ export type TechDocListDto = {
   segment: string | null; machineType: string | null
   status: string; createdByName: string; createdAt: string
   storagePath?: string
+  fileName: string; partNumber: string | null; drawingRevCode: string | null
+  routingRevCode: string | null; opNumber: string | null
+  fileSizeBytes: number | null
 }
 
 export type FileTypeDto = {
@@ -412,6 +467,7 @@ export type UploadDocBody = {
   partRevId?: number | null; partOpId?: number | null; jobId?: number | null
   description?: string | null; revision?: string | null
   code?: string | null; segment?: string | null; machineType?: string | null
+  fileSizeBytes?: number | null
 }
 
 export type UploadResponseDto = { documentId: number; objectKey: string; uploadUrl: string }

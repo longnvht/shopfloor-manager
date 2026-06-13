@@ -87,3 +87,8 @@
   transition: background 0.12s, border-color 0.12s, transform 0.08s;
 }
 .va-clickable:active { transform: translateY(0.5px); }
+
+/* ── VA combobox (filter bar — gõ để tìm) ──────────────────────────────── */
+.va-combobox-group:focus-within { border-color: #A0522D !important; box-shadow: 0 0 0 2px rgba(160,82,45,0.15); }
+.va-combobox-item[data-highlighted] { background: #FFF3DC; }
+.va-combobox-item[data-selected]    { font-weight: 700; color: #6D3B1A; }

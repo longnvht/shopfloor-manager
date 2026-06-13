@@ -14,8 +14,12 @@ const VA_NAV = [
   { groupKey: 'overview', items: [
     { id: 'dashboard', labelKey: 'dashboard', ico: '▦', href: '/dashboard',   live: true  },
   ]},
-  { groupKey: 'production', items: [
+  { groupKey: 'tech', items: [
     { id: 'parts',     labelKey: 'parts',     ico: '⊟', href: '/parts',       live: true  },
+    { id: 'dimsheet',  labelKey: 'dimsheet',  ico: '▥', href: '/dimsheet',    live: true  },
+    { id: 'docs',      labelKey: 'docs',      ico: '◰', href: '/documents',   live: true  },
+  ]},
+  { groupKey: 'production', items: [
     { id: 'jobs',      labelKey: 'jobs',      ico: '◫', href: '/jobs',        live: true  },
     { id: 'planning',  labelKey: 'planning',  ico: '▤', href: '/planning',    live: true  },
     { id: 'cnc',       labelKey: 'cnc',       ico: '◈', href: '/cnc',         live: true  },
@@ -27,7 +31,6 @@ const VA_NAV = [
     { id: 'calib',     labelKey: 'calib',     ico: '⟲', href: '/calibration', live: true  },
   ]},
   { groupKey: 'system', items: [
-    { id: 'docs',      labelKey: 'docs',      ico: '◰', href: '/documents',   live: true  },
     { id: 'hr',        labelKey: 'hr',        ico: '◌', href: '/hr',          live: true  },
     { id: 'master',    labelKey: 'master',    ico: '⊞', href: '/master',      live: true  },
   ]},

@@ -7,6 +7,7 @@
     "subtitle": "Manager · Office",
     "groups": {
       "overview": "Tổng quan",
+      "tech": "Kỹ thuật",
       "production": "Sản xuất",
       "quality": "Chất lượng",
       "system": "Hệ thống"
@@ -14,6 +15,7 @@
     "items": {
       "dashboard": "Dashboard",
       "parts": "Chi tiết kỹ thuật",
+      "dimsheet": "Dimension Sheet",
       "jobs": "Lệnh SX & Sản phẩm",
       "planning": "Lập kế hoạch",
       "cnc": "CNC Live",
@@ -73,6 +75,296 @@
       "openNcrs": "NCR đang mở",
       "closedThisMonth": "NCR đóng tháng này",
       "noData": "Chưa có dữ liệu đo kiểm."
+    }
+  },
+  "parts": {
+    "title": "Chi tiết kỹ thuật",
+    "breadcrumb": "Sản xuất › Part · Revision · Routing · Operations",
+    "createPart": "+ Tạo Part",
+    "searchPlaceholder": "Tìm part number…",
+    "loading": "Đang tải…",
+    "selectPart": "Chọn một Part để xem chi tiết",
+    "operationsLink": "Operations →",
+    "backLink": "← Quay lại",
+    "kpi": {
+      "ops": "Operations",
+      "jobs": "Lệnh SX",
+      "dimensions": "Dimensions",
+      "currentRouting": "Routing hiện tại"
+    },
+    "drawing2d": {
+      "title": "Bản vẽ 2D",
+      "open": "Mở bản vẽ",
+      "empty": "Chưa có bản vẽ"
+    },
+    "drawingRev": {
+      "title": "Drawing Rev",
+      "titleFull": "Drawing Revisions",
+      "empty": "Chưa có revision.",
+      "active": "Active",
+      "drawingCad": "Bản vẽ / CAD",
+      "drawingCadRev": "Bản vẽ / CAD (Rev {rev})",
+      "createdBy": "Tạo bởi {name} · {date}"
+    },
+    "routingRev": {
+      "title": "Routing Rev",
+      "titleFull": "Routing Revisions",
+      "empty": "Chưa có routing.",
+      "opCount": "{count} OP",
+      "active": "Active"
+    },
+    "opTable": {
+      "title": "Chi tiết công đoạn",
+      "titleFull": "Operations",
+      "empty": "Chưa có operation. Chọn Routing Rev để xem.",
+      "emptyFull": "Chưa có operation nào.",
+      "headers": {
+        "op": "OP",
+        "type": "Loại",
+        "description": "Mô tả",
+        "setup": "Setup (h)",
+        "prod": "Run (h)",
+        "prodFull": "Prod (h)",
+        "documents": "Tài liệu",
+        "dim": "Dim",
+        "status": "Trạng thái"
+      },
+      "documents": "Tài liệu →",
+      "done": "Done",
+      "active": "Active"
+    },
+    "addRevision": {
+      "trigger": "+",
+      "title": "Thêm Drawing Revision",
+      "revCode": "Mã Revision",
+      "description": "Mô tả",
+      "hint": "Tự động tạo Routing Standard R1 cho revision này.",
+      "submit": "Tạo Revision",
+      "submitting": "Đang tạo...",
+      "cancel": "Huỷ",
+      "errorRequired": "Bắt buộc",
+      "errorGeneric": "Lỗi tạo revision"
+    },
+    "addRoutingRev": {
+      "trigger": "+",
+      "title": "Thêm Routing Revision",
+      "revCode": "Mã Revision",
+      "changeNote": "Ghi chú thay đổi",
+      "hint": "Copy toàn bộ OP từ routing rev đang active.",
+      "submit": "Tạo Routing Rev",
+      "submitting": "Đang tạo...",
+      "cancel": "Huỷ",
+      "errorRequired": "Bắt buộc",
+      "errorGeneric": "Lỗi tạo routing revision"
+    },
+    "addOp": {
+      "trigger": "+ Thêm OP",
+      "title": "Thêm Operation",
+      "opNumber": "Số OP",
+      "opType": "Loại OP",
+      "opTypeNone": "— Không chọn —",
+      "description": "Mô tả",
+      "setupTime": "Setup (h)",
+      "prodTime": "Run (h)",
+      "submit": "Tạo OP",
+      "submitting": "Đang tạo...",
+      "cancel": "Huỷ",
+      "errorRequired": "Bắt buộc",
+      "errorGeneric": "Lỗi tạo OP"
+    },
+    "importOps": {
+      "trigger": "Import OP",
+      "title": "Import Operations từ Excel",
+      "description": "File Excel (.xlsx) với cột: OpNumber, OpType, Description, Setup, Prod. Dòng đầu là header.",
+      "fileLabel": "Chọn file",
+      "submit": "Import",
+      "submitting": "Đang import...",
+      "close": "Đóng",
+      "cancel": "Huỷ",
+      "result": "Đã tạo mới {created} · Cập nhật {updated}",
+      "rowError": "Dòng {row}: {message}",
+      "errorGeneric": "Lỗi import",
+      "errorNoFile": "Chọn file Excel"
+    },
+    "importDims": {
+      "trigger": "⤓ Dims",
+      "title": "Import Dimensions — OP {op}",
+      "description": "File Excel (.xlsx) với cột: BalloonNumber, Code, Description, Nominal, TolPlus, TolMinus, Unit, Category. Dòng đầu là header.",
+      "fileLabel": "Chọn file",
+      "submit": "Import",
+      "submitting": "Đang import...",
+      "close": "Đóng",
+      "cancel": "Huỷ",
+      "result": "Đã tạo mới {created} · Bỏ qua {skipped}",
+      "rowError": "Dòng {row}: {message}",
+      "errorGeneric": "Lỗi import",
+      "errorNoFile": "Chọn file Excel"
+    },
+    "opDetail": {
+      "breadcrumb": "Sản xuất › Chi tiết kỹ thuật › {part} › Operations",
+      "opList": "Danh sách OP",
+      "selectOp": "Chọn một OP để xem chi tiết",
+      "noOps": "Chưa có operation.",
+      "tabs": {
+        "documents": "Tài liệu",
+        "dimension": "Dimension"
+      },
+      "documents": {
+        "empty": "Chưa có tài liệu.",
+        "openAll": "Quản lý tài liệu →",
+        "headers": {
+          "type": "Loại",
+          "description": "Mô tả",
+          "status": "Trạng thái",
+          "createdBy": "Người tạo",
+          "createdAt": "Ngày tạo"
+        }
+      },
+      "dimensions": {
+        "empty": "Chưa có dimension.",
+        "headers": {
+          "balloon": "Balloon",
+          "category": "Loại",
+          "nominal": "Nominal",
+          "tolPlus": "Tol+",
+          "tolMinus": "Tol-",
+          "max": "Max",
+          "min": "Min",
+          "unit": "ĐV",
+          "final": "Final"
+        }
+      }
+    }
+  },
+  "dimsheet": {
+    "title": "Dimension Sheet",
+    "breadcrumb": "Sản xuất › Chi tiết kỹ thuật › Dimension Sheet",
+    "searchPlaceholder": "Tìm part number…",
+    "loading": "Đang tải…",
+    "selectPart": "Chọn một Part để xem Dimension Sheet",
+    "empty": "Chưa có dimension.",
+    "noRouting": "Part chưa có Routing active.",
+    "noMatch": "Không có kích thước khớp bộ lọc",
+    "revBadge": "Bản vẽ Rev {rev}",
+    "footnote": "Cùng một balloon có thể đo lại ở nhiều OP (ví dụ tiện tinh → mài → CMM cuối). Dòng Final ● là điểm chốt FAI, chỉ QC được nhập kết quả.",
+    "kpi": {
+      "totalDims": "Tổng dimension",
+      "uniqueBalloons": "Balloon (unique)",
+      "faiFinal": "FAI Final",
+      "faiFinalSub": "chỉ QC nhập",
+      "opsWithDims": "Số OP có dim",
+      "opsWithDimsSub": "/ {total} OP"
+    },
+    "filter": {
+      "allOps": "Tất cả",
+      "allCategories": "Tất cả",
+      "finalOnly": "Chỉ FAI Final",
+      "searchBalloon": "Tìm balloon…"
+    },
+    "table": {
+      "title": "Tất cả Dimension",
+      "headers": {
+        "op": "OP",
+        "balloon": "Balloon",
+        "category": "Loại",
+        "nominal": "Nominal",
+        "tolPlus": "Tol+",
+        "tolMinus": "Tol-",
+        "max": "Max",
+        "min": "Min",
+        "unit": "ĐV",
+        "final": "Final"
+      }
+    },
+    "edit": {
+      "tooltip": "Sửa Nominal/Tolerance",
+      "save": "Lưu",
+      "cancel": "Huỷ",
+      "textTypeNotice": "Không thể sửa dimension dạng text"
+    }
+  },
+  "documents": {
+    "title": "Tài liệu kỹ thuật",
+    "breadcrumb": "Hệ thống › Drawing · G-code · Route card",
+    "backLink": "← Quay lại",
+    "queueButton": "Hàng đợi duyệt ({count})",
+    "uploadButton": "⬆ Upload",
+    "loading": "Đang tải…",
+    "kpi": {
+      "total": "Tổng tài liệu",
+      "pending": "Chờ duyệt",
+      "approved": "Đã duyệt",
+      "rejected": "Từ chối"
+    },
+    "pendingBanner": {
+      "title": "{count} tài liệu chờ Inspector duyệt",
+      "sub": "Chỉ file đã duyệt mới hiển thị trên Desktop MES",
+      "action": "Duyệt ngay →"
+    },
+    "upload": {
+      "title": "Upload tài liệu",
+      "fileType": "Loại file",
+      "fileTypePlaceholder": "— Chọn loại —",
+      "revision": "Revision",
+      "revisionPlaceholder": "A, B, Rev.01...",
+      "file": "File",
+      "description": "Mô tả",
+      "cancel": "Huỷ",
+      "submit": "Upload",
+      "submitting": "Đang upload…",
+      "errorGeneric": "Lỗi upload"
+    },
+    "filter": {
+      "part": "Part",
+      "drawingRev": "Drawing Rev",
+      "routingRev": "Routing Rev",
+      "op": "OP",
+      "type": "Loại",
+      "status": "Trạng thái",
+      "search": "Tìm tên file",
+      "searchPlaceholder": "vd. _OP20, drawing…",
+      "clear": "✕ Xóa lọc",
+      "allParts": "Tất cả part",
+      "allRevs": "Mọi rev",
+      "noRev": "— (không có)",
+      "revPrefix": "Rev {rev}",
+      "allRouting": "Mọi routing",
+      "noRouting": "— (cấp Part)",
+      "allOps": "Mọi OP",
+      "noOp": "Cấp Part (—)",
+      "opPrefix": "OP{op}",
+      "allTypes": "Mọi loại",
+      "allStatuses": "Mọi trạng thái"
+    },
+    "table": {
+      "headers": {
+        "fileName": "Tên file",
+        "type": "Loại",
+        "part": "Part",
+        "routing": "Routing",
+        "op": "OP",
+        "rev": "Rev",
+        "status": "Trạng thái",
+        "createdBy": "Người tạo",
+        "size": "Kích thước"
+      },
+      "empty": "Chưa có tài liệu nào.",
+      "noMatch": "Không có tài liệu khớp bộ lọc",
+      "clearFilter": "Xóa lọc"
+    },
+    "actions": {
+      "reject": "Từ chối",
+      "approve": "Duyệt",
+      "view": "Xem →",
+      "rejectPrompt": "Lý do từ chối:",
+      "errApprove": "Lỗi duyệt",
+      "errReject": "Lỗi từ chối",
+      "errViewUrl": "Không tải được URL tài liệu"
+    },
+    "status": {
+      "Pending": "Chờ duyệt",
+      "Approved": "Đã duyệt",
+      "Rejected": "Từ chối"
     }
   }
 }

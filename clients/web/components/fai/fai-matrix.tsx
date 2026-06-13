@@ -62,7 +62,9 @@ export function FaiMatrix({ sheet, onMeasure, saving }: Props) {
                     )}
                   </div>
                   <div style={{ fontSize: 10, color: va.text3, fontFamily: va.mono, marginTop: 2 }}>
-                    {d.nominal} {d.upperTol >= 0 ? '+' : ''}{d.upperTol} / {d.lowerTol}
+                    {d.isTextType
+                      ? d.nominalText
+                      : `${d.nominalValue ?? ''} ${(d.tolerancePlus ?? 0) >= 0 ? '+' : ''}${d.tolerancePlus ?? 0} / -${d.toleranceMinus ?? 0}`}
                   </div>
                   <div style={{ fontSize: 9, color: va.text3 }}>{d.unit}</div>
                 </th>
