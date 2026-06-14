@@ -149,6 +149,22 @@ public class OperationsController(IMediator mediator) : ControllerBase
             ? Ok(ApiResponse<ImportResultDto>.Ok(result.Value))
             : BadRequest(ApiResponse<ImportResultDto>.Fail(result.Errors));
     }
+
+    /// <summary>Tải file Excel mẫu cho Import Operations.</summary>
+    [HttpGet("import/template")]
+    public IActionResult GetOpsImportTemplate()
+    {
+        var bytes = ExcelTemplateBuilder.BuildOpsTemplate();
+        return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "import-ops-template.xlsx");
+    }
+
+    /// <summary>Tải file Excel mẫu cho Import Dimensions.</summary>
+    [HttpGet("dimensions/import/template")]
+    public IActionResult GetDimensionsImportTemplate()
+    {
+        var bytes = ExcelTemplateBuilder.BuildDimensionsTemplate();
+        return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "import-dimensions-template.xlsx");
+    }
 }
 
 public record CreateOpRequest(
