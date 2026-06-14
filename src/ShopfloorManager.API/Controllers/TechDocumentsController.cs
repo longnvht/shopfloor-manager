@@ -1,9 +1,11 @@
 using System.Security.Claims;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ShopfloorManager.API.Common;
 using ShopfloorManager.Application.Common.Interfaces;
+using ShopfloorManager.Application.Production;
 using ShopfloorManager.Domain.Entities;
 using ShopfloorManager.Domain.Enums;
 
@@ -12,7 +14,7 @@ namespace ShopfloorManager.API.Controllers;
 [ApiController]
 [Route("api/v1/tech-documents")]
 [Authorize]
-public class TechDocumentsController(IShopfloorDbContext db, IMinioService minio) : ControllerBase
+public class TechDocumentsController(IShopfloorDbContext db, IMinioService minio, IMediator mediator) : ControllerBase
 {
     private int UserId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0");
 
@@ -288,6 +290,20 @@ public class TechDocumentsController(IShopfloorDbContext db, IMinioService minio
             t.Status.ToString(), t.Creator.Name, t.CreatedAt,
             fileName, partNumber, drawingRevCode, routingRevCode, opNumber,
             t.FileSizeBytes);
+    }
+
+    /// <summary>
+    /// Nhận diện Part/Rev/RoutingRev/OP (hoặc Job/OP) + trạng thái cho từng file trong lô bulk-upload,
+    /// dựa trên thông tin đã parse từ tên file (client-side).
+    /// </summary>
+    [HttpPost("resolve-batch")]
+    [Authorize(Roles = "Administrator,Manager,Engineer")]
+    public async Task<IActionResult> ResolveBatch([FromBody] List<ResolveBatchItem> items)
+    {
+        var result = await mediator.Send(new ResolveBulkUploadQuery(items, UserId));
+        return result.IsSuccess
+            ? Ok(ApiResponse<List<ResolveBatchResultDto>>.Ok(result.Value))
+            : BadRequest(ApiResponse<List<ResolveBatchResultDto>>.Fail(result.Errors));
     }
 }
 
