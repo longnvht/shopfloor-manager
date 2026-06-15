@@ -176,6 +176,7 @@
       "trigger": "Import OP",
       "title": "Import Operations từ Excel",
       "description": "File Excel (.xlsx) với cột: OpNumber, OpType, Description, Setup, Prod. Dòng đầu là header.",
+      "template": "⬇ Tải file mẫu",
       "fileLabel": "Chọn file",
       "submit": "Import",
       "submitting": "Đang import...",
@@ -190,6 +191,7 @@
       "trigger": "⤓ Dims",
       "title": "Import Dimensions — OP {op}",
       "description": "File Excel (.xlsx) với cột: BalloonNumber, Code, Description, Nominal, TolPlus, TolMinus, Unit, Category. Dòng đầu là header.",
+      "template": "⬇ Tải file mẫu",
       "fileLabel": "Chọn file",
       "submit": "Import",
       "submitting": "Đang import...",
@@ -365,6 +367,47 @@
       "Pending": "Chờ duyệt",
       "Approved": "Đã duyệt",
       "Rejected": "Từ chối"
+    },
+    "bulkUpload": {
+      "trigger": "⬆⬆ Upload nhiều file",
+      "title": "Upload nhiều file",
+      "hint": "Chọn nhiều file hoặc một thư mục — hệ thống tự nhận diện Part/OP/Rev từ tên file theo quy ước đặt tên.",
+      "selectFiles": "Chọn file...",
+      "selectFolder": "Chọn thư mục...",
+      "resolving": "Đang nhận diện file...",
+      "errorResolve": "Lỗi nhận diện file",
+      "table": {
+        "headers": {
+          "file": "Tên file",
+          "type": "Loại",
+          "detected": "Nhận diện",
+          "size": "Kích thước",
+          "status": "Trạng thái"
+        }
+      },
+      "status": {
+        "Ready": "Sẵn sàng",
+        "Duplicate": "Trùng lặp",
+        "Invalid": "Không hợp lệ",
+        "SegmentIncomplete": "Thiếu segment",
+        "Uploading": "Đang upload...",
+        "Success": "Thành công",
+        "Error": "Lỗi"
+      },
+      "reason": {
+        "unrecognizedType": "Không nhận diện được loại file",
+        "missingInfo": "Thiếu Part/OP/Rev tương ứng trong hệ thống",
+        "unsupportedSegment": "Loại file này không hỗ trợ segment",
+        "duplicateOf": "Trùng với file khác trong lô upload",
+        "segmentMissing": "Thiếu một hoặc nhiều segment trong nhóm",
+        "alreadyApproved": "File đã được approve — không thể ghi đè",
+        "pendingByOther": "Đang chờ duyệt bởi người khác"
+      },
+      "readyCount": "{count}/{total} file sẵn sàng upload",
+      "uploadButton": "Upload {count} file",
+      "uploadErrorPrefix": "Lỗi: ",
+      "close": "Đóng",
+      "cancel": "Huỷ"
     }
   },
   "jobs": {

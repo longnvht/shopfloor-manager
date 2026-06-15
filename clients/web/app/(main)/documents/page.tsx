@@ -7,11 +7,8 @@ import { useTranslations, useLocale } from 'next-intl'
 import { api, type TechDocListDto, type FileTypeDto } from '@/lib/api-client'
 import { VATopbar, VAKpi, VACard, VABtn, VABadge, VACombobox, type VAComboboxOption } from '@/components/va'
 import { va, type VaBadgeKind } from '@/lib/va-tokens'
-
-const FILE_TYPE_COLORS: Record<string, string> = {
-  DRW: '#6D3B1A', GCD: '#E65100', RTC: '#5D4037',
-  FXT: '#A0522D', TLS: '#795548', THD: '#F57C00', CAM: '#8D6E63', CAD: '#6D4C41',
-}
+import { FILE_TYPE_COLORS, formatBytes } from '@/lib/doc-format'
+import { BulkUploadDialog } from '@/components/documents/bulk-upload-dialog'
 
 const STATUS_KIND: Record<string, VaBadgeKind> = {
   Pending: 'warn', Approved: 'ok', Rejected: 'err',
@@ -23,13 +20,6 @@ const selStyle = { height: 32, background: va.bg, border: `1px solid ${va.border
 
 function Lbl({ children }: { children: React.ReactNode }) {
   return <span style={{ fontSize: 9.5, color: va.text3, textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 700, marginBottom: 4, display: 'block' }}>{children}</span>
-}
-
-function formatBytes(bytes: number | null): string {
-  if (bytes == null) return '—'
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`
 }
 
 const uniq = <T,>(arr: T[]) => [...new Set(arr)]
@@ -60,6 +50,7 @@ export default function DocumentsPage() {
 
   const [uploadForm, setUploadForm] = useState<{ fileTypeId: string; file: File | null; revision: string; description: string; machineType: string } | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [bulkOpen, setBulkOpen] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -180,6 +171,7 @@ export default function DocumentsPage() {
               </Link>
             )}
             <VABtn kind="ghost" onClick={() => setFStatus('Pending')}>{t('queueButton', { count: pending })}</VABtn>
+            <VABtn kind="ghost" onClick={() => setBulkOpen(true)}>{t('bulkUpload.trigger')}</VABtn>
             {hasContext && (
               <VABtn kind="primary" onClick={() => setUploadForm({ fileTypeId: '', file: null, revision: '', description: '', machineType: '' })}>
                 {t('uploadButton')}
@@ -376,6 +368,8 @@ export default function DocumentsPage() {
           </div>
         </VACard>
       </div>
+
+      <BulkUploadDialog open={bulkOpen} onClose={() => setBulkOpen(false)} onDone={load} />
     </div>
   )
 }

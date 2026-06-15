@@ -176,6 +176,7 @@
       "trigger": "Import OPs",
       "title": "Import Operations from Excel",
       "description": "Excel file (.xlsx) with columns: OpNumber, OpType, Description, Setup, Prod. First row is header.",
+      "template": "⬇ Download template",
       "fileLabel": "Choose file",
       "submit": "Import",
       "submitting": "Importing...",
@@ -190,6 +191,7 @@
       "trigger": "⤓ Dims",
       "title": "Import Dimensions — OP {op}",
       "description": "Excel file (.xlsx) with columns: BalloonNumber, Code, Description, Nominal, TolPlus, TolMinus, Unit, Category. First row is header.",
+      "template": "⬇ Download template",
       "fileLabel": "Choose file",
       "submit": "Import",
       "submitting": "Importing...",
@@ -365,6 +367,47 @@
       "Pending": "Pending",
       "Approved": "Approved",
       "Rejected": "Rejected"
+    },
+    "bulkUpload": {
+      "trigger": "⬆⬆ Bulk upload",
+      "title": "Bulk upload",
+      "hint": "Select multiple files or a folder — the system auto-detects Part/OP/Rev from file names based on the naming convention.",
+      "selectFiles": "Select files...",
+      "selectFolder": "Select folder...",
+      "resolving": "Resolving files...",
+      "errorResolve": "Error resolving files",
+      "table": {
+        "headers": {
+          "file": "File name",
+          "type": "Type",
+          "detected": "Detected",
+          "size": "Size",
+          "status": "Status"
+        }
+      },
+      "status": {
+        "Ready": "Ready",
+        "Duplicate": "Duplicate",
+        "Invalid": "Invalid",
+        "SegmentIncomplete": "Segment incomplete",
+        "Uploading": "Uploading...",
+        "Success": "Success",
+        "Error": "Error"
+      },
+      "reason": {
+        "unrecognizedType": "File type not recognized",
+        "missingInfo": "Matching Part/OP/Rev not found",
+        "unsupportedSegment": "This file type does not support segments",
+        "duplicateOf": "Duplicate of another file in this batch",
+        "segmentMissing": "One or more segments missing from this group",
+        "alreadyApproved": "File already approved — cannot overwrite",
+        "pendingByOther": "Pending approval by another user"
+      },
+      "readyCount": "{count}/{total} files ready to upload",
+      "uploadButton": "Upload {count} files",
+      "uploadErrorPrefix": "Error: ",
+      "close": "Close",
+      "cancel": "Cancel"
     }
   },
   "jobs": {
