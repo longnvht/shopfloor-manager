@@ -44,6 +44,16 @@ async function requestMultipart<T>(path: string, formData: FormData): Promise<Ap
   return res.json()
 }
 
+// Binary downloads (Excel templates) — trả về Blob, không parse JSON
+async function requestBlob(path: string): Promise<Blob> {
+  const token = getToken()
+  const res = await fetch(`${API_URL}${path}`, {
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+  })
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  return res.blob()
+}
+
 // ── Types ─────────────────────────────────────────────────────
 
 export type PartDto = {
@@ -267,6 +277,8 @@ export const api = {
       formData.append('file', file)
       return requestMultipart<ImportResultDto>(`/api/v1/operations/${opId}/dimensions/import`, formData)
     },
+    importOpsTemplate: () => requestBlob('/api/v1/operations/import/template'),
+    importDimsTemplate: () => requestBlob('/api/v1/operations/dimensions/import/template'),
   },
   opTypes: {
     list:   (activeOnly = false) => request<OpTypeDto[]>(`/api/v1/op-types?activeOnly=${activeOnly}`),
@@ -346,6 +358,8 @@ export const api = {
     fileTypes: () => request<FileTypeDto[]>('/api/v1/tech-documents/file-types'),
     create: (body: UploadDocBody) =>
       request<UploadResponseDto>('/api/v1/tech-documents', { method: 'POST', body: JSON.stringify(body) }),
+    resolveBatch: (items: ResolveBatchItem[]) =>
+      request<ResolveBatchResultDto[]>('/api/v1/tech-documents/resolve-batch', { method: 'POST', body: JSON.stringify(items) }),
   },
   planning: {
     items: (params?: { startDate?: string; endDate?: string; machineId?: number }) => {
@@ -479,6 +493,25 @@ export type UploadDocBody = {
 }
 
 export type UploadResponseDto = { documentId: number; objectKey: string; uploadUrl: string }
+
+export type ResolveBatchItem = {
+  fileName: string; fileTypeCode: string
+  partNumber: string | null; partRevCode: string | null; routingRevCode: string | null
+  opNumber: string | null; jobNumber: string | null
+  segmentIndex: number | null; segmentTotal: number | null
+  fileSizeBytes: number | null
+}
+
+export type ResolveBatchResultDto = {
+  fileName: string
+  status: 'Ready' | 'Invalid'
+  reason: string | null
+  fileTypeId: number | null
+  partRevId: number | null; partOpId: number | null; jobId: number | null
+  resolvedPartNumber: string | null; resolvedRevCode: string | null
+  resolvedRoutingRevCode: string | null; resolvedOpNumber: string | null; resolvedJobNumber: string | null
+  existingSegments: string[] | null
+}
 
 export type UserListDto = {
   id: number; userLogin: string; name: string; email: string | null; sex: string | null
