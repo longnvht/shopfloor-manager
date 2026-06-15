@@ -405,6 +405,7 @@
       },
       "readyCount": "{count}/{total} files ready to upload",
       "uploadButton": "Upload {count} files",
+      "uploadErrorPrefix": "Error: ",
       "close": "Close",
       "cancel": "Cancel"
     }

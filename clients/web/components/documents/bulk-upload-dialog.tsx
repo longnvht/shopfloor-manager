@@ -100,11 +100,18 @@ export function BulkUploadDialog({ open, onClose, onDone }: Props) {
 
       try {
         const res = await api.techDocuments.create(body)
-        if (!res.success || !res.data) throw new Error(res.error ?? 'create failed')
-        await fetch(res.data.uploadUrl, { method: 'PUT', body: row.file })
+        if (!res.success || !res.data) {
+          setRows(prev => prev.map((r, idx) => idx === i ? { ...r, status: 'Error', errorMessage: res.error ?? 'create failed' } : r))
+          continue
+        }
+        const uploadRes = await fetch(res.data.uploadUrl, { method: 'PUT', body: row.file })
+        if (!uploadRes.ok) {
+          setRows(prev => prev.map((r, idx) => idx === i ? { ...r, status: 'Error', errorMessage: `Upload failed (${uploadRes.status})` } : r))
+          continue
+        }
         setRows(prev => prev.map((r, idx) => idx === i ? { ...r, status: 'Success' } : r))
-      } catch {
-        setRows(prev => prev.map((r, idx) => idx === i ? { ...r, status: 'Error' } : r))
+      } catch (err) {
+        setRows(prev => prev.map((r, idx) => idx === i ? { ...r, status: 'Error', errorMessage: err instanceof Error ? err.message : String(err) } : r))
       }
     }
     setUploading(false)
@@ -167,6 +174,7 @@ export function BulkUploadDialog({ open, onClose, onDone }: Props) {
                       <td style={{ padding: '7px 10px', borderBottom: `1px solid ${va.separator}` }}>
                         <VABadge kind={STATUS_KIND[r.status]}>{t(`status.${r.status}`)}</VABadge>
                         {r.reason && <div style={{ fontSize: 10.5, color: va.text3, marginTop: 2 }}>{t(`reason.${r.reason}`)}</div>}
+                        {r.errorMessage && <div style={{ fontSize: 10.5, color: va.text3, marginTop: 2 }}>{t('uploadErrorPrefix')}{r.errorMessage}</div>}
                       </td>
                     </tr>
                   ))}

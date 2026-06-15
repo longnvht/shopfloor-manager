@@ -405,6 +405,7 @@
       },
       "readyCount": "{count}/{total} file sẵn sàng upload",
       "uploadButton": "Upload {count} file",
+      "uploadErrorPrefix": "Lỗi: ",
       "close": "Đóng",
       "cancel": "Huỷ"
     }

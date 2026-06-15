@@ -100,6 +100,8 @@ export type BatchRow = {
   resolve: ResolveBatchResultDto | null
   status: BatchStatus
   reason: string | null
+  /** Raw, untranslated error captured at upload time (network/MinIO/create() failure) — distinct from `reason` (resolve-time enum). */
+  errorMessage?: string | null
 }
 
 export function buildBatchRows(files: File[], fileTypes: FileTypeDto[]): BatchRow[] {
@@ -110,6 +112,7 @@ export function buildBatchRows(files: File[], fileTypes: FileTypeDto[]): BatchRo
     resolve: null,
     status: 'Invalid',
     reason: null,
+    errorMessage: null,
   }))
 }
 
