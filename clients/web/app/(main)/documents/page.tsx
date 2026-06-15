@@ -8,6 +8,7 @@ import { api, type TechDocListDto, type FileTypeDto } from '@/lib/api-client'
 import { VATopbar, VAKpi, VACard, VABtn, VABadge, VACombobox, type VAComboboxOption } from '@/components/va'
 import { va, type VaBadgeKind } from '@/lib/va-tokens'
 import { FILE_TYPE_COLORS, formatBytes } from '@/lib/doc-format'
+import { BulkUploadDialog } from '@/components/documents/bulk-upload-dialog'
 
 const STATUS_KIND: Record<string, VaBadgeKind> = {
   Pending: 'warn', Approved: 'ok', Rejected: 'err',
@@ -49,6 +50,7 @@ export default function DocumentsPage() {
 
   const [uploadForm, setUploadForm] = useState<{ fileTypeId: string; file: File | null; revision: string; description: string; machineType: string } | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [bulkOpen, setBulkOpen] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -169,6 +171,7 @@ export default function DocumentsPage() {
               </Link>
             )}
             <VABtn kind="ghost" onClick={() => setFStatus('Pending')}>{t('queueButton', { count: pending })}</VABtn>
+            <VABtn kind="ghost" onClick={() => setBulkOpen(true)}>{t('bulkUpload.trigger')}</VABtn>
             {hasContext && (
               <VABtn kind="primary" onClick={() => setUploadForm({ fileTypeId: '', file: null, revision: '', description: '', machineType: '' })}>
                 {t('uploadButton')}
@@ -365,6 +368,8 @@ export default function DocumentsPage() {
           </div>
         </VACard>
       </div>
+
+      <BulkUploadDialog open={bulkOpen} onClose={() => setBulkOpen(false)} onDone={load} />
     </div>
   )
 }
