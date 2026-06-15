@@ -9,11 +9,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 type Props = { open: boolean; partOpId: number; opNumber: string; onClose: () => void; onImported: () => void }
 
-async function downloadTemplate() {
-  const blob = await api.operations.importDimsTemplate()
-  downloadBlob(blob, 'import-dimensions-template.xlsx')
-}
-
 export function ImportDimensionsDialog({ open, partOpId, opNumber, onClose, onImported }: Props) {
   const t = useTranslations('parts.importDims')
   const [file, setFile] = useState<File | null>(null)
@@ -26,6 +21,15 @@ export function ImportDimensionsDialog({ open, partOpId, opNumber, onClose, onIm
   function close() {
     setFile(null); setError(null); setResult(null); setSubmitting(false)
     onClose()
+  }
+
+  async function downloadTemplate() {
+    try {
+      const blob = await api.operations.importDimsTemplate()
+      downloadBlob(blob, 'import-dimensions-template.xlsx')
+    } catch {
+      setError(t('errorGeneric'))
+    }
   }
 
   async function onSubmit() {

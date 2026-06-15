@@ -9,11 +9,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 type Props = { open: boolean; routingRevId: number; onClose: () => void; onImported: () => void }
 
-async function downloadTemplate() {
-  const blob = await api.operations.importOpsTemplate()
-  downloadBlob(blob, 'import-ops-template.xlsx')
-}
-
 export function ImportOpsDialog({ open, routingRevId, onClose, onImported }: Props) {
   const t = useTranslations('parts.importOps')
   const [file, setFile] = useState<File | null>(null)
@@ -26,6 +21,15 @@ export function ImportOpsDialog({ open, routingRevId, onClose, onImported }: Pro
   function close() {
     setFile(null); setError(null); setResult(null); setSubmitting(false)
     onClose()
+  }
+
+  async function downloadTemplate() {
+    try {
+      const blob = await api.operations.importOpsTemplate()
+      downloadBlob(blob, 'import-ops-template.xlsx')
+    } catch {
+      setError(t('errorGeneric'))
+    }
   }
 
   async function onSubmit() {
