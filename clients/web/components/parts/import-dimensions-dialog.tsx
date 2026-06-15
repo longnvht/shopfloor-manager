@@ -3,10 +3,16 @@
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { api, type ImportResultDto } from '@/lib/api-client'
+import { downloadBlob } from '@/lib/doc-format'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 type Props = { open: boolean; partOpId: number; opNumber: string; onClose: () => void; onImported: () => void }
+
+async function downloadTemplate() {
+  const blob = await api.operations.importDimsTemplate()
+  downloadBlob(blob, 'import-dimensions-template.xlsx')
+}
 
 export function ImportDimensionsDialog({ open, partOpId, opNumber, onClose, onImported }: Props) {
   const t = useTranslations('parts.importDims')
@@ -46,6 +52,9 @@ export function ImportDimensionsDialog({ open, partOpId, opNumber, onClose, onIm
 
           {!result && (
             <>
+              <Button type="button" variant="link" className="h-auto p-0 text-sm" onClick={downloadTemplate}>
+                {t('template')}
+              </Button>
               <input
                 type="file" accept=".xlsx,.xls"
                 onChange={e => setFile(e.target.files?.[0] ?? null)}
