@@ -1,10 +1,13 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using ShopfloorManager.Domain.Entities;
 
 namespace ShopfloorManager.Application.Common.Interfaces;
 
 public interface IShopfloorDbContext
 {
+    ChangeTracker ChangeTracker { get; }
+
     // Phase 1 — Auth & HR
     DbSet<Department> Departments { get; }
     DbSet<UserType> UserTypes { get; }

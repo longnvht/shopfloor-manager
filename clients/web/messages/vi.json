@@ -542,6 +542,28 @@
           "final": "Final"
         }
       }
+    },
+    "bulkImport": {
+      "trigger": "⬆⬆ Import hàng loạt",
+      "title": "Import hàng loạt Job + Part + Routing + OP",
+      "description": "Upload file Excel để tạo/cập nhật đồng thời Part, PartRev, RoutingRev, Operation và Job. Tải file mẫu để xem đúng định dạng cột.",
+      "template": "⬇ Tải file mẫu",
+      "errorNoFile": "Vui lòng chọn file Excel.",
+      "errorGeneric": "Lỗi import.",
+      "submitting": "Đang import...",
+      "submit": "Import",
+      "cancel": "Huỷ",
+      "close": "Đóng",
+      "result": {
+        "partsCreated": "Part mới",
+        "partRevsCreated": "PartRev mới",
+        "opsCreated": "OP mới",
+        "opsUpdated": "OP cập nhật",
+        "jobsCreated": "Job mới",
+        "jobsUpdated": "Job cập nhật",
+        "productsCreated": "Product mới"
+      },
+      "rowError": "Dòng {row}: {message}"
     }
   }
 }

@@ -150,6 +150,12 @@ export type NcrDetailDto = {
 
 export type ImportRowError = { rowNumber: number; message: string }
 export type ImportResultDto = { created: number; updated: number; skipped: number; errors: ImportRowError[] }
+export type GlobalImportResultDto = {
+  partsCreated: number; partRevsCreated: number
+  opsCreated: number; opsUpdated: number
+  jobsCreated: number; jobsUpdated: number; productsCreated: number
+  errors: ImportRowError[]
+}
 
 export type SpcDto = {
   dimensionId: number; code: string; nominal: number
@@ -202,6 +208,12 @@ export const api = {
       request<ProductDto[]>(`/api/v1/jobs/${id}/products/generate`, {
         method: 'POST', body: JSON.stringify({ quantity }),
       }),
+    importBatch: (file: File) => {
+      const formData = new FormData()
+      formData.append('file', file)
+      return requestMultipart<GlobalImportResultDto>('/api/v1/jobs/import-batch', formData)
+    },
+    importBatchTemplate: () => requestBlob('/api/v1/jobs/import-batch/template'),
   },
   lookups: {
     roles: () => request<{ id: number; name: string }[]>('/api/v1/roles'),

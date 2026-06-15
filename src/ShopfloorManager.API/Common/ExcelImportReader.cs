@@ -67,5 +67,25 @@ public static class ExcelImportReader
         return raw != null && decimal.TryParse(raw, out var value) ? value : null;
     }
 
+    public static int? CellInt(Dictionary<string, string> row, params string[] names)
+    {
+        var raw = Cell(row, names);
+        return raw != null && int.TryParse(raw, out var value) ? value : null;
+    }
+
+    /// <summary>Đọc ô ngày — hỗ trợ cả chuỗi ngày (yyyy-MM-dd, dd/MM/yyyy...) và Excel serial date number.</summary>
+    public static DateOnly? CellDate(Dictionary<string, string> row, params string[] names)
+    {
+        var raw = Cell(row, names);
+        if (raw is null) return null;
+        if (DateOnly.TryParse(raw, out var date)) return date;
+        if (double.TryParse(raw, out var oaDate))
+        {
+            try { return DateOnly.FromDateTime(DateTime.FromOADate(oaDate)); }
+            catch (ArgumentException) { return null; }
+        }
+        return null;
+    }
+
     private static string Normalize(string s) => s.Trim().ToLowerInvariant().Replace(" ", "");
 }

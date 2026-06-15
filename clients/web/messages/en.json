@@ -542,6 +542,28 @@
           "final": "Final"
         }
       }
+    },
+    "bulkImport": {
+      "trigger": "⬆⬆ Bulk import",
+      "title": "Bulk import Job + Part + Routing + OP",
+      "description": "Upload an Excel file to create/update Part, PartRev, RoutingRev, Operation and Job at once. Download the template to see the expected column format.",
+      "template": "⬇ Download template",
+      "errorNoFile": "Please select an Excel file.",
+      "errorGeneric": "Import failed.",
+      "submitting": "Importing...",
+      "submit": "Import",
+      "cancel": "Cancel",
+      "close": "Close",
+      "result": {
+        "partsCreated": "Parts created",
+        "partRevsCreated": "PartRevs created",
+        "opsCreated": "OPs created",
+        "opsUpdated": "OPs updated",
+        "jobsCreated": "Jobs created",
+        "jobsUpdated": "Jobs updated",
+        "productsCreated": "Products created"
+      },
+      "rowError": "Row {row}: {message}"
     }
   }
 }

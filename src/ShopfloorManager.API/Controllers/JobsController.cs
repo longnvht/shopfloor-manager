@@ -91,6 +91,45 @@ public class JobsController(IMediator mediator, IShopfloorDbContext db) : Contro
             ? StatusCode(201, ApiResponse<List<ProductDto>>.Ok(result.Value))
             : BadRequest(ApiResponse<List<ProductDto>>.Fail(result.Errors));
     }
+
+    /// <summary>Import hàng loạt Job + Part + Routing + OP từ file Excel.</summary>
+    [HttpPost("import-batch")]
+    [Authorize(Roles = "Administrator,Manager,Engineer,Planner")]
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> ImportBatch([FromForm] IFormFile file)
+    {
+        await using var stream = file.OpenReadStream();
+        var (_, rows) = ExcelImportReader.Read(stream);
+
+        var importRows = rows.Select(row => new ImportJobBatchRow(
+            ExcelImportReader.Cell(row, "partnumber") ?? string.Empty,
+            ExcelImportReader.Cell(row, "partdescription"),
+            ExcelImportReader.Cell(row, "revision"),
+            ExcelImportReader.Cell(row, "jobnumber") ?? string.Empty,
+            ExcelImportReader.Cell(row, "ponumber"),
+            ExcelImportReader.Cell(row, "poline"),
+            ExcelImportReader.CellInt(row, "runqty"),
+            ExcelImportReader.CellDate(row, "shipby"),
+            ExcelImportReader.Cell(row, "opnumber") ?? string.Empty,
+            ExcelImportReader.Cell(row, "optype"),
+            ExcelImportReader.Cell(row, "opdescription"),
+            ExcelImportReader.CellDecimal(row, "setup", "setuptime"),
+            ExcelImportReader.CellDecimal(row, "prod", "prodtime")
+        )).ToList();
+
+        var result = await mediator.Send(new ImportJobBatchCommand(importRows, UserId));
+        return result.IsSuccess
+            ? Ok(ApiResponse<GlobalImportResultDto>.Ok(result.Value))
+            : BadRequest(ApiResponse<GlobalImportResultDto>.Fail(result.Errors));
+    }
+
+    /// <summary>Tải file Excel mẫu cho Import Job hàng loạt.</summary>
+    [HttpGet("import-batch/template")]
+    public IActionResult GetImportBatchTemplate()
+    {
+        var bytes = ExcelTemplateBuilder.BuildJobBatchTemplate();
+        return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "import-jobs-template.xlsx");
+    }
 }
 
 public record CreateJobRequest(string JobNumber, int PartRevId, int RoutingRevId, int? RunQty, DateOnly? ShipBy);

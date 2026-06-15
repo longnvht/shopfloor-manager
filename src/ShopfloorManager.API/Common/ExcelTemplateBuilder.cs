@@ -25,6 +25,40 @@ public static class ExcelTemplateBuilder
         return stream.ToArray();
     }
 
+    public static byte[] BuildJobBatchTemplate()
+    {
+        using var wb = new XLWorkbook();
+        var ws = wb.AddWorksheet("Jobs");
+
+        string[] headers =
+        [
+            "PartNumber", "PartDescription", "Revision", "JobNumber", "PONumber", "POLine",
+            "RunQty", "ShipBy", "OpNumber", "OpType", "OpDescription", "SetupTime", "ProdTime"
+        ];
+        for (var i = 0; i < headers.Length; i++) ws.Cell(1, i + 1).Value = headers[i];
+
+        ws.Cell(2, 1).Value = "SHAFT-50H6";
+        ws.Cell(2, 2).Value = "Shaft 50mm";
+        ws.Cell(2, 3).Value = "A";
+        ws.Cell(2, 4).Value = "J2026-001";
+        ws.Cell(2, 5).Value = "PO-1001";
+        ws.Cell(2, 6).Value = "1";
+        ws.Cell(2, 7).Value = 10;
+        ws.Cell(2, 8).Value = new DateTime(2026, 7, 1);
+        ws.Cell(2, 8).Style.DateFormat.Format = "yyyy-mm-dd";
+        ws.Cell(2, 9).Value = "10";
+        ws.Cell(2, 10).Value = "CNC";
+        ws.Cell(2, 11).Value = "Phay mặt đầu";
+        ws.Cell(2, 12).Value = 30;
+        ws.Cell(2, 13).Value = 5;
+
+        ws.Columns().AdjustToContents();
+
+        using var stream = new MemoryStream();
+        wb.SaveAs(stream);
+        return stream.ToArray();
+    }
+
     public static byte[] BuildDimensionsTemplate()
     {
         using var wb = new XLWorkbook();

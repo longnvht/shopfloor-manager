@@ -8,6 +8,7 @@ import { api, type JobDto, type JobDetailDto, type PartOpDto, type ProductDto, t
 import { VATopbar, VABadge, VACard, VABtn, VAKpi } from '@/components/va'
 import { va } from '@/lib/va-tokens'
 import { CreateJobDialog } from '@/components/jobs/create-job-dialog'
+import { BulkJobImportDialog } from '@/components/jobs/bulk-job-import-dialog'
 import { AddOpDialog } from '@/components/parts/add-op-dialog'
 
 // ── Status helpers ─────────────────────────────────────────────────────────
@@ -338,6 +339,7 @@ export default function JobsPage() {
   const [loading, setLoading]   = useState(true)
   const [selJob, setSelJob]     = useState<JobDto | null>(null)
   const [showCreate, setShowCreate] = useState(false)
+  const [showBulkImport, setShowBulkImport] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -365,7 +367,12 @@ export default function JobsPage() {
       <VATopbar
         title={t('title')}
         breadcrumb={t('breadcrumb')}
-        right={<VABtn kind="primary" onClick={() => setShowCreate(true)}>{t('createButton')}</VABtn>}
+        right={
+          <div style={{ display: 'flex', gap: 8 }}>
+            <VABtn kind="ghost" onClick={() => setShowBulkImport(true)}>{t('bulkImport.trigger')}</VABtn>
+            <VABtn kind="primary" onClick={() => setShowCreate(true)}>{t('createButton')}</VABtn>
+          </div>
+        }
       />
 
       <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
@@ -433,6 +440,7 @@ export default function JobsPage() {
       </div>
 
       <CreateJobDialog open={showCreate} onClose={() => setShowCreate(false)} onCreated={load} />
+      <BulkJobImportDialog open={showBulkImport} onClose={() => setShowBulkImport(false)} onImported={() => { setShowBulkImport(false); load() }} />
     </div>
   )
 }

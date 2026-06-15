@@ -1095,6 +1095,34 @@ Theo design spec [`docs/superpowers/plans/2026-06-14-engineering-import-upload.m
 - **Lưu ý kỹ thuật cho người dùng cuối**: pattern naming convention ở trên là quy ước bắt buộc để bulk upload nhận diện đúng Part/OP/Rev — file không đúng tên sẽ rơi vào "Không hợp lệ" và bị loại khỏi upload (không silent-fail).
 - **Giới hạn đã biết (pre-existing, không phải regression)**: việc nhóm segment (`-{i}_{n}`) — cả `ExistingSegments` (server) và `segmentGroupKey` (client) — chỉ key theo `(FileTypeId, PartRevId, PartOpId, JobId)`, KHÔNG tính `Code` (số chương trình G-code, vd O0020 vs O0030). Nếu một OP có nhiều G-code program đều chia segment, các segment của program khác nhau sẽ bị gộp chung 1 nhóm → có thể báo sai "đủ segment"/"thiếu segment". Naming convention hiện tại cũng không encode `Code`. Giả định hiện tại: 1 OP chỉ có 1 G-code program được chia segment — cần xử lý nếu phát sinh trường hợp nhiều program/OP.
 
+**Jobs — Bulk Import Job + Part + Routing + OP từ Excel (✅ 2026-06-15)**
+
+Import đồng thời toàn bộ dữ liệu kỹ thuật từ 1 file Excel duy nhất — tạo/cập nhật Part, PartRev, Routing, RoutingRev, PartOp và Job trong 1 thao tác. Theo thiết kế đã chốt trong [`Project_Documents/03_job_management.md`](Project_Documents/03_job_management.md) § "Bulk Import".
+
+- **Backend — `ImportJobBatchCommandHandler`** (`src/ShopfloorManager.Application/Production/JobBatchImportCommands.cs`, 276 dòng):
+  - Nhóm dòng Excel theo `JobNumber`; mỗi nhóm xử lý tuần tự trong 1 transaction
+  - Resolve/tạo Part (theo `PartNumber`) → PartRev (theo `Revision`): PartRev mới → `IsActive=true`, deactivate mọi PartRev cũ cùng Part
+  - Tạo Routing + RoutingRev (`R1`, `IsActive=true`) nếu chưa có; nếu đã có → upsert PartOp vào active RoutingRev (KHÔNG tạo rev mới)
+  - Upsert PartOp theo `OpNumber`: tạo mới hoặc update Description/OpType/SetupTime/ProdTime (giữ nguyên Dimensions/TechDocuments)
+  - OpType matching: `OpTypes.Code` case-insensitive — không match → warning, vẫn import với `OpTypeId=null`
+  - Resolve/tạo Job theo `JobNumber`: tạo mới → generate Products theo `RunQty`; cập nhật → RunQty tăng → tạo thêm Products (RunQty giảm → warning, Products cũ giữ nguyên)
+  - `SaveChangesAsync()` 1 lần/nhóm; `ChangeTracker.Clear()` + ghi lỗi khi exception (isolation giữa các nhóm)
+  - Trả `GlobalImportResultDto`: 7 counters (`partsCreated`, `partRevsCreated`, `opsCreated`, `opsUpdated`, `jobsCreated`, `jobsUpdated`, `productsCreated`) + `List<ImportRowError>` (rowNumber, message)
+- **Backend — Excel template**: `ExcelTemplateBuilder.BuildJobBatchTemplate()` — 13 cột (PartNumber, PartDescription, Revision, JobNumber, PONumber, POLine, RunQty, ShipBy, OpNumber, OpType, OpDescription, SetupTime, ProdTime) + 1 dòng ví dụ (SHAFT-50H6 / J2026-001)
+- **API endpoints**: `POST /api/v1/jobs/import-batch` (multipart/form-data, role Administrator/Manager/Engineer/Planner) + `GET /api/v1/jobs/import-batch/template` (JWT, trả `.xlsx`)
+- **Frontend**: `BulkJobImportDialog` (`components/jobs/bulk-job-import-dialog.tsx`) — nút "⬆⬆ Tải file mẫu" + file picker + submit → hiển thị 7 counters dạng grid + danh sách lỗi theo dòng + "Đóng" trigger refetch list; wired vào `jobs/page.tsx` qua nút "⬆⬆ Import hàng loạt" trên topbar
+- **API client**: `api.jobs.importBatch(file)` dùng `requestMultipart<GlobalImportResultDto>` + `api.jobs.importBatchTemplate()` dùng `requestBlob()`
+- **i18n**: namespace `jobs.bulkImport` đầy đủ (vi+en) — trigger/title/description/template/error/submitting/submit/cancel/close/result.*/rowError
+- **4 quyết định thiết kế đã chốt**:
+  1. PartRev mới → `IsActive=true`, deactivate PartRev cũ (không cần tạo lại RoutingRev)
+  2. JobNumber đã tồn tại → update RunQty/ShipBy; RunQty tăng → tạo thêm Products; RunQty giảm → warning, không xoá
+  3. RoutingRev chỉ upsert vào active RoutingRev (không tạo rev mới)
+  4. OpType match theo `Code` case-insensitive; không match → warning + `OpTypeId=null`
+- **Verify (curl + browser)**:
+  - Lần 1: file 4 dòng (BULKTEST-001, 3 OP, job JBULK-001, RunQty=3) + dòng lỗi (OpType "INVALID", JobNumber trống) → 1 part+1 rev+3 op+1 job+3 products mới, 2 lỗi đúng
+  - Lần 2: cùng file nhưng RunQty=5, OP descriptions thay đổi → 0 part/rev mới, 3 op updated, 1 job updated, 2 products mới tạo thêm (5-3=2)
+  - Browser: dialog VI → "⬇ Tải file mẫu" download đúng `.xlsx`; import JBULK-002 (2 OP, 2 products) → grid 7 counters đúng, "Đóng" → list tự refresh, JBULK-002 xuất hiện top list với "2 serial · Sẵn sàng"; toggle EN → toàn bộ dialog/topbar button dịch đúng, không lỗi console
+
 **Phase 6 chi tiết:**
 - Multi-factory support (FactoryId đã chuẩn bị trên Machine entity)
 - Migration tool: MySQL → PostgreSQL (C# console app, đọc từ DB cũ)
