@@ -1071,6 +1071,29 @@ Desktop app: build riêng bằng dotnet publish, deploy thủ công lên từng 
 - `CreateJobDialog`: thêm `useTranslations('jobs.createDialog')`; bỏ message Zod `'Bắt buộc'` (dùng `.min(1)` không message) → render `{t('errorRequired')}` khi `errors.field` — theo pattern `AddOpDialog`. Field label "Job Number"/"Part Rev ID"/"Routing Rev ID"/"Run Qty"/"Ship By" giữ nguyên thuật ngữ kỹ thuật ở cả 2 locale.
 - Verify: `npx tsc --noEmit` 0 lỗi. Browser test job "00006535" (job 100, có 3 OP riêng) ở cả VI và EN qua `VALangSwitcher`: header/breadcrumb/KPI strip/progress card/routing card (kể cả footer 2 đoạn có `<strong>`)/serial grid/legend đều dịch đúng; `/jobs/100/operations?opId=1078` (OP riêng "120") dịch đúng cả 2 tab Tài liệu/Dimension; dialog "+ Tạo Job"/"+ New Job" hiện đúng title/labels/buttons, bấm submit rỗng → "Required"/"Bắt buộc" hiện đúng theo locale; dialog "+ OP riêng" (`AddOpDialog`, đã i18n từ trước) vẫn hoạt động đúng. Không lỗi console (chỉ a11y warning có sẵn).
 
+**Excel Template Download + Bulk Upload — `/documents` (✅ 2026-06-15)**
+
+Theo design spec [`docs/superpowers/plans/2026-06-14-engineering-import-upload.md`](docs/superpowers/plans/2026-06-14-engineering-import-upload.md) (2 phần: (1) nút tải file Excel mẫu cho 2 dialog import sẵn có, (2) tính năng "Bulk upload" nhiều file cùng lúc trên `/documents`).
+
+- **Excel template download**: `ExcelTemplateBuilder` mới (`src/ShopfloorManager.API/Common/ExcelTemplateBuilder.cs`, dùng ClosedXML) — `BuildOpsTemplate()`/`BuildDimensionsTemplate()` sinh `.xlsx` với header + 1 dòng ví dụ đúng cột mà `ImportOpsCommand`/`ImportDimensionsCommand` đọc. Endpoint mới: `GET /api/v1/operations/import/template` và `GET /api/v1/operations/dimensions/import/template` (`OperationsController`). `ImportOpsDialog`/`ImportDimensionsDialog` (`components/parts/`) thêm nút "⬇ Tải file mẫu" — fetch blob → `downloadBlob()`, xử lý lỗi (network/4xx) hiển thị message riêng.
+- **Bulk upload — backend**: `ResolveBulkUploadQuery`/Handler mới (`src/ShopfloorManager.Application/Production/ResolveBulkUploadQuery.cs`) — nhận `List<ResolveBatchItem>` (đã parse từ filename ở client), match từng item vào DB theo loại file (Standard OP → Part+PartRev+RoutingRev+PartOp; Part-level → Part+PartRev; ForJobOnly → Job+PartOp), trả `List<ResolveBatchResultDto>` (status Ready/Invalid, matched ids `partRevId`/`partOpId`/`jobId`/`fileTypeId`, `existingSegments` cho file có segment `-{i}_{n}` — dùng để client tự tính segment còn thiếu kể cả file đã upload trước đó). Endpoint mới `POST /api/v1/tech-documents/resolve-batch` (`TechDocumentsController`).
+- **Bulk upload — frontend**:
+  - `lib/doc-format.ts` (mới) — tách `FILE_TYPE_COLORS`, `formatBytes()`, `downloadBlob()` ra dùng chung giữa `/documents` và `BulkUploadDialog` (refactor khỏi `documents/page.tsx`, không đổi behavior).
+  - `lib/bulk-upload-parser.ts` (mới) — parse filename theo naming convention:
+    - Standard OP: `{PartNumber}-{PartRevCode}-{RoutingRevCode}-{OPNumber}-{FileTypeCode}[-{i}_{n}].ext`
+    - Part-level: `{PartNumber}-{PartRevCode}-{FileTypeCode}.ext`
+    - ForJobOnly OP: `{JobNumber}-{OPNumber}-{FileTypeCode}.ext`
+    - `buildBatchRows()` → `resolveBatch()` (API) → `mergeResolveResults()` → `applyClientChecks()`: dedup (file trùng nhau trong cùng lô → status `Duplicate`) + kiểm tra segment đủ nhóm `-{i}_{n}` (thiếu → status `SegmentIncomplete`, tính cả `existingSegments` từ server).
+  - `components/documents/bulk-upload-dialog.tsx` (mới) — dialog "⬆⬆ Bulk upload": 2 input file ẩn (multi-file / `webkitdirectory` cho chọn thư mục) → `handleFilesSelected()` chạy pipeline parser trên, render bảng (File name/Type/Detected/Size/Status) với `STATUS_KIND` badge (Ready=ok, Duplicate/SegmentIncomplete=warn, Invalid/Error=err, Uploading/Success=primary/ok); "Upload {count} files" chỉ upload các row `status==='Ready'` qua `api.techDocuments.create()` + presigned PUT (flow giống upload đơn hiện có).
+  - `api-client.ts`: thêm `ResolveBatchItem`/`ResolveBatchResultDto` types + `techDocuments.resolveBatch()`, `operations.importTemplateUrl()`/`dimensionsImportTemplateUrl()`.
+  - i18n namespace `documents.bulkUpload` đầy đủ (vi+en): trigger/title/hint, table headers, `status.*` (Ready/Duplicate/Invalid/SegmentIncomplete/Uploading/Success/Error), `reason.*`, `readyCount`/`uploadButton`/`uploadErrorPrefix`.
+  - `documents/page.tsx`: thêm nút "⬆⬆ Bulk upload" mở `BulkUploadDialog`; sau khi đóng dialog → refetch danh sách docs.
+- **Verify (browser, Part `00210155402` · Rev E · Routing 001 · OP 10)**:
+  - 4-file batch (2× GCD segment `1_2`/`2_2`, 1× TLS, 1× `UNKNOWNPART-...`) → đúng 3 "Sẵn sàng" (Ready) + 1 "Không hợp lệ" (Invalid, "Thiếu Part/OP/Rev tương ứng trong hệ thống"); footer "3/4 file sẵn sàng upload" → "Upload 3 file" → cả 3 chuyển "Thành công"; `/documents` cập nhật 9→12 docs, Pending 0→3, 3 row mới đúng Part/Routing/OP/Rev/size.
+  - Duplicate + segment-incomplete: chọn 1 file TLS đã tồn tại (×2) + 1 file GCD segment `1_3` (đơn lẻ, thiếu `2_3`/`3_3`) → row 1 "Sẵn sàng", row 2 "Trùng lặp" ("Trùng với file khác trong lô upload"), row 3 "Thiếu segment" ("Thiếu một hoặc nhiều segment trong nhóm"); footer "1/3 file sẵn sàng upload" — huỷ (không upload, tránh tạo doc trùng/thiếu segment).
+  - i18n EN: toggle `VALangSwitcher` → toàn bộ `/documents` (KPI/filter/table/banner) và `BulkUploadDialog` (title/hint/buttons/table/status/reason/footer) dịch đúng — không lỗi console ở cả VI và EN.
+- **Lưu ý kỹ thuật cho người dùng cuối**: pattern naming convention ở trên là quy ước bắt buộc để bulk upload nhận diện đúng Part/OP/Rev — file không đúng tên sẽ rơi vào "Không hợp lệ" và bị loại khỏi upload (không silent-fail).
+
 **Phase 6 chi tiết:**
 - Multi-factory support (FactoryId đã chuẩn bị trên Machine entity)
 - Migration tool: MySQL → PostgreSQL (C# console app, đọc từ DB cũ)
