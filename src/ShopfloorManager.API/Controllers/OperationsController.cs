@@ -152,6 +152,7 @@ public class OperationsController(IMediator mediator) : ControllerBase
 
     /// <summary>Tải file Excel mẫu cho Import Operations.</summary>
     [HttpGet("import/template")]
+    [AllowAnonymous]
     public IActionResult GetOpsImportTemplate()
     {
         var bytes = ExcelTemplateBuilder.BuildOpsTemplate();
@@ -160,6 +161,7 @@ public class OperationsController(IMediator mediator) : ControllerBase
 
     /// <summary>Tải file Excel mẫu cho Import Dimensions.</summary>
     [HttpGet("dimensions/import/template")]
+    [AllowAnonymous]
     public IActionResult GetDimensionsImportTemplate()
     {
         var bytes = ExcelTemplateBuilder.BuildDimensionsTemplate();

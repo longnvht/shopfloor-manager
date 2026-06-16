@@ -3,9 +3,10 @@
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { api, type GlobalImportResultDto } from '@/lib/api-client'
-import { downloadBlob } from '@/lib/doc-format'
 import { va } from '@/lib/va-tokens'
 import { VABtn, VACard } from '@/components/va'
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5066'
 
 type Props = { open: boolean; onClose: () => void; onImported: () => void }
 
@@ -21,15 +22,6 @@ export function BulkJobImportDialog({ open, onClose, onImported }: Props) {
   function close() {
     setFile(null); setError(null); setResult(null); setSubmitting(false)
     onClose()
-  }
-
-  async function downloadTemplate() {
-    try {
-      const blob = await api.jobs.importBatchTemplate()
-      downloadBlob(blob, 'import-jobs-template.xlsx')
-    } catch {
-      setError(t('errorGeneric'))
-    }
   }
 
   async function onSubmit() {
@@ -56,13 +48,13 @@ export function BulkJobImportDialog({ open, onClose, onImported }: Props) {
 
           {!result && (
             <>
-              <button
-                type="button"
-                onClick={downloadTemplate}
-                style={{ alignSelf: 'flex-start', fontSize: 12.5, color: va.primary, background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}
+              <a
+                href={`${API_URL}/api/v1/jobs/import-batch/template`}
+                download="import-jobs-template.xlsx"
+                style={{ alignSelf: 'flex-start', fontSize: 12.5, color: va.primary, textDecoration: 'underline' }}
               >
                 {t('template')}
-              </button>
+              </a>
 
               <input
                 type="file" accept=".xlsx,.xls"

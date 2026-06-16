@@ -125,6 +125,7 @@ public class JobsController(IMediator mediator, IShopfloorDbContext db) : Contro
 
     /// <summary>Tải file Excel mẫu cho Import Job hàng loạt.</summary>
     [HttpGet("import-batch/template")]
+    [AllowAnonymous]
     public IActionResult GetImportBatchTemplate()
     {
         var bytes = ExcelTemplateBuilder.BuildJobBatchTemplate();
