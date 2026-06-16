@@ -548,6 +548,7 @@
       "title": "Import hàng loạt Job + Part + Routing + OP",
       "description": "Upload file Excel để tạo/cập nhật đồng thời Part, PartRev, RoutingRev, Operation và Job. Tải file mẫu để xem đúng định dạng cột.",
       "template": "⬇ Tải file mẫu",
+      "chooseFile": "Chọn file Excel (.xlsx)",
       "errorNoFile": "Vui lòng chọn file Excel.",
       "errorGeneric": "Lỗi import.",
       "submitting": "Đang import...",
@@ -563,6 +564,66 @@
         "jobsUpdated": "Job cập nhật",
         "productsCreated": "Product mới"
       },
+      "rowError": "Dòng {row}: {message}"
+    },
+    "erpImport": {
+      "trigger": "🔗 Import từ ERP"
+    }
+  },
+  "erp": {
+    "title": "Import từ ERP",
+    "step": {
+      "filter": "Bộ lọc",
+      "preview": "Xem trước",
+      "result": "Kết quả"
+    },
+    "filterHint": "Chọn kết nối ERP và bộ lọc để lấy dữ liệu.",
+    "connection": "Kết nối ERP",
+    "selectConnection": "-- Chọn kết nối --",
+    "testBtn": "Kiểm tra kết nối",
+    "testOk": "Kết nối OK",
+    "testErr": "Kết nối lỗi",
+    "mockWarning": "Đây là kết nối giả (Mock) — không lấy dữ liệu từ ERP thật.",
+    "noConnections": "Chưa có kết nối ERP nào. Liên hệ Administrator để thêm.",
+    "dateFrom": "Từ ngày",
+    "dateTo": "Đến ngày",
+    "poNumber": "PO Number (tùy chọn)",
+    "poNumberPlaceholder": "Tìm theo số PO...",
+    "previewBtn": "Xem trước →",
+    "back": "← Quay lại",
+    "importBtn": "Import {count} dòng →",
+    "cancel": "Huỷ",
+    "close": "Đóng",
+    "loading": "Đang xử lý...",
+    "errorNoConnection": "Vui lòng chọn kết nối ERP.",
+    "errorPreview": "Lỗi khi lấy dữ liệu từ ERP.",
+    "errorImport": "Lỗi khi import dữ liệu.",
+    "warnings": "Cảnh báo",
+    "previewStats": {
+      "jobs": "Job",
+      "parts": "Part",
+      "ops": "Operation (dòng)"
+    },
+    "previewTable": {
+      "job": "Job Number",
+      "part": "Part Number",
+      "rev": "Rev",
+      "qty": "SL",
+      "shipBy": "Ship By",
+      "op": "OP",
+      "opType": "Loại OP",
+      "setup": "Setup (ph)",
+      "prod": "Sản xuất (ph)"
+    },
+    "result": {
+      "partsCreated": "Part tạo mới",
+      "partRevsCreated": "PartRev tạo mới",
+      "opsCreated": "OP tạo mới",
+      "opsUpdated": "OP cập nhật",
+      "jobsCreated": "Job tạo mới",
+      "jobsUpdated": "Job cập nhật",
+      "productsCreated": "Product tạo",
+      "errors": "{count} lỗi",
       "rowError": "Dòng {row}: {message}"
     }
   }

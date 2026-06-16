@@ -67,5 +67,8 @@ public interface IShopfloorDbContext
     DbSet<Ncr> Ncrs { get; }
     DbSet<NcrLog> NcrLogs { get; }
 
+    // ERP Integration
+    DbSet<ErpConnection> ErpConnections { get; }
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

@@ -548,6 +548,7 @@
       "title": "Bulk import Job + Part + Routing + OP",
       "description": "Upload an Excel file to create/update Part, PartRev, RoutingRev, Operation and Job at once. Download the template to see the expected column format.",
       "template": "⬇ Download template",
+      "chooseFile": "Choose Excel file (.xlsx)",
       "errorNoFile": "Please select an Excel file.",
       "errorGeneric": "Import failed.",
       "submitting": "Importing...",
@@ -563,6 +564,66 @@
         "jobsUpdated": "Jobs updated",
         "productsCreated": "Products created"
       },
+      "rowError": "Row {row}: {message}"
+    },
+    "erpImport": {
+      "trigger": "🔗 Import from ERP"
+    }
+  },
+  "erp": {
+    "title": "Import from ERP",
+    "step": {
+      "filter": "Filter",
+      "preview": "Preview",
+      "result": "Result"
+    },
+    "filterHint": "Select an ERP connection and filters to fetch data.",
+    "connection": "ERP Connection",
+    "selectConnection": "-- Select connection --",
+    "testBtn": "Test connection",
+    "testOk": "Connected",
+    "testErr": "Connection failed",
+    "mockWarning": "This is a Mock connection — not fetching from a real ERP.",
+    "noConnections": "No ERP connections configured. Contact Administrator to add one.",
+    "dateFrom": "From date",
+    "dateTo": "To date",
+    "poNumber": "PO Number (optional)",
+    "poNumberPlaceholder": "Filter by PO number...",
+    "previewBtn": "Preview →",
+    "back": "← Back",
+    "importBtn": "Import {count} rows →",
+    "cancel": "Cancel",
+    "close": "Close",
+    "loading": "Processing...",
+    "errorNoConnection": "Please select an ERP connection.",
+    "errorPreview": "Error fetching data from ERP.",
+    "errorImport": "Error importing data.",
+    "warnings": "Warnings",
+    "previewStats": {
+      "jobs": "Jobs",
+      "parts": "Parts",
+      "ops": "Operations (rows)"
+    },
+    "previewTable": {
+      "job": "Job Number",
+      "part": "Part Number",
+      "rev": "Rev",
+      "qty": "Qty",
+      "shipBy": "Ship By",
+      "op": "OP",
+      "opType": "OP Type",
+      "setup": "Setup (min)",
+      "prod": "Prod (min)"
+    },
+    "result": {
+      "partsCreated": "Parts created",
+      "partRevsCreated": "PartRevs created",
+      "opsCreated": "Ops created",
+      "opsUpdated": "Ops updated",
+      "jobsCreated": "Jobs created",
+      "jobsUpdated": "Jobs updated",
+      "productsCreated": "Products created",
+      "errors": "{count} errors",
       "rowError": "Row {row}: {message}"
     }
   }

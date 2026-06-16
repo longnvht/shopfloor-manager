@@ -157,6 +157,26 @@ export type GlobalImportResultDto = {
   errors: ImportRowError[]
 }
 
+// ERP Integration
+export type ErpConnectionDto = {
+  id: number; name: string; erpType: string; baseUrl: string
+  company: string | null; username: string | null; hasPassword: boolean; isActive: boolean
+}
+
+export type ErpPreviewRowDto = {
+  partNumber: string; partDescription: string | null; revision: string | null
+  jobNumber: string; poNumber: string | null; poLine: string | null
+  runQty: number | null; shipBy: string | null
+  opNumber: string; opTypeCode: string | null; opDescription: string | null
+  setupTime: number | null; prodTime: number | null
+}
+
+export type ErpPreviewDto = {
+  rows: ErpPreviewRowDto[]
+  totalCount: number
+  warnings: string[]
+}
+
 export type SpcDto = {
   dimensionId: number; code: string; nominal: number
   upperLimit: number; lowerLimit: number; unit: string
@@ -387,6 +407,19 @@ export const api = {
       request<null>(`/api/v1/planning/${id}`, { method: 'DELETE' }),
     shifts:     () => request<ShiftDto[]>('/api/v1/shifts'),
     breakTimes: () => request<BreakTimeDto[]>('/api/v1/break-times'),
+  },
+  erp: {
+    connections: () => request<ErpConnectionDto[]>('/api/v1/erp/connections'),
+    createConnection: (body: { name: string; erpType: string; baseUrl: string; company?: string; username?: string; password?: string }) =>
+      request<ErpConnectionDto>('/api/v1/erp/connections', { method: 'POST', body: JSON.stringify(body) }),
+    updateConnection: (id: number, body: { name: string; erpType: string; baseUrl: string; company?: string; username?: string; password?: string; isActive: boolean }) =>
+      request<ErpConnectionDto>(`/api/v1/erp/connections/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+    testConnection: (id: number) =>
+      request<boolean>(`/api/v1/erp/connections/${id}/test`, { method: 'POST', body: '{}' }),
+    preview: (body: { connectionId: number; dateFrom?: string; dateTo?: string; poNumber?: string }) =>
+      request<ErpPreviewDto>('/api/v1/erp/preview', { method: 'POST', body: JSON.stringify(body) }),
+    import: (body: { connectionId: number; dateFrom?: string; dateTo?: string; poNumber?: string }) =>
+      request<GlobalImportResultDto>('/api/v1/erp/import', { method: 'POST', body: JSON.stringify(body) }),
   },
   calibration: {
     vendors:        () => request<CalibVendorDto[]>('/api/v1/calib-vendors'),

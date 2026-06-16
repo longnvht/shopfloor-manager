@@ -1123,6 +1123,23 @@ Import đồng thời toàn bộ dữ liệu kỹ thuật từ 1 file Excel duy 
   - Lần 2: cùng file nhưng RunQty=5, OP descriptions thay đổi → 0 part/rev mới, 3 op updated, 1 job updated, 2 products mới tạo thêm (5-3=2)
   - Browser: dialog VI → "⬇ Tải file mẫu" download đúng `.xlsx`; import JBULK-002 (2 OP, 2 products) → grid 7 counters đúng, "Đóng" → list tự refresh, JBULK-002 xuất hiện top list với "2 serial · Sẵn sàng"; toggle EN → toàn bộ dialog/topbar button dịch đúng, không lỗi console
 
+**ERP Integration — Import từ Epicor / ERP OData (✅ 2026-06-16)**
+
+Kết nối Shopfloor Manager với ERP (Epicor) qua OData v4 để import Job, Part, PartRev, Routing, OP trực tiếp từ ERP — không cần export/import file Excel thủ công. Kiến trúc extensible hỗ trợ Epicor, Mock (test), Odoo, ErpNext sau này.
+
+- **Domain**: `ErpConnection` entity (Id, Name, ErpType, BaseUrl, Company, Username, Password, IsActive) — migration `AddErpConnections` (bảng `erp_connections`)
+- **Application layer**: `IErpConnector` interface + `IErpConnectorFactory` interface (`Application/Common/Interfaces/`); `ErpCommands.cs` — handlers: GetConnections, CreateConnection, UpdateConnection, TestConnection, GetPreview; `DbSet<ErpConnection>` vào `IShopfloorDbContext`
+- **Infrastructure layer**: `MockErpConnector` (10 hardcoded rows, 3 jobs, 3 parts — dùng để test không cần ERP thật); `EpicorConnector` (HTTP Basic auth, OData v4 endpoint `/api/v1/Erp.BO.JobEntrySvc/JobHeads`, convert `EstSetHours` × 60 → minutes); `ErpConnectorFactory` (switch theo `erpType`)
+- **Reuse pattern**: ERP import endpoint gọi `GetErpPreviewQuery` → lấy rows từ ERP → map sang `ImportJobBatchRow` → gọi `ImportJobBatchCommand` handler có sẵn — không duplicate logic
+- **API**: 6 endpoints trong `ErpController` (`api/v1/erp`): GET connections, POST connection (Admin), PUT connection (Admin), POST test, POST preview, POST import; role: Administrator/Manager/Engineer/Planner
+- **Frontend**: `components/erp/erp-import-dialog.tsx` — dialog 3 bước (Filter → Preview → Result); Step 1: chọn connection + test kết nối + date range + PO filter; Step 2: stats strip 3 KPI (Jobs/Parts/Ops) + warnings banner cam + bảng preview 9 cột; Step 3: 7 counter cards + danh sách lỗi theo dòng
+- **i18n**: namespace `erp` đầy đủ (vi+en) — `step.*`/`filter.*`/`preview.*`/`result.*`; `jobs.erpImport.trigger` (nút trigger trong `/jobs`)
+- **Wiring**: `/jobs/page.tsx` có nút "🔗 Import từ ERP" mở `ErpImportDialog`; đóng dialog → refresh job list
+- **Dependency injection**: `IErpConnectorFactory` đăng ký là `singleton` trong `Infrastructure/DependencyInjection.cs`
+- **Verify (API + curl)**: `POST /api/v1/erp/connections` tạo Mock connection; `POST /api/v1/erp/connections/1/test` → `success=true`; `POST /api/v1/erp/preview` → 10 rows, 2 warnings; `POST /api/v1/erp/import` → 3 jobs created, 35 products created, 1 expected error (OpType 'THD' not found → import vẫn tiếp tục, `OpTypeId=null`)
+- **Lưu ý Epicor OData**: time units là `EstSetHours`/`ProdStandard` (giờ) → phải × 60 để ra phút khi map sang `ImportJobBatchRow.SetupTime`/`ProdTime`; Basic auth dùng Base64 `username:password`
+- **Credential storage**: username/password lưu plaintext trong DB — chấp nhận được cho factory intranet không public internet (thiếu encryption là known trade-off, phù hợp "simple and maintainable")
+
 **Phase 6 chi tiết:**
 - Multi-factory support (FactoryId đã chuẩn bị trên Machine entity)
 - Migration tool: MySQL → PostgreSQL (C# console app, đọc từ DB cũ)

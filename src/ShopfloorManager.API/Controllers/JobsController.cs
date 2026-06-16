@@ -131,6 +131,15 @@ public class JobsController(IMediator mediator, IShopfloorDbContext db) : Contro
         var bytes = ExcelTemplateBuilder.BuildJobBatchTemplate();
         return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "import-jobs-template.xlsx");
     }
+
+    /// <summary>Tải file Excel mẫu có đủ dữ liệu thực (3 Part, 3 Job, 9 OP) để test bulk import.</summary>
+    [HttpGet("import-batch/sample-data")]
+    [AllowAnonymous]
+    public IActionResult GetImportBatchSampleData()
+    {
+        var bytes = ExcelTemplateBuilder.BuildJobBatchSampleData();
+        return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "import-jobs-sample.xlsx");
+    }
 }
 
 public record CreateJobRequest(string JobNumber, int PartRevId, int RoutingRevId, int? RunQty, DateOnly? ShipBy);

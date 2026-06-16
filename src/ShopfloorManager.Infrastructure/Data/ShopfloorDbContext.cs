@@ -67,6 +67,9 @@ public class ShopfloorDbContext(DbContextOptions<ShopfloorDbContext> options)
     public DbSet<Ncr> Ncrs => Set<Ncr>();
     public DbSet<NcrLog> NcrLogs => Set<NcrLog>();
 
+    // ── ERP Integration ───────────────────────────────────────
+    public DbSet<ErpConnection> ErpConnections => Set<ErpConnection>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -134,6 +137,17 @@ public class ShopfloorDbContext(DbContextOptions<ShopfloorDbContext> options)
         modelBuilder.ApplyConfiguration(new BreakTimeConfiguration());
         modelBuilder.ApplyConfiguration(new PlanningItemConfiguration());
         modelBuilder.ApplyConfiguration(new ShiftAssignmentConfiguration());
+
+        // ERP Connections
+        modelBuilder.Entity<ErpConnection>(b =>
+        {
+            b.Property(c => c.Name).HasMaxLength(100).IsRequired();
+            b.Property(c => c.ErpType).HasMaxLength(50).IsRequired();
+            b.Property(c => c.BaseUrl).HasMaxLength(500).IsRequired();
+            b.Property(c => c.Company).HasMaxLength(50);
+            b.Property(c => c.Username).HasMaxLength(100);
+            b.Property(c => c.Password).HasMaxLength(200);
+        });
 
         SeedStaticData(modelBuilder);
     }

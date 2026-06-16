@@ -9,6 +9,7 @@ import { VATopbar, VABadge, VACard, VABtn, VAKpi } from '@/components/va'
 import { va } from '@/lib/va-tokens'
 import { CreateJobDialog } from '@/components/jobs/create-job-dialog'
 import { BulkJobImportDialog } from '@/components/jobs/bulk-job-import-dialog'
+import { ErpImportDialog } from '@/components/erp/erp-import-dialog'
 import { AddOpDialog } from '@/components/parts/add-op-dialog'
 
 // ── Status helpers ─────────────────────────────────────────────────────────
@@ -340,6 +341,7 @@ export default function JobsPage() {
   const [selJob, setSelJob]     = useState<JobDto | null>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [showBulkImport, setShowBulkImport] = useState(false)
+  const [showErpImport, setShowErpImport] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -369,6 +371,7 @@ export default function JobsPage() {
         breadcrumb={t('breadcrumb')}
         right={
           <div style={{ display: 'flex', gap: 8 }}>
+            <VABtn kind="ghost" onClick={() => setShowErpImport(true)}>{t('erpImport.trigger')}</VABtn>
             <VABtn kind="ghost" onClick={() => setShowBulkImport(true)}>{t('bulkImport.trigger')}</VABtn>
             <VABtn kind="primary" onClick={() => setShowCreate(true)}>{t('createButton')}</VABtn>
           </div>
@@ -441,6 +444,7 @@ export default function JobsPage() {
 
       <CreateJobDialog open={showCreate} onClose={() => setShowCreate(false)} onCreated={load} />
       <BulkJobImportDialog open={showBulkImport} onClose={() => setShowBulkImport(false)} onImported={() => { setShowBulkImport(false); load() }} />
+      <ErpImportDialog open={showErpImport} onClose={() => setShowErpImport(false)} onImported={() => { setShowErpImport(false); load() }} />
     </div>
   )
 }

@@ -5,6 +5,7 @@ using Minio;
 using Minio.DataModel.Args;
 using ShopfloorManager.Application.Common.Interfaces;
 using ShopfloorManager.Infrastructure.Data;
+using ShopfloorManager.Infrastructure.Erp;
 using ShopfloorManager.Infrastructure.Services;
 
 namespace ShopfloorManager.Infrastructure;
@@ -26,6 +27,7 @@ public static class DependencyInjection
         services.AddScoped<IEmailService, EmailService>();
         services.AddScoped<IMinioService, MinioService>();
         services.AddScoped<ISpcService, SpcService>();
+        services.AddSingleton<IErpConnectorFactory, ErpConnectorFactory>();
 
         // MinIO client
         services.AddSingleton<IMinioClient>(_ =>

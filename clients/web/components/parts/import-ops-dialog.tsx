@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { api, type ImportResultDto } from '@/lib/api-client'
+import { VAFilePicker } from '@/components/va'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
@@ -51,10 +52,11 @@ export function ImportOpsDialog({ open, routingRevId, onClose, onImported }: Pro
               <a href={`${API_URL}/api/v1/operations/import/template`} download="import-ops-template.xlsx" className="text-sm underline text-primary">
                 {t('template')}
               </a>
-              <input
-                type="file" accept=".xlsx,.xls"
-                onChange={e => setFile(e.target.files?.[0] ?? null)}
-                className="text-sm"
+              <VAFilePicker
+                accept=".xlsx,.xls"
+                label={t('fileLabel')}
+                hint="Kéo thả file vào đây hoặc bấm để chọn (.xlsx)"
+                onChange={files => setFile(files?.[0] ?? null)}
               />
               {error && <p className="text-sm text-destructive">{error}</p>}
               <div className="flex gap-2 pt-2">

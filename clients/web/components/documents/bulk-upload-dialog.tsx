@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { api, type FileTypeDto, type UploadDocBody } from '@/lib/api-client'
 import {
@@ -31,12 +31,21 @@ export function BulkUploadDialog({ open, onClose, onDone }: Props) {
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [fileTypes, setFileTypes] = useState<FileTypeDto[] | null>(null)
+  const [dropHover, setDropHover] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const folderInputRef = useRef<HTMLInputElement>(null)
 
   if (!open) return null
 
   function close() {
-    setRows([]); setError(null); setResolving(false); setUploading(false)
+    setRows([]); setError(null); setResolving(false); setUploading(false); setDropHover(false)
     onClose()
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault()
+    setDropHover(false)
+    handleFilesSelected(e.dataTransfer.files)
   }
 
   async function ensureFileTypes(): Promise<FileTypeDto[]> {
@@ -125,27 +134,64 @@ export function BulkUploadDialog({ open, onClose, onDone }: Props) {
         <CardContent className="space-y-4 overflow-y-auto flex-1">
           <p className="text-sm text-muted-foreground">{t('hint')}</p>
 
-          <div className="flex gap-2">
-            <label className="inline-flex">
-              <input
-                type="file" multiple className="hidden"
-                onChange={e => handleFilesSelected(e.target.files)}
-              />
-              <span className="cursor-pointer"><VABtn kind="ghost">{t('selectFiles')}</VABtn></span>
-            </label>
-            <label className="inline-flex">
-              <input
-                type="file" multiple className="hidden"
-                ref={el => {
-                  if (el) (el as HTMLInputElement & { webkitdirectory: boolean }).webkitdirectory = true
-                }}
-                onChange={e => handleFilesSelected(e.target.files)}
-              />
-              <span className="cursor-pointer"><VABtn kind="ghost">{t('selectFolder')}</VABtn></span>
-            </label>
+          {/* Hidden file inputs */}
+          <input ref={fileInputRef} type="file" multiple className="hidden"
+            onChange={e => { handleFilesSelected(e.target.files); e.target.value = '' }} />
+          <input type="file" multiple className="hidden"
+            ref={el => {
+              (folderInputRef as React.MutableRefObject<HTMLInputElement | null>).current = el
+              if (el) (el as HTMLInputElement & { webkitdirectory: boolean }).webkitdirectory = true
+            }}
+            onChange={e => { handleFilesSelected(e.target.files); e.target.value = '' }} />
+
+          {/* Drop zone */}
+          <div
+            onDragOver={e => { e.preventDefault(); setDropHover(true) }}
+            onDragLeave={() => setDropHover(false)}
+            onDrop={handleDrop}
+            style={{
+              border: `2px dashed ${dropHover ? va.accent : rows.length > 0 ? va.primaryLt : va.borderStr}`,
+              borderRadius: 10,
+              padding: '20px 24px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 10,
+              background: dropHover ? va.accentBg : rows.length > 0 ? va.surface2 : va.bg,
+              textAlign: 'center',
+              transition: 'border-color 0.15s, background 0.15s',
+            }}
+          >
+            {resolving ? (
+              <>
+                <span style={{ fontSize: 24, color: va.text3 }}>⏳</span>
+                <span style={{ fontSize: 13, color: va.text2 }}>{t('resolving')}</span>
+              </>
+            ) : rows.length > 0 ? (
+              <>
+                <span style={{ fontSize: 24 }}>✓</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: va.primary }}>
+                  {rows.length} file đã phân tích · {rows.filter(r => r.status === 'Ready').length} sẵn sàng upload
+                </span>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <VABtn kind="ghost" onClick={() => fileInputRef.current?.click()}>{t('selectFiles')}</VABtn>
+                  <VABtn kind="ghost" onClick={() => folderInputRef.current?.click()}>{t('selectFolder')}</VABtn>
+                </div>
+              </>
+            ) : (
+              <>
+                <span style={{ fontSize: 28, color: va.text3 }}>⬆</span>
+                <span style={{ fontSize: 13, color: va.text2 }}>
+                  {dropHover ? 'Thả file vào đây' : 'Kéo thả file hoặc thư mục vào đây'}
+                </span>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <VABtn kind="ghost" onClick={() => fileInputRef.current?.click()}>{t('selectFiles')}</VABtn>
+                  <VABtn kind="ghost" onClick={() => folderInputRef.current?.click()}>{t('selectFolder')}</VABtn>
+                </div>
+              </>
+            )}
           </div>
 
-          {resolving && <p className="text-sm" style={{ color: va.text2 }}>{t('resolving')}</p>}
           {error && <p className="text-sm text-destructive">{error}</p>}
 
           {rows.length > 0 && (

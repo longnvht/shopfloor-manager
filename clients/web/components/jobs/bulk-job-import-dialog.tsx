@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { api, type GlobalImportResultDto } from '@/lib/api-client'
 import { va } from '@/lib/va-tokens'
-import { VABtn, VACard } from '@/components/va'
+import { VABtn, VACard, VAFilePicker } from '@/components/va'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5066'
 
@@ -56,10 +56,11 @@ export function BulkJobImportDialog({ open, onClose, onImported }: Props) {
                 {t('template')}
               </a>
 
-              <input
-                type="file" accept=".xlsx,.xls"
-                onChange={e => setFile(e.target.files?.[0] ?? null)}
-                style={{ fontSize: 12.5 }}
+              <VAFilePicker
+                accept=".xlsx,.xls"
+                label={t('chooseFile')}
+                hint="Kéo thả file vào đây hoặc bấm để chọn (.xlsx)"
+                onChange={files => setFile(files?.[0] ?? null)}
               />
 
               {error && <p style={{ fontSize: 12.5, color: va.err }}>{error}</p>}
