@@ -25,7 +25,11 @@ public class MeasureValue
     public int? MeasuredBy { get; set; }
     public DateTimeOffset MeasuredAt { get; set; } = DateTimeOffset.UtcNow;
 
-    // ── Final inspection (sau rework) ─────────────────────────
+    // ── Measurement stage ─────────────────────────────────────
+    /// <summary>Giai đoạn đo: InprocessFAI=0, QCInline=1, QCFinal=2.</summary>
+    public MeasureStage MeasureStage { get; set; } = MeasureStage.InprocessFAI;
+
+    // ── Final inspection (legacy — deprecated, dùng MeasureStage=QCFinal thay thế) ──
     public bool IsFinal { get; set; }
     public int? FinalOpId { get; set; }          // OP final inspection
 

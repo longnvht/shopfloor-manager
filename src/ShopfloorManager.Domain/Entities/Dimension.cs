@@ -1,3 +1,5 @@
+using ShopfloorManager.Domain.Enums;
+
 namespace ShopfloorManager.Domain.Entities;
 
 /// <summary>
@@ -45,6 +47,13 @@ public class Dimension
     public bool IsCritical { get; set; }
     public bool IsFinal { get; set; }              // Kích thước kiểm tra lần cuối sau rework
     public int SortOrder { get; set; }
+
+    // ── Approval workflow (tương tự TechDocument) ─────────────
+    /// <summary>Pending=0 (mới import), Approved=1 (đã duyệt), Rejected=2 (từ chối).</summary>
+    public FileStatus Status { get; set; } = FileStatus.Approved; // Default Approved cho data cũ
+    public int? ReviewedBy { get; set; }
+    public DateTimeOffset? ReviewedAt { get; set; }
+    public string? ReviewNote { get; set; }
 
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;

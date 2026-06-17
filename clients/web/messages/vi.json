@@ -249,20 +249,6 @@
     "noMatch": "Không có kích thước khớp bộ lọc",
     "revBadge": "Bản vẽ Rev {rev}",
     "footnote": "Cùng một balloon có thể đo lại ở nhiều OP (ví dụ tiện tinh → mài → CMM cuối). Dòng Final ● là điểm chốt FAI, chỉ QC được nhập kết quả.",
-    "kpi": {
-      "totalDims": "Tổng dimension",
-      "uniqueBalloons": "Balloon (unique)",
-      "faiFinal": "FAI Final",
-      "faiFinalSub": "chỉ QC nhập",
-      "opsWithDims": "Số OP có dim",
-      "opsWithDimsSub": "/ {total} OP"
-    },
-    "filter": {
-      "allOps": "Tất cả",
-      "allCategories": "Tất cả",
-      "finalOnly": "Chỉ FAI Final",
-      "searchBalloon": "Tìm balloon…"
-    },
     "table": {
       "title": "Tất cả Dimension",
       "headers": {
@@ -275,7 +261,8 @@
         "max": "Max",
         "min": "Min",
         "unit": "ĐV",
-        "final": "Final"
+        "final": "Final",
+        "status": "Trạng thái"
       }
     },
     "edit": {
@@ -283,11 +270,72 @@
       "save": "Lưu",
       "cancel": "Huỷ",
       "textTypeNotice": "Không thể sửa dimension dạng text"
+    },
+    "revSelector": {
+      "drawingRev": "Bản vẽ",
+      "routingRev": "Routing",
+      "allRevs": "Tất cả Rev",
+      "allRoutingRevs": "Tất cả Routing"
+    },
+    "kpi": {
+      "totalDims": "Tổng dimension",
+      "uniqueBalloons": "Balloon (unique)",
+      "faiFinal": "FAI Final",
+      "faiFinalSub": "chỉ QC nhập",
+      "opsWithDims": "Số OP có dim",
+      "opsWithDimsSub": "/ {total} OP",
+      "pendingDims": "Chờ duyệt"
+    },
+    "filter": {
+      "allOps": "Tất cả",
+      "allCategories": "Tất cả",
+      "finalOnly": "Chỉ FAI Final",
+      "searchBalloon": "Tìm balloon…",
+      "showPending": "Hiện Pending",
+      "pendingOnly": "Chỉ chờ duyệt"
+    },
+    "pending": {
+      "banner": "{count} kích thước chờ duyệt",
+      "approveAll": "✓ Duyệt tất cả",
+      "rejectAll": "✕ Từ chối tất cả"
+    },
+    "status": {
+      "Pending": "Chờ duyệt",
+      "Approved": "Đã duyệt",
+      "Rejected": "Từ chối"
+    },
+    "review": {
+      "approve": "Duyệt",
+      "reject": "Từ chối",
+      "rejectNote": "Lý do từ chối (tuỳ chọn):",
+      "status": {
+        "Pending": "Chờ duyệt",
+        "Approved": "Đã duyệt",
+        "Rejected": "Từ chối"
+      }
+    },
+    "importBulk": {
+      "trigger": "⬆⬆ Import Bulk",
+      "title": "Bulk Import Dimensions",
+      "hint": "File Excel gồm các cột: OpNumber, BalloonNumber, Code, Description, Nominal, TolPlus, TolMinus, Unit, Category, IsFinal. Kích thước mới tạo với trạng thái Chờ duyệt.",
+      "downloadTemplate": "⬇ Tải file mẫu",
+      "noFile": "Chọn file Excel (.xlsx)",
+      "submit": "Import",
+      "submitting": "Đang import…",
+      "cancel": "Huỷ",
+      "close": "Đóng",
+      "result": {
+        "title": "Kết quả import",
+        "created": "{n} kích thước mới",
+        "skipped": "{n} bỏ qua",
+        "rowError": "Dòng {row}: {message}"
+      }
     }
   },
   "documents": {
     "title": "Tài liệu kỹ thuật",
     "breadcrumb": "Hệ thống › Drawing · G-code · Route card",
+    "searchPlaceholder": "Tìm part number…",
     "backLink": "← Quay lại",
     "queueButton": "Hàng đợi duyệt ({count})",
     "uploadButton": "⬆ Upload",

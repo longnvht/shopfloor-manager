@@ -249,20 +249,6 @@
     "noMatch": "No dimensions match the filter",
     "revBadge": "Drawing Rev {rev}",
     "footnote": "The same balloon may be measured again across multiple OPs (e.g. rough turn → grind → final CMM). A Final ● row is the FAI checkpoint — only QC can enter results.",
-    "kpi": {
-      "totalDims": "Total dimensions",
-      "uniqueBalloons": "Balloons (unique)",
-      "faiFinal": "FAI Final",
-      "faiFinalSub": "QC entry only",
-      "opsWithDims": "OPs with dims",
-      "opsWithDimsSub": "/ {total} OPs"
-    },
-    "filter": {
-      "allOps": "All",
-      "allCategories": "All",
-      "finalOnly": "Final only",
-      "searchBalloon": "Search balloon…"
-    },
     "table": {
       "title": "All Dimensions",
       "headers": {
@@ -275,7 +261,8 @@
         "max": "Max",
         "min": "Min",
         "unit": "Unit",
-        "final": "Final"
+        "final": "Final",
+        "status": "Status"
       }
     },
     "edit": {
@@ -283,11 +270,72 @@
       "save": "Save",
       "cancel": "Cancel",
       "textTypeNotice": "Cannot edit text-type dimensions"
+    },
+    "revSelector": {
+      "drawingRev": "Drawing Rev",
+      "routingRev": "Routing Rev",
+      "allRevs": "All Revs",
+      "allRoutingRevs": "All Routing Revs"
+    },
+    "kpi": {
+      "totalDims": "Total dimensions",
+      "uniqueBalloons": "Balloons (unique)",
+      "faiFinal": "FAI Final",
+      "faiFinalSub": "QC entry only",
+      "opsWithDims": "OPs with dims",
+      "opsWithDimsSub": "/ {total} OPs",
+      "pendingDims": "Pending review"
+    },
+    "filter": {
+      "allOps": "All",
+      "allCategories": "All",
+      "finalOnly": "Final only",
+      "searchBalloon": "Search balloon…",
+      "showPending": "Show Pending",
+      "pendingOnly": "Pending only"
+    },
+    "pending": {
+      "banner": "{count} dimensions pending review",
+      "approveAll": "✓ Approve all",
+      "rejectAll": "✕ Reject all"
+    },
+    "status": {
+      "Pending": "Pending",
+      "Approved": "Approved",
+      "Rejected": "Rejected"
+    },
+    "review": {
+      "approve": "Approve",
+      "reject": "Reject",
+      "rejectNote": "Reason for rejection (optional):",
+      "status": {
+        "Pending": "Pending",
+        "Approved": "Approved",
+        "Rejected": "Rejected"
+      }
+    },
+    "importBulk": {
+      "trigger": "⬆⬆ Bulk Import",
+      "title": "Bulk Import Dimensions",
+      "hint": "Excel file with columns: OpNumber, BalloonNumber, Code, Description, Nominal, TolPlus, TolMinus, Unit, Category, IsFinal. New dimensions are created as Pending.",
+      "downloadTemplate": "⬇ Download template",
+      "noFile": "Choose an Excel file (.xlsx)",
+      "submit": "Import",
+      "submitting": "Importing…",
+      "cancel": "Cancel",
+      "close": "Close",
+      "result": {
+        "title": "Import result",
+        "created": "{n} dimensions created",
+        "skipped": "{n} skipped",
+        "rowError": "Row {row}: {message}"
+      }
     }
   },
   "documents": {
     "title": "Tech Documents",
     "breadcrumb": "System › Drawing · G-code · Route card",
+    "searchPlaceholder": "Search part number…",
     "backLink": "← Back",
     "queueButton": "Approval Queue ({count})",
     "uploadButton": "⬆ Upload",

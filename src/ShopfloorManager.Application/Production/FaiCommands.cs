@@ -16,7 +16,9 @@ public record DimensionDto(
     decimal? NominalValue, decimal? TolerancePlus, decimal? ToleranceMinus,
     decimal? MaxValue, decimal? MinValue, string Unit,
     bool IsTextType, string? NominalText,
-    string? CategoryCode, bool IsCritical, bool IsFinal, int SortOrder);
+    string? CategoryCode, bool IsCritical, bool IsFinal, int SortOrder,
+    // Approval workflow
+    string Status = "Approved", int? ReviewedBy = null, DateTimeOffset? ReviewedAt = null, string? ReviewNote = null);
 
 // ── FAI Sheet ─────────────────────────────────────────────────
 
@@ -105,7 +107,8 @@ public class GetOpDimensionsQueryHandler(IShopfloorDbContext db)
                 d.Id, d.PartOpId, d.BalloonNumber, d.BalloonSort, d.Code, d.Description,
                 d.NominalValue, d.TolerancePlus, d.ToleranceMinus, d.MaxValue, d.MinValue, d.Unit,
                 d.IsTextType, d.NominalText, d.Category != null ? d.Category.Code : null,
-                d.IsCritical, d.IsFinal, d.SortOrder))
+                d.IsCritical, d.IsFinal, d.SortOrder,
+                d.Status.ToString(), d.ReviewedBy, d.ReviewedAt, d.ReviewNote))
             .ToListAsync(ct);
 
         return Result.Ok<IReadOnlyList<DimensionDto>>(dims);
@@ -121,7 +124,8 @@ public record RoutingRevDimensionDto(
     decimal? NominalValue, decimal? TolerancePlus, decimal? ToleranceMinus,
     decimal? MaxValue, decimal? MinValue, string Unit,
     bool IsTextType, string? NominalText,
-    string? CategoryCode, bool IsCritical, bool IsFinal, int SortOrder);
+    string? CategoryCode, bool IsCritical, bool IsFinal, int SortOrder,
+    string Status = "Approved", int? ReviewedBy = null, DateTimeOffset? ReviewedAt = null, string? ReviewNote = null);
 
 public record GetDimensionsByRoutingRevQuery(int RoutingRevId) : IRequest<Result<List<RoutingRevDimensionDto>>>;
 
@@ -141,7 +145,8 @@ public class GetDimensionsByRoutingRevQueryHandler(IShopfloorDbContext db)
                 d.BalloonNumber, d.BalloonSort, d.Code, d.Description,
                 d.NominalValue, d.TolerancePlus, d.ToleranceMinus, d.MaxValue, d.MinValue, d.Unit,
                 d.IsTextType, d.NominalText, d.Category != null ? d.Category.Code : null,
-                d.IsCritical, d.IsFinal, d.SortOrder))
+                d.IsCritical, d.IsFinal, d.SortOrder,
+                d.Status.ToString(), d.ReviewedBy, d.ReviewedAt, d.ReviewNote))
             .ToListAsync(ct);
 
         return Result.Ok(items);
@@ -217,7 +222,8 @@ public class CreateDimensionCommandHandler(IShopfloorDbContext db)
         return Result.Ok(new DimensionDto(dim.Id, dim.PartOpId,
             dim.BalloonNumber, dim.BalloonSort, dim.Code, dim.Description,
             dim.NominalValue, dim.TolerancePlus, dim.ToleranceMinus, dim.MaxValue, dim.MinValue, dim.Unit,
-            dim.IsTextType, dim.NominalText, cat?.Code, dim.IsCritical, dim.IsFinal, dim.SortOrder));
+            dim.IsTextType, dim.NominalText, cat?.Code, dim.IsCritical, dim.IsFinal, dim.SortOrder,
+            dim.Status.ToString(), dim.ReviewedBy, dim.ReviewedAt, dim.ReviewNote));
     }
 }
 
@@ -258,7 +264,8 @@ public class UpdateDimensionCommandHandler(IShopfloorDbContext db)
         return Result.Ok(new DimensionDto(dim.Id, dim.PartOpId,
             dim.BalloonNumber, dim.BalloonSort, dim.Code, dim.Description,
             dim.NominalValue, dim.TolerancePlus, dim.ToleranceMinus, dim.MaxValue, dim.MinValue, dim.Unit,
-            dim.IsTextType, dim.NominalText, dim.Category?.Code, dim.IsCritical, dim.IsFinal, dim.SortOrder));
+            dim.IsTextType, dim.NominalText, dim.Category?.Code, dim.IsCritical, dim.IsFinal, dim.SortOrder,
+            dim.Status.ToString(), dim.ReviewedBy, dim.ReviewedAt, dim.ReviewNote));
     }
 }
 
@@ -266,7 +273,157 @@ public class UpdateDimensionCommandHandler(IShopfloorDbContext db)
 
 public record ImportDimensionRow(
     string BalloonNumber, string? Code, string? Description, string? NominalRaw,
-    decimal? TolPlus, decimal? TolMinus, string? Unit, string? CategoryCode);
+    decimal? TolPlus, decimal? TolMinus, string? Unit, string? CategoryCode,
+    bool IsFinal = false);
+
+// ── Import Bulk Dimensions cho toàn bộ RoutingRev từ 1 file Excel ─────────
+
+/// <summary>
+/// Dòng trong file Excel bulk import — thêm cột OpNumber và IsFinal so với ImportDimensionRow.
+/// </summary>
+public record ImportBulkDimensionRow(
+    string OpNumber,
+    string BalloonNumber, string? Code, string? Description, string? NominalRaw,
+    decimal? TolPlus, decimal? TolMinus, string? Unit, string? CategoryCode,
+    bool IsFinal = false);
+
+public record ImportBulkDimensionsCommand(int RoutingRevId, List<ImportBulkDimensionRow> Rows, int? RequesterId)
+    : IRequest<Result<ImportResultDto>>;
+
+public class ImportBulkDimensionsCommandValidator : AbstractValidator<ImportBulkDimensionsCommand>
+{
+    public ImportBulkDimensionsCommandValidator()
+    {
+        RuleFor(x => x.RoutingRevId).GreaterThan(0);
+        RuleFor(x => x.Rows).NotEmpty();
+    }
+}
+
+public class ImportBulkDimensionsCommandHandler(IShopfloorDbContext db)
+    : IRequestHandler<ImportBulkDimensionsCommand, Result<ImportResultDto>>
+{
+    public async Task<Result<ImportResultDto>> Handle(ImportBulkDimensionsCommand req, CancellationToken ct)
+    {
+        // Load tất cả PartOps của RoutingRev
+        var ops = await db.PartOps
+            .Where(o => o.RoutingRevId == req.RoutingRevId && o.JobId == null)
+            .ToListAsync(ct);
+
+        if (ops.Count == 0)
+            return Result.Fail($"RoutingRev {req.RoutingRevId} không có OP nào.");
+
+        var opByNumber = ops.ToDictionary(o => o.OpNumber, StringComparer.OrdinalIgnoreCase);
+
+        // Load existing balloons per OP
+        var existingBalloons = (await db.Dimensions
+            .Where(d => ops.Select(o => o.Id).Contains(d.PartOpId))
+            .Select(d => new { d.PartOpId, d.BalloonNumber })
+            .ToListAsync(ct))
+            .GroupBy(x => x.PartOpId)
+            .ToDictionary(g => g.Key, g => g.Select(x => x.BalloonNumber)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase));
+
+        var categories = await db.DimensionCategories.ToListAsync(ct);
+
+        var errors = new List<ImportRowError>();
+        int created = 0, skipped = 0;
+
+        for (var i = 0; i < req.Rows.Count; i++)
+        {
+            var row = req.Rows[i];
+            var rowNumber = i + 2;
+
+            // Validate OpNumber
+            if (string.IsNullOrWhiteSpace(row.OpNumber))
+            {
+                errors.Add(new ImportRowError(rowNumber, "Thiếu OpNumber."));
+                skipped++;
+                continue;
+            }
+
+            if (!opByNumber.TryGetValue(row.OpNumber, out var op))
+            {
+                errors.Add(new ImportRowError(rowNumber, $"OP '{row.OpNumber}' không tồn tại trong RoutingRev."));
+                skipped++;
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(row.BalloonNumber))
+            {
+                errors.Add(new ImportRowError(rowNumber, "Thiếu BalloonNumber."));
+                skipped++;
+                continue;
+            }
+
+            if (!existingBalloons.TryGetValue(op.Id, out var balloonSet))
+            {
+                balloonSet = [];
+                existingBalloons[op.Id] = balloonSet;
+            }
+
+            if (balloonSet.Contains(row.BalloonNumber))
+            {
+                errors.Add(new ImportRowError(rowNumber, $"Balloon '{row.BalloonNumber}' đã tồn tại trong OP {row.OpNumber}."));
+                skipped++;
+                continue;
+            }
+
+            decimal? balloonSort = null;
+            var numPart = new string(row.BalloonNumber.TakeWhile(char.IsDigit).ToArray());
+            if (decimal.TryParse(numPart, out var bs)) balloonSort = bs;
+
+            int? categoryId = null;
+            if (!string.IsNullOrWhiteSpace(row.CategoryCode))
+            {
+                var cat = categories.FirstOrDefault(c => string.Equals(c.Code, row.CategoryCode, StringComparison.OrdinalIgnoreCase));
+                if (cat is null)
+                    errors.Add(new ImportRowError(rowNumber, $"Không tìm thấy Category '{row.CategoryCode}'."));
+                else
+                    categoryId = cat.Id;
+            }
+
+            var dim = new Dimension
+            {
+                PartOpId = op.Id,
+                BalloonNumber = row.BalloonNumber, BalloonSort = balloonSort,
+                Code = row.Code, Description = row.Description,
+                CategoryId = categoryId, CreatedBy = req.RequesterId,
+                IsFinal = row.IsFinal,
+                Status = FileStatus.Pending,  // Bulk import cần Lead Engineer duyệt
+            };
+
+            if (decimal.TryParse(row.NominalRaw, out var nominal))
+            {
+                var tolPlus = row.TolPlus ?? 0;
+                var tolMinus = row.TolMinus ?? 0;
+                dim.NominalValue = nominal;
+                dim.TolerancePlus = tolPlus;
+                dim.ToleranceMinus = tolMinus;
+                dim.MaxValue = nominal + tolPlus;
+                dim.MinValue = nominal - tolMinus;
+                dim.Unit = string.IsNullOrWhiteSpace(row.Unit) ? "mm" : row.Unit;
+            }
+            else if (!string.IsNullOrWhiteSpace(row.NominalRaw))
+            {
+                dim.IsTextType = true;
+                dim.NominalText = row.NominalRaw;
+            }
+            else
+            {
+                errors.Add(new ImportRowError(rowNumber, "Thiếu Nominal."));
+                skipped++;
+                continue;
+            }
+
+            db.Dimensions.Add(dim);
+            balloonSet.Add(row.BalloonNumber);
+            created++;
+        }
+
+        await db.SaveChangesAsync(ct);
+        return Result.Ok(new ImportResultDto(created, 0, skipped, errors));
+    }
+}
 
 public record ImportDimensionsCommand(int PartOpId, List<ImportDimensionRow> Rows, int? RequesterId)
     : IRequest<Result<ImportResultDto>>;
@@ -336,6 +493,8 @@ public class ImportDimensionsCommandHandler(IShopfloorDbContext db)
                 BalloonNumber = row.BalloonNumber, BalloonSort = balloonSort,
                 Code = row.Code, Description = row.Description,
                 CategoryId = categoryId, CreatedBy = req.RequesterId,
+                IsFinal = row.IsFinal,
+                Status = FileStatus.Pending,  // Import per-OP cũng cần duyệt
             };
 
             if (decimal.TryParse(row.NominalRaw, out var nominal))
@@ -379,7 +538,8 @@ public record SaveMeasureCommand(
     bool? ManualResult,    // Dùng cho text dimension — true=Pass, false=Fail
     bool IsFinal,          // true khi re-inspect sau rework (FAI Final)
     int? FinalOpId,
-    string? Note, int RequesterId)
+    string? Note, int RequesterId,
+    MeasureStage MeasureStage = MeasureStage.InprocessFAI)
     : IRequest<Result<MeasureValueDto>>;
 
 public record MeasureValueDto(
@@ -420,7 +580,8 @@ public class SaveMeasureCommandHandler(IShopfloorDbContext db, IRealtimeNotifier
             PartOpId = dim.PartOpId,
             Value = req.Value, Result = result, Note = req.Note,
             IsFinal = req.IsFinal, FinalOpId = req.FinalOpId,
-            MeasuredBy = req.RequesterId
+            MeasuredBy = req.RequesterId,
+            MeasureStage = req.MeasureStage,
         };
         db.MeasureValues.Add(mv);
         await db.SaveChangesAsync(ct);
@@ -431,5 +592,113 @@ public class SaveMeasureCommandHandler(IShopfloorDbContext db, IRealtimeNotifier
 
         await realtime.NotifyMeasureSubmittedAsync(dto, ct);
         return Result.Ok(dto);
+    }
+}
+
+// ── Review Dimension (Approve / Reject) ──────────────────────
+
+public record ReviewDimensionCommand(long Id, bool Approve, string? Note, int ReviewerId)
+    : IRequest<Result<DimensionDto>>;
+
+public class ReviewDimensionCommandHandler(IShopfloorDbContext db)
+    : IRequestHandler<ReviewDimensionCommand, Result<DimensionDto>>
+{
+    public async Task<Result<DimensionDto>> Handle(ReviewDimensionCommand req, CancellationToken ct)
+    {
+        var dim = await db.Dimensions.Include(d => d.Category)
+            .FirstOrDefaultAsync(d => d.Id == req.Id, ct);
+        if (dim is null) return Result.Fail($"Không tìm thấy Dimension ID {req.Id}.");
+        if (dim.Status == FileStatus.Approved)
+            return Result.Fail("Dimension đã được Approved — không thể review lại.");
+
+        dim.Status = req.Approve ? FileStatus.Approved : FileStatus.Rejected;
+        dim.ReviewedBy = req.ReviewerId;
+        dim.ReviewedAt = DateTimeOffset.UtcNow;
+        dim.ReviewNote = req.Note;
+        dim.UpdatedAt = DateTimeOffset.UtcNow;
+        dim.UpdatedBy = req.ReviewerId;
+
+        await db.SaveChangesAsync(ct);
+        return Result.Ok(new DimensionDto(dim.Id, dim.PartOpId,
+            dim.BalloonNumber, dim.BalloonSort, dim.Code, dim.Description,
+            dim.NominalValue, dim.TolerancePlus, dim.ToleranceMinus, dim.MaxValue, dim.MinValue, dim.Unit,
+            dim.IsTextType, dim.NominalText, dim.Category?.Code, dim.IsCritical, dim.IsFinal, dim.SortOrder,
+            dim.Status.ToString(), dim.ReviewedBy, dim.ReviewedAt, dim.ReviewNote));
+    }
+}
+
+/// <summary>Approve/Reject toàn bộ Dimension Pending của một RoutingRev cùng lúc.</summary>
+public record ReviewBatchDimensionsCommand(int RoutingRevId, bool Approve, string? Note, int ReviewerId)
+    : IRequest<Result<int>>;
+
+public class ReviewBatchDimensionsCommandHandler(IShopfloorDbContext db)
+    : IRequestHandler<ReviewBatchDimensionsCommand, Result<int>>
+{
+    public async Task<Result<int>> Handle(ReviewBatchDimensionsCommand req, CancellationToken ct)
+    {
+        var dims = await db.Dimensions
+            .Where(d => d.PartOp.RoutingRevId == req.RoutingRevId
+                        && !d.PartOp.ForJobOnly
+                        && d.Status == FileStatus.Pending)
+            .Include(d => d.PartOp)
+            .ToListAsync(ct);
+
+        if (dims.Count == 0) return Result.Ok(0);
+
+        var now = DateTimeOffset.UtcNow;
+        foreach (var dim in dims)
+        {
+            dim.Status = req.Approve ? FileStatus.Approved : FileStatus.Rejected;
+            dim.ReviewedBy = req.ReviewerId;
+            dim.ReviewedAt = now;
+            dim.ReviewNote = req.Note;
+            dim.UpdatedAt = now;
+            dim.UpdatedBy = req.ReviewerId;
+        }
+
+        await db.SaveChangesAsync(ct);
+        return Result.Ok(dims.Count);
+    }
+}
+
+// ── QC Final Progress ──────────────────────────────────────────
+
+public record QcFinalProgressDto(int TotalDim, int CompleteDim, int PassDim, int FailDim);
+
+/// <summary>Tiến độ QC Final cho một Product: số dimension đã đo ở stage QCFinal.</summary>
+public record GetQcFinalProgressQuery(int ProductId)
+    : IRequest<Result<QcFinalProgressDto>>;
+
+public class GetQcFinalProgressQueryHandler(IShopfloorDbContext db)
+    : IRequestHandler<GetQcFinalProgressQuery, Result<QcFinalProgressDto>>
+{
+    public async Task<Result<QcFinalProgressDto>> Handle(GetQcFinalProgressQuery req, CancellationToken ct)
+    {
+        // Lấy product và job liên quan
+        var product = await db.Products.Include(p => p.Job)
+            .FirstOrDefaultAsync(p => p.Id == req.ProductId, ct);
+        if (product is null) return Result.Fail("Product không tồn tại.");
+
+        var routingRevId = product.Job.RoutingRevId;
+
+        // Tổng số dimension của routing rev này (template OPs)
+        var totalDim = await db.Dimensions
+            .CountAsync(d => d.PartOp.RoutingRevId == routingRevId && !d.PartOp.ForJobOnly, ct);
+
+        // Lấy MeasureValues giai đoạn QCFinal cho product này
+        // Chỉ lấy lần đo gần nhất (theo CreatedAt) cho mỗi DimensionId
+        var mvQuery = db.MeasureValues
+            .Where(mv => mv.ProductId == req.ProductId && mv.MeasureStage == MeasureStage.QCFinal);
+
+        var latestMvs = await mvQuery
+            .GroupBy(mv => mv.DimensionId)
+            .Select(g => new { DimId = g.Key, Result = g.OrderByDescending(x => x.MeasuredAt).First().Result })
+            .ToListAsync(ct);
+
+        var completeDim = latestMvs.Count;
+        var passDim = latestMvs.Count(x => x.Result == MeasureResult.Pass);
+        var failDim = latestMvs.Count(x => x.Result == MeasureResult.Fail);
+
+        return Result.Ok(new QcFinalProgressDto(totalDim, completeDim, passDim, failDim));
     }
 }

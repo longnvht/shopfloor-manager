@@ -8,6 +8,7 @@ using ShopfloorManager.Application.Common.Interfaces;
 using ShopfloorManager.Application.Production;
 using ShopfloorManager.Domain.Entities;
 using ShopfloorManager.Domain.Enums;
+using ShopfloorManager.Shared.Constants;
 
 namespace ShopfloorManager.API.Controllers;
 
@@ -192,9 +193,9 @@ public class TechDocumentsController(IShopfloorDbContext db, IMinioService minio
         return Ok(ApiResponse<string>.Ok(url));
     }
 
-    /// <summary>Inspector duyệt hoặc từ chối tài liệu.</summary>
+    /// <summary>Lead Engineer/Manager/Admin duyệt hoặc từ chối tài liệu.</summary>
     [HttpPut("{id:long}/inspect")]
-    [Authorize(Roles = "Administrator,Manager,QC Inspector")]
+    [Authorize(Roles = AppConstants.Roles.Approvers)]
     public async Task<IActionResult> Inspect(long id, [FromBody] InspectRequest req)
     {
         var doc = await IncludeForDto(db.TechDocuments.AsQueryable())
@@ -217,7 +218,7 @@ public class TechDocumentsController(IShopfloorDbContext db, IMinioService minio
     /// GET /api/v1/tech-documents/pending — danh sách chờ Inspector duyệt.
     /// </summary>
     [HttpGet("pending")]
-    [Authorize(Roles = "Administrator,Manager,QC Inspector")]
+    [Authorize(Roles = AppConstants.Roles.Approvers)]
     public async Task<IActionResult> GetPending()
     {
         var docs = await IncludeForDto(db.TechDocuments.AsQueryable())

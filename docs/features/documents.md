@@ -1,7 +1,7 @@
 # Technical Documents
 
 **Route:** `/documents`  
-**Roles:** All authenticated users (upload: Engineer, Manager; approve: QC Inspector, Manager)
+**Roles:** All authenticated users (upload: Engineer, Manager; approve: **Lead Engineer**, Manager, Administrator)
 
 ---
 
@@ -15,17 +15,24 @@ Central repository for all technical files associated with parts and production 
 
 ## Layout
 
-A single flat list of all documents, with a powerful filter bar at the top.
+Two-panel layout: **Part list (280px)** on the left + **document list** on the right.
 
-### KPI Strip (4 cards)
+### Left panel — Part list
+- Search box (sticky, type-to-filter by part number)
+- "All parts" row shows total doc count
+- Each part item: `partNumber` (mono bold), `description`, routing code + OP count, creation date
+- Selecting a part pre-sets the Part filter; KPI strip + table update reactively
+- Pagination when total parts > 20
+
+### KPI Strip (4 cards) — reacts to selected part
 | KPI | Value |
 |---|---|
-| **Total** | All documents |
-| **Pending** | Awaiting QC Inspector approval |
+| **Total** | Documents matching current filter (not all-time total) |
+| **Pending** | Awaiting approval |
 | **Approved** | Approved and available to operators |
-| **Rejected** | Rejected by QC Inspector |
+| **Rejected** | Rejected |
 
-An **orange banner** appears when there are pending documents, with a direct link to the approval queue.
+An **orange banner** appears when there are pending documents (within the current filter), with a direct link to the approval queue.
 
 ---
 
@@ -61,7 +68,7 @@ Plus a free-text **filename search** and a **"✕ Clear filters"** button. A cou
 | Status | `Pending` / `Approved` / `Rejected` badge |
 | Created by | Uploader name + date (locale-aware: `vi-VN` or `en-US`) |
 | Size | `B` / `KB` / `MB` — `—` for documents uploaded before file-size tracking |
-| Actions | **Approve** / **Reject** (QC Inspector / Manager) |
+| Actions | **Approve** / **Reject** (Lead Engineer / Manager / Administrator only) |
 
 ---
 

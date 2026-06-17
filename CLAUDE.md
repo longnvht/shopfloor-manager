@@ -409,9 +409,15 @@ Job (lệnh SX)
 - **KHÔNG copy PartOp vào Job** — query động từ RoutingRev
 
 **MeasureValue** — Kết quả đo
-- Gắn với: `DimensionId` (kích thước nào) + `ProductId` (serial nào) + `PartOpId` (công đoạn nào)
-- `Result`: Pass(1) nếu `LowerLimit ≤ Value ≤ UpperLimit`, Fail(2) nếu ngoài dung sai
-- Upsert — có thể đo lại, ghi đè giá trị cũ
+- Gắn với: `DimensionId` + `ProductId` + `PartOpId` + `MeasureStage`
+- `Result`: Pass(1) nếu `MinValue ≤ Value ≤ MaxValue`, Fail(2) nếu ngoài dung sai
+- **Không ghi đè** — tạo record mới mỗi lần đo (giữ lịch sử toàn bộ)
+- **Constraint**: `(DimensionId, ProductId, MeasureStage)` chỉ nhập 1 lần/giai đoạn
+- 3 giai đoạn: `InprocessFAI=0` (Operator), `QCInline=1` (QC ngẫu nhiên), `QCFinal=2` (QC xuất xưởng)
+- Operator chỉ đo sản phẩm do chính mình gia công; Leader đo thay bất kỳ Operator
+- QC Final: chỉ QC Inspector, chỉ khi sản phẩm "hoàn thiện gia công" (tất cả OP có Dimension đã có session completed)
+- `Dimension.IsFinal=true`: bắt buộc đo tại QC Final — dùng để tính tiến độ QC Final
+- `Dimension.BalloonNumber` prefix `*` (ví dụ `*20`): kích thước trung gian — process control, không dùng kiểm soát sản phẩm cuối
 
 ### Business rules quan trọng
 
@@ -516,12 +522,18 @@ FileStatus:        Pending=0, Approved=1, Rejected=2
 NcrAction:         Pending=0, Approve=1, Rework=2, Reject=3
 NcrStatus:         Open=0, Closed=1
 MeasureResult:     Pass=1, Fail=2       // 1-indexed để tương thích legacy
+MeasureStage:      InprocessFAI=0, QCInline=1, QCFinal=2  // *** MỚI — cần migration AddMeasureStage
 BorrowStatus:      Active=0, Returned=1, Cancelled=2
 CalibRequestStatus:Pending=0, Approved=1, Completed=2, Cancelled=3
 ```
 
 **Roles** (from `AppConstants.Roles`):
-`Administrator`, `Manager`, `Engineer`, `QC Inspector`, `Operator`, `Planner`, `Leader`
+`Administrator`, `Manager`, `Lead Engineer`, `Engineer`, `QC Inspector`, `Operator`, `Planner`, `Leader`
+
+**Phân quyền Approve/Reject (Documents + Dimensions):**
+- Chỉ `Lead Engineer`, `Manager`, `Administrator` có quyền Approve/Reject TechDocuments và Dimensions
+- `QC Inspector`, `Operator`: chỉ xem file/dimension đã Approved — không có quyền duyệt
+- Lý do: hồ sơ kỹ thuật thuộc quyền sở hữu phòng kỹ thuật, không phải bộ phận chất lượng
 
 **Role phân quyền Desktop MES (ProductionSession):**
 - `Operator`: chỉ tạo và kết thúc session của chính mình
@@ -944,8 +956,8 @@ Desktop app: build riêng bằng dotnet publish, deploy thủ công lên từng 
 | Sản xuất | F | Jobs: Serial/Product grid 4 trạng thái (available/claimed/inprogress/complete) — cần ProductionSession status trong ProductDto | `03_job_management.md` § UI Redesign — Phase F | ✅ |
 | Sản xuất | L (mới) | Planning: redesign theo `18_web_design_language.md` + API thật (Gantt tuần) — cần viết thiết kế trước | `10_planning.md` — cần viết § UI Redesign — Phase L | 🆕 cần thiết kế |
 | Sản xuất | M (mới) | CNC Live: redesign theo `18_web_design_language.md` + dữ liệu MQTT thật — cần viết thiết kế trước | `12_cnc_mqtt.md` — cần viết § UI Redesign — Phase M | 🆕 cần thiết kế |
-| Chất lượng | C | FAI: stat strip (Inspector, Pass/Fail/Pending, Pass rate%) | `06_dimensions_fai.md` § UI Redesign — Phase C | ⏳ |
-| Chất lượng | J | FAI: panel "Chi tiết Balloon" — measure history + distribution chart + "Mở NCR cho ô này" | `06_dimensions_fai.md` § UI Redesign — Phase J | ⏳ |
+| Chất lượng | C | FAI: stat strip (Inspector, Pass/Fail/Pending, Pass rate%, filter stage) — backend `MeasureStage` đã sẵn sàng | `06_dimensions_fai.md` § UI Redesign — Phase C | ⏳ |
+| Chất lượng | J | FAI: panel "Chi tiết Balloon" — measure history + distribution chart + "Mở NCR cho ô này" — cần API `GET /api/v1/dimensions/{id}/measure-history` | `06_dimensions_fai.md` § UI Redesign — Phase J | ⏳ |
 | Chất lượng | I | NCR: redesign đầy đủ — workflow 5 bước, thêm bước "Xác minh" (Verification), cần migration | `07_ncr.md` § UI Redesign — Phase I | ⏳ |
 | Chất lượng | N (mới) | Gages: redesign theo `18_web_design_language.md` + API thật — cần viết thiết kế trước | `08_gage_management.md` — cần viết § UI Redesign — Phase N | 🆕 cần thiết kế |
 | Chất lượng | O (mới) | Calibration: redesign theo `18_web_design_language.md` + API thật — cần viết thiết kế trước | `09_calibration.md` — cần viết § UI Redesign — Phase O | 🆕 cần thiết kế |
@@ -1139,6 +1151,36 @@ Kết nối Shopfloor Manager với ERP (Epicor) qua OData v4 để import Job, 
 - **Verify (API + curl)**: `POST /api/v1/erp/connections` tạo Mock connection; `POST /api/v1/erp/connections/1/test` → `success=true`; `POST /api/v1/erp/preview` → 10 rows, 2 warnings; `POST /api/v1/erp/import` → 3 jobs created, 35 products created, 1 expected error (OpType 'THD' not found → import vẫn tiếp tục, `OpTypeId=null`)
 - **Lưu ý Epicor OData**: time units là `EstSetHours`/`ProdStandard` (giờ) → phải × 60 để ra phút khi map sang `ImportJobBatchRow.SetupTime`/`ProdTime`; Basic auth dùng Base64 `username:password`
 - **Credential storage**: username/password lưu plaintext trong DB — chấp nhận được cho factory intranet không public internet (thiếu encryption là known trade-off, phù hợp "simple and maintainable")
+
+**Dimension Approval + MeasureStage — Nhóm 1/2/3 từ `06_dimensions_fai.md` (✅ 2026-06-17)**
+
+Triển khai đầy đủ 3 nhóm đã kế hoạch trong `Project_Documents/06_dimensions_fai.md`:
+
+**Nhóm 1 — Roles + Approval permissions:**
+- `Lead Engineer` role: thêm `AppConstants.Roles` + migration `SeedLeadEngineerRole` (Id=8)
+- TechDocument approval: đổi role từ QC Inspector → `Lead Engineer|Manager|Administrator` trong `InspectTechDocumentCommandHandler`
+- `MeasureStage` enum: `InprocessFAI=0, QCInline=1, QCFinal=2` vào `Domain/Enums/Enums.cs`
+- `Dimension.Status` + `ReviewedBy/ReviewedAt/ReviewNote`: migration `AddDimensionStatus` (existing rows default = `Approved=1`)
+- `MeasureValue.MeasureStage`: migration `AddMeasureStage` (existing rows default = `InprocessFAI=0`)
+
+**Nhóm 2 — Dimsheet bulk import + Approval UI:**
+- **Backend**: `ImportBulkDimensionsCommand`/Handler + `ExcelTemplateBuilder.BuildDimsheetTemplate()` — 11 cột (BalloonNumber, Code, Description, Nominal, TolPlus, TolMinus, Unit, Category, OpNumber, IsFinal, IsCritical); endpoints `POST /api/v1/routing-revs/{id}/dimensions/import-bulk` + `GET .../template`; tạo với `status=Pending`, resolve OP theo `OpNumber` trong RoutingRev
+- **Backend**: `ReviewDimensionCommand`/Handler — `PUT /api/v1/dimensions/{id}/review`; `ReviewBatchDimensionsCommand`/Handler — `POST /api/v1/routing-revs/{id}/dimensions/review-batch`; role `Lead Engineer|Manager|Administrator`; trả `DimensionDto` với `status/reviewedBy/reviewedAt/reviewNote` 
+- **`/dimsheet`**: filter bar thống nhất — Drawing Rev + Routing Rev selector gộp vào 1 bar duy nhất (thay 2 bar riêng); cột `Status` mới hiển thị VABadge `Pending/Approved/Rejected` cho từng dòng; pending dims hiển thị mặc định (bỏ filter ẩn), checkbox "Chỉ chờ duyệt" filter chỉ còn pending; pending banner "Duyệt tất cả / Từ chối tất cả"; per-row nút ✓✕ cho approver; `ImportDimsheetDialog` với download template + upload + kết quả per-row
+- **`/documents`**: Part list panel trái 280px giống dimsheet — search box sticky, mỗi item hiển thị partNumber (mono bold) + description + routingRevCode + opCount + date; KPI strip (Tổng/Pending/Approved/Rejected) tính từ `filtered` (react theo part đang chọn); Approve/Reject buttons chỉ hiện với approver role
+- **i18n**: thêm `dimsheet.table.headers.status`, `dimsheet.filter.pendingOnly`, `dimsheet.review.status.*`, `documents.searchPlaceholder` vào cả vi.json + en.json
+
+**Nhóm 3 — MeasureStage API + QC Final progress:**
+- `SaveMeasureCommand` nhận thêm `MeasureStage` param (default `InprocessFAI=0`); `SaveMeasureRequest` trong `FaiController` thêm field `MeasureStage`
+- `GetQcFinalProgressQuery`/Handler — join Dimension(IsFinal=true) × MeasureValues(Stage=QCFinal) theo RoutingRevId của Product.Job; `QcFinalProgressDto { TotalDim, CompleteDim, PassDim, FailDim }`
+- Endpoint `GET /api/v1/products/{productId}/qcfinal-progress` (route absolute, thuộc `FaiController`); `api.fai.qcFinalProgress(productId)` trong api-client
+- **Lưu ý**: `MeasureValue.MeasuredAt` (KHÔNG phải `CreatedAt`) — MeasureValue không extends BaseEntity
+
+**Còn thiếu trong kế hoạch ban đầu (chưa implement):**
+- `*` balloon (kích thước trung gian) — visual style khác + toggle ẩn/hiện trên dimsheet
+- Phase C: FAI stat strip (Inspector, Pass/Fail/Pending, Pass rate%, filter theo stage) — `06_dimensions_fai.md` § UI Redesign Phase C
+- Phase J: FAI "Chi tiết Balloon" panel (lịch sử đo, phân bố, "Mở NCR") — cần API `GET /api/v1/dimensions/{id}/measure-history`
+- Nhóm 4: Desktop role-aware FAI (Operator=InprocessFAI, QC Inspector=QCInline, FAI Final utility=QCFinal, Gage selection) — xem `06_dimensions_fai.md` § Nhóm 4
 
 **Phase 6 chi tiết:**
 - Multi-factory support (FactoryId đã chuẩn bị trên Machine entity)

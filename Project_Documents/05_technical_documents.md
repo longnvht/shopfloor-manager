@@ -2,9 +2,12 @@
 
 ## 1. Tổng quan
 
-Module quản lý tất cả tài liệu kỹ thuật: bản vẽ, chương trình G-code, route card, fixture drawing, thread drawing, tool list, CAM file, CAD file.
+Module quản lý tất cả tài liệu kỹ thuật: bản vẽ, chương trình G-code, route card, fixture drawing, thread drawing, tool list, CAM file, CAD file. Hồ sơ kỹ thuật thuộc quyền sở hữu và quản lý của **phòng kỹ thuật** — không phải bộ phận chất lượng.
 
-**Người dùng liên quan:** Engineer (upload), Inspector/QC (duyệt), Operator (xem tại máy).
+**Người dùng liên quan:**
+- **Engineer / Lead Engineer**: upload tài liệu
+- **Lead Engineer / Manager / Administrator**: duyệt (Approve/Reject) tài liệu
+- **QC Inspector / Operator**: xem tài liệu đã được duyệt (read-only)
 
 ---
 
@@ -31,11 +34,12 @@ Tất cả tài liệu được quản lý trong **một bảng duy nhất** `te
 
 ### 3.1 Trạng thái tài liệu (Status)
 ```
-pending (3) → approved (1)
-           → rejected (2) → [kỹ thuật viên sửa và upload lại] → pending
+pending → approved
+       → rejected → [Engineer sửa và upload lại] → pending
 ```
 - Mọi file upload đều bắt đầu ở `pending`.
-- Chỉ Inspector/QC mới được Approve hoặc Reject.
+- Chỉ **Lead Engineer, Manager, hoặc Administrator** mới được Approve hoặc Reject.
+- QC Inspector và Operator chỉ xem file đã `approved` — không có quyền duyệt.
 - File bị Reject kèm theo lý do từ chối (`inspect_note`).
 - Chỉ file `approved` mới được sử dụng trong sản xuất (hiển thị trên MES).
 
@@ -74,7 +78,7 @@ File **không** đi qua API server để tránh bottleneck:
 - Khi download về máy CNC → ghi `gcode_receive_logs`.
 
 ### 3.7 Thông báo
-- Khi upload file → Inspector nhận **SignalR notification** "Có tài liệu mới cần duyệt".
+- Khi upload file → **Lead Engineer/Manager/Admin** nhận **SignalR notification** "Có tài liệu mới cần duyệt".
 - Khi Approve/Reject → Engineer nhận notification kết quả.
 - Teams webhook (nếu cấu hình): gửi message khi có tài liệu quan trọng bị reject.
 
@@ -93,16 +97,16 @@ Engineer chọn Job → OP → loại file (GCD, RTC...)
   → Inspector nhận SignalR notification
 ```
 
-### Duyệt tài liệu (Inspector)
+### Duyệt tài liệu (Lead Engineer / Manager / Administrator)
 ```
-Inspector mở danh sách pending:
+Lead Engineer/Manager/Admin mở danh sách pending:
   → Xem file (click → mở MinIO pre-signed download URL)
   → Approve:
-      PUT /tech-documents/{id}/inspect { status: 'approved' }
+      PUT /tech-documents/{id}/inspect { approve: true }
       → Status = approved
       → Engineer nhận notification
   → Reject:
-      PUT /tech-documents/{id}/inspect { status: 'rejected', inspectNote: '...' }
+      PUT /tech-documents/{id}/inspect { approve: false, note: '...' }
       → Status = rejected, ghi lý do
       → Engineer nhận notification + lý do
       → Engineer sửa và upload lại → tạo record mới
@@ -217,14 +221,39 @@ GET    /api/v1/mes/files/{storageKey}/url  -- Pre-signed URL để xem file
 
 ---
 
-## UI Redesign — Phase E (đề xuất, chưa triển khai)
+## UI Redesign — Phase E (cập nhật 2026-06-17)
 
-**`/documents` — cascading filter cho truy cập top-level (sidebar nhóm "Kỹ thuật")**
+**`/documents` và `/dimsheet` — layout thống nhất: Part list bên trái + filter bar bên phải**
 
-- Hiện `/documents` chỉ filter hiệu quả khi có query params truyền từ context (`partRevId`/`partOpId`/`jobId`, từ `/parts/[id]` hoặc `/jobs/[id]`). Khi vào trực tiếp từ sidebar (top-level), trang không có context để lọc.
-- Thêm bộ chọn xếp lớp (cascading selector) phía trên bảng: **Part** (search) → **Drawing Rev** → (tùy chọn) **Routing Rev** → **OP**.
-  - Chọn Part → load `api.parts.revisions(partId)` (đã có)
-  - Chọn Drawing Rev → load `api.parts.routingRevs(revId)` (đã có)
-  - Chọn Routing Rev → load `api.operations.listForRoutingRev(rrId)` (đã có)
-  - Chọn OP (tùy chọn) → set `partOpId`; nếu dừng ở Drawing Rev → set `partRevId`
-- Sau khi chọn xong, set query params tương ứng → tái sử dụng 100% logic filter/hiển thị hiện có của `/documents` — **không cần API mới**.
+Cả 2 view sau khi redesign có cùng bố cục:
+```
+┌──────────────────┬────────────────────────────────────────────────┐
+│  Part List       │  Filter bar: Drawing Rev · Routing Rev · OP    │
+│  (search + list) │              · Type · Status · Search          │
+│  ~220px          ├────────────────────────────────────────────────┤
+│                  │  KPI strip                                      │
+│                  ├────────────────────────────────────────────────┤
+│                  │  Table / Content                                │
+└──────────────────┴────────────────────────────────────────────────┘
+```
+
+**`/documents` thay đổi:**
+- Bỏ combobox Part trên filter bar → thay bằng **Part list panel bên trái** (search + select, như `/dimsheet`)
+- **Bắt buộc chọn Part** trước khi thấy documents (Plan B) — hiển thị empty state khi chưa chọn
+- Khi chọn Part → load documents theo `partId`; filter bar Drawing Rev/Routing Rev/OP cascading từ Part
+- Inbound links từ `/parts/[id]/operations` (với `partRevId`/`partOpId`) → pre-select Part trong list, pre-set filter tương ứng
+- Quyền duyệt: **Lead Engineer / Manager / Administrator** (nút Approve/Reject chỉ hiện với 3 role này)
+- QC Inspector và Operator: chỉ thấy nút "Xem →" cho file approved
+
+**`/dimsheet` thay đổi:**
+- Giữ Part list bên trái như hiện tại
+- Bổ sung **Drawing Rev + Routing Rev** vào filter bar (hiện chỉ có OP, Category, IsFinal, Search)
+- Cascade: Part selected → Drawing Rev options → Routing Rev options (thay thế "active rev" auto-select hiện tại)
+- User có thể xem bất kỳ rev nào, không chỉ active rev
+
+**Dimension status (mới — tương tự TechDocuments):**
+- Import bulk → dimensions tạo ra với `status = Pending`
+- Badge status hiển thị trong bảng dimsheet: Pending (cam) / Approved (xanh) / Rejected (đỏ)
+- Lead Engineer/Manager/Admin: nút Approve All (batch) + Reject (từng dòng với lý do)
+- Chỉ dimension `Approved` xuất hiện trong FAI measurement (Desktop MES)
+- Dimensions đã có trước khi có tính năng này: mặc định `Approved` (migration default)

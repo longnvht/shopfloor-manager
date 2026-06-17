@@ -124,7 +124,7 @@ public static class ExcelTemplateBuilder
         using var wb = new XLWorkbook();
         var ws = wb.AddWorksheet("Dimensions");
 
-        string[] headers = ["BalloonNumber", "Code", "Description", "Nominal", "TolPlus", "TolMinus", "Unit", "Category"];
+        string[] headers = ["BalloonNumber", "Code", "Description", "Nominal", "TolPlus", "TolMinus", "Unit", "Category", "IsFinal"];
         for (var i = 0; i < headers.Length; i++) ws.Cell(1, i + 1).Value = headers[i];
 
         ws.Cell(2, 1).Value = "Ø1";
@@ -135,6 +135,67 @@ public static class ExcelTemplateBuilder
         ws.Cell(2, 6).Value = 0.05;
         ws.Cell(2, 7).Value = "mm";
         ws.Cell(2, 8).Value = "LIN";
+        ws.Cell(2, 9).Value = "FALSE";
+
+        ws.Columns().AdjustToContents();
+
+        using var stream = new MemoryStream();
+        wb.SaveAs(stream);
+        return stream.ToArray();
+    }
+
+    /// <summary>
+    /// Template bulk import dimensions cho toàn bộ RoutingRev — thêm cột OpNumber và IsFinal.
+    /// </summary>
+    public static byte[] BuildBulkDimensionsTemplate()
+    {
+        using var wb = new XLWorkbook();
+        var ws = wb.AddWorksheet("Dimensions");
+
+        string[] headers = ["OpNumber", "BalloonNumber", "Code", "Description", "Nominal", "TolPlus", "TolMinus", "Unit", "Category", "IsFinal"];
+        for (var i = 0; i < headers.Length; i++)
+        {
+            ws.Cell(1, i + 1).Value = headers[i];
+            ws.Cell(1, i + 1).Style.Font.Bold = true;
+        }
+        ws.Range(1, 1, 1, headers.Length).Style.Fill.BackgroundColor = XLColor.FromHtml("#4A2512");
+        ws.Range(1, 1, 1, headers.Length).Style.Font.FontColor = XLColor.White;
+
+        // Dòng ví dụ 1 — dimension số, OP 10
+        ws.Cell(2, 1).Value = "10";
+        ws.Cell(2, 2).Value = "Ø1";
+        ws.Cell(2, 3).Value = "D1";
+        ws.Cell(2, 4).Value = "Đường kính ngoài";
+        ws.Cell(2, 5).Value = 25.4;
+        ws.Cell(2, 6).Value = 0.05;
+        ws.Cell(2, 7).Value = 0.05;
+        ws.Cell(2, 8).Value = "mm";
+        ws.Cell(2, 9).Value = "LIN";
+        ws.Cell(2, 10).Value = "TRUE";
+
+        // Dòng ví dụ 2 — dimension text, OP 10
+        ws.Cell(3, 1).Value = "10";
+        ws.Cell(3, 2).Value = "Ra1";
+        ws.Cell(3, 3).Value = "";
+        ws.Cell(3, 4).Value = "Độ nhám bề mặt";
+        ws.Cell(3, 5).Value = "Ra 0.8";
+        ws.Cell(3, 6).Value = "";
+        ws.Cell(3, 7).Value = "";
+        ws.Cell(3, 8).Value = "";
+        ws.Cell(3, 9).Value = "SFC";
+        ws.Cell(3, 10).Value = "FALSE";
+
+        // Dòng ví dụ 3 — dimension số, OP 20
+        ws.Cell(4, 1).Value = "20";
+        ws.Cell(4, 2).Value = "L1";
+        ws.Cell(4, 3).Value = "L1";
+        ws.Cell(4, 4).Value = "Chiều dài tổng";
+        ws.Cell(4, 5).Value = 100.0;
+        ws.Cell(4, 6).Value = 0.1;
+        ws.Cell(4, 7).Value = 0.1;
+        ws.Cell(4, 8).Value = "mm";
+        ws.Cell(4, 9).Value = "LIN";
+        ws.Cell(4, 10).Value = "FALSE";
 
         ws.Columns().AdjustToContents();
 

@@ -109,6 +109,7 @@ export type DimensionDto = {
   maxValue: number | null; minValue: number | null; unit: string
   isTextType: boolean; nominalText: string | null
   categoryCode: string | null; isCritical: boolean; isFinal: boolean; sortOrder: number
+  status: string; reviewedBy: number | null; reviewedAt: string | null; reviewNote: string | null
 }
 
 export type RoutingRevDimensionDto = {
@@ -118,6 +119,7 @@ export type RoutingRevDimensionDto = {
   maxValue: number | null; minValue: number | null; unit: string
   isTextType: boolean; nominalText: string | null
   categoryCode: string | null; isCritical: boolean; isFinal: boolean; sortOrder: number
+  status: string; reviewedBy: number | null; reviewedAt: string | null; reviewNote: string | null
 }
 
 export type FaiSheetDto = {
@@ -251,14 +253,18 @@ export const api = {
   fai: {
     sheet: (partOpId: number, jobId: number) =>
       request<FaiSheetDto>(`/api/v1/fai?partOpId=${partOpId}&jobId=${jobId}`),
-    saveMeasure: (body: { dimensionId: number; productId: number; value: number; note?: string }) =>
+    saveMeasure: (body: { dimensionId: number; productId: number; value?: number; manualResult?: boolean; isFinal?: boolean; note?: string; measureStage?: number }) =>
       request<unknown>('/api/v1/fai/measure', { method: 'POST', body: JSON.stringify(body) }),
+    qcFinalProgress: (productId: number) =>
+      request<{ totalDim: number; completeDim: number; passDim: number; failDim: number }>(`/api/v1/products/${productId}/qcfinal-progress`),
   },
   dimensions: {
     list: (opId: number) => request<DimensionDto[]>(`/api/v1/operations/${opId}/dimensions`),
     spc: (opId: number, dimId: number) => request<SpcDto>(`/api/v1/operations/${opId}/dimensions/${dimId}/spc`),
     update: (id: number, body: { nominalValue: number | null; tolerancePlus: number | null; toleranceMinus: number | null }) =>
       request<DimensionDto>(`/api/v1/dimensions/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+    review: (id: number, body: { approve: boolean; note?: string }) =>
+      request<DimensionDto>(`/api/v1/dimensions/${id}/review`, { method: 'PUT', body: JSON.stringify(body) }),
   },
   ncrs: {
     list: (page = 1, status?: string, jobId?: number) =>
@@ -286,6 +292,14 @@ export const api = {
   },
   routingRevs: {
     dimensions: (id: number) => request<RoutingRevDimensionDto[]>(`/api/v1/routing-revs/${id}/dimensions`),
+    importBulkDimensions: (id: number, file: File) => {
+      const formData = new FormData()
+      formData.append('file', file)
+      return requestMultipart<ImportResultDto>(`/api/v1/routing-revs/${id}/dimensions/import-bulk`, formData)
+    },
+    importBulkDimensionsTemplate: (id: number) => requestBlob(`/api/v1/routing-revs/${id}/dimensions/import-bulk/template`),
+    reviewBatchDimensions: (id: number, body: { approve: boolean; note?: string }) =>
+      request<number>(`/api/v1/routing-revs/${id}/dimensions/review-batch`, { method: 'POST', body: JSON.stringify(body) }),
   },
   operations: {
     create: (body: { routingRevId?: number; jobId?: number; opNumber: string; opTypeId?: number; description?: string; note?: string; setupTime?: number; prodTime?: number }) =>

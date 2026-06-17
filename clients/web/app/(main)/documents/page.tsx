@@ -4,11 +4,14 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useTranslations, useLocale } from 'next-intl'
-import { api, type TechDocListDto, type FileTypeDto } from '@/lib/api-client'
+import { api, type TechDocListDto, type FileTypeDto, type PartDto } from '@/lib/api-client'
 import { VATopbar, VAKpi, VACard, VABtn, VABadge, VACombobox, type VAComboboxOption } from '@/components/va'
 import { va, type VaBadgeKind } from '@/lib/va-tokens'
 import { FILE_TYPE_COLORS, formatBytes } from '@/lib/doc-format'
 import { BulkUploadDialog } from '@/components/documents/bulk-upload-dialog'
+import { useAuthStore } from '@/stores/auth.store'
+
+const APPROVER_ROLES = ['Administrator', 'Manager', 'Lead Engineer']
 
 const STATUS_KIND: Record<string, VaBadgeKind> = {
   Pending: 'warn', Approved: 'ok', Rejected: 'err',
@@ -27,7 +30,10 @@ const uniq = <T,>(arr: T[]) => [...new Set(arr)]
 export default function DocumentsPage() {
   const t = useTranslations('documents')
   const locale = useLocale()
+  const { user } = useAuthStore()
+  const [mounted, setMounted] = useState(false)
   const searchParams = useSearchParams()
+  useEffect(() => { setMounted(true) }, [])
   const partRevId = searchParams.get('partRevId')
   const partOpId  = searchParams.get('partOpId')
   const jobId     = searchParams.get('jobId')
@@ -38,6 +44,19 @@ export default function DocumentsPage() {
   const [loading, setLoading] = useState(true)
   const [acting, setActing] = useState<number | null>(null)
   const [fileTypes, setFileTypes] = useState<FileTypeDto[]>([])
+
+  // Part list panel (API-driven, like dimsheet)
+  const [allParts, setAllParts] = useState<PartDto[]>([])
+  const [partSearch, setPartSearch] = useState('')
+  const [partPage, setPartPage] = useState(1)
+  const [partTotal, setPartTotal] = useState(0)
+
+  const loadParts = useCallback(async () => {
+    const res = await api.parts.list(partPage, partSearch || undefined)
+    if (res.success && res.data) { setAllParts(res.data); setPartTotal(res.pagination?.total ?? 0) }
+  }, [partPage, partSearch])
+
+  useEffect(() => { loadParts() }, [loadParts])
 
   // Filters: part · drawing rev · routing rev · op (+ type / status / search) — cascading theo part
   const [fPart, setFPart]     = useState(searchParams.get('partNumber') ?? 'all')
@@ -129,8 +148,6 @@ export default function DocumentsPage() {
   const ops = useMemo(() => uniq(scoped.map(d => d.opNumber ?? '—')).sort(), [scoped])
 
   // Option lists cho VACombobox (gõ để tìm) — luôn có option "all" đầu tiên
-  const partOptions: VAComboboxOption[] = useMemo(() =>
-    [{ value: 'all', label: t('filter.allParts') }, ...parts.map(p => ({ value: p, label: p }))], [parts, t])
   const revOptions: VAComboboxOption[] = useMemo(() =>
     [{ value: 'all', label: t('filter.allRevs') }, ...revs.map(r => ({ value: r, label: r === '—' ? t('filter.noRev') : t('filter.revPrefix', { rev: r }) }))], [revs, t])
   const routOptions: VAComboboxOption[] = useMemo(() =>
@@ -156,9 +173,20 @@ export default function DocumentsPage() {
   const reset = () => { setFPart('all'); setFRev('all'); setFRout('all'); setFOp('all'); setFType('all'); setFStatus('all'); setQ('') }
   const pickPart = (v: string) => { setFPart(v); setFRev('all'); setFRout('all'); setFOp('all') }
 
-  const pending  = docs.filter(d => d.status === 'Pending').length
-  const approved = docs.filter(d => d.status === 'Approved').length
-  const rejected = docs.filter(d => d.status === 'Rejected').length
+  const pending  = filtered.filter(d => d.status === 'Pending').length
+  const approved = filtered.filter(d => d.status === 'Approved').length
+  const rejected = filtered.filter(d => d.status === 'Rejected').length
+
+  const isApprover = mounted && user ? APPROVER_ROLES.includes(user.role) : false
+
+  // Part list with doc counts (for left panel)
+  const partList = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const d of docs) {
+      if (d.partNumber) map.set(d.partNumber, (map.get(d.partNumber) ?? 0) + 1)
+    }
+    return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([p, n]) => ({ partNumber: p, count: n }))
+  }, [docs])
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0, background: va.bg }}>
@@ -180,10 +208,67 @@ export default function DocumentsPage() {
           </div>
         } />
 
+      <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
+        {/* ── LEFT: Part panel (like dimsheet) ─────────────────── */}
+        <div className="va-scroll" style={{ width: 280, borderRight: `1px solid ${va.border}`, overflow: 'auto', background: va.surface, flexShrink: 0 }}>
+          {/* Search box — sticky */}
+          <div style={{ padding: '12px 14px', borderBottom: `1px solid ${va.separator}`, position: 'sticky', top: 0, background: va.surface, zIndex: 1 }}>
+            <div style={{ height: 34, background: va.bg, border: `1px solid ${va.border}`, borderRadius: 7, padding: '0 12px', display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, color: va.text3 }}>
+              <span>⌕</span>
+              <input
+                value={partSearch}
+                onChange={e => { setPartSearch(e.target.value); setPartPage(1) }}
+                placeholder={t('searchPlaceholder')}
+                style={{ border: 'none', background: 'transparent', outline: 'none', flex: 1, fontSize: 12.5, color: va.text, fontFamily: va.font }}
+              />
+            </div>
+          </div>
+
+          {/* "All parts" row */}
+          <div className="va-clickable" onClick={() => pickPart('all')}
+            style={{ padding: '13px 16px', borderBottom: `1px solid ${va.separator}`, borderLeft: fPart === 'all' ? `3px solid ${va.accent}` : '3px solid transparent', background: fPart === 'all' ? va.accentBg : va.surface }}>
+            <div style={{ fontSize: 12.5, fontWeight: 600, color: fPart === 'all' ? va.accent : va.text2 }}>{t('filter.allParts')}</div>
+            <div style={{ fontSize: 10.5, color: va.text3, fontFamily: va.mono, marginTop: 2 }}>{docs.length} docs</div>
+          </div>
+
+          {/* Part rows */}
+          {allParts.map(p => {
+            const on = fPart === p.partNumber
+            const docCount = docs.filter(d => d.partNumber === p.partNumber).length
+            return (
+              <div key={p.id} className="va-clickable" onClick={() => pickPart(p.partNumber)}
+                style={{ padding: '13px 16px', borderBottom: `1px solid ${va.separator}`, borderLeft: on ? `3px solid ${va.accent}` : '3px solid transparent', background: on ? va.accentBg : va.surface }}>
+                <div style={{ fontFamily: va.mono, fontSize: 13, fontWeight: 700, color: va.text }}>{p.partNumber}</div>
+                <div style={{ fontSize: 11.5, color: va.text2, marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.description}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, fontSize: 10.5, color: va.text3, fontFamily: va.mono }}>
+                  <span>{p.currentRoutingRevCode ?? '—'}</span>
+                  <span>· {p.opCount} OP</span>
+                  {docCount > 0 && <span style={{ color: va.primary }}>· {docCount} docs</span>}
+                </div>
+                <div style={{ fontSize: 10.5, color: va.text3, marginTop: 2, fontFamily: va.mono }}>
+                  {new Date(p.createdAt).toLocaleDateString(locale === 'vi' ? 'vi-VN' : 'en-US')}
+                </div>
+              </div>
+            )
+          })}
+
+          {/* Pagination */}
+          {partTotal > 20 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', borderTop: `1px solid ${va.separator}` }}>
+              <button onClick={() => setPartPage(p => Math.max(1, p - 1))} disabled={partPage <= 1}
+                style={{ border: `1px solid ${va.border}`, background: va.surface, borderRadius: 6, padding: '4px 10px', cursor: partPage <= 1 ? 'default' : 'pointer', color: va.text2 }}>←</button>
+              <span style={{ fontSize: 11, color: va.text3, alignSelf: 'center' }}>{partPage} / {Math.ceil(partTotal / 20)}</span>
+              <button onClick={() => setPartPage(p => p + 1)} disabled={allParts.length < 20}
+                style={{ border: `1px solid ${va.border}`, background: va.surface, borderRadius: 6, padding: '4px 10px', cursor: allParts.length < 20 ? 'default' : 'pointer', color: va.text2 }}>→</button>
+            </div>
+          )}
+        </div>
+
+        {/* ── RIGHT: content ────────────────────────────────────── */}
       <div className="va-scroll" style={{ flex: 1, overflow: 'auto', padding: 22, display: 'flex', flexDirection: 'column', gap: 16 }}>
         {/* KPIs */}
         <div style={{ display: 'flex', gap: 13 }}>
-          <VAKpi label={t('kpi.total')}    value={docs.length} />
+          <VAKpi label={t('kpi.total')}    value={filtered.length} />
           <VAKpi label={t('kpi.pending')}  value={pending}  accent={va.warn} />
           <VAKpi label={t('kpi.approved')} value={approved} accent={va.ok}   />
           <VAKpi label={t('kpi.rejected')} value={rejected} accent={va.err}  />
@@ -240,13 +325,8 @@ export default function DocumentsPage() {
           </VACard>
         )}
 
-        {/* Filter bar: Part · Drawing Rev · Routing Rev · OP (+ Loại / Trạng thái / tìm tên file) */}
+        {/* Filter bar: Drawing Rev · Routing Rev · OP · Loại · Trạng thái · tìm tên file */}
         <div style={{ background: va.surface, border: `1px solid ${va.border}`, borderRadius: 11, padding: '13px 16px', boxShadow: va.shadow, display: 'flex', alignItems: 'flex-end', gap: 14, flexWrap: 'wrap' }}>
-          <div>
-            <Lbl>{t('filter.part')}</Lbl>
-            <VACombobox value={fPart} onChange={pickPart} options={partOptions} placeholder={t('filter.allParts')}
-              style={{ fontFamily: va.mono, fontWeight: 600 }} />
-          </div>
           <div>
             <Lbl>{t('filter.drawingRev')}</Lbl>
             <VACombobox value={fRev} onChange={setFRev} options={revOptions} placeholder={t('filter.allRevs')}
@@ -347,7 +427,7 @@ export default function DocumentsPage() {
                         </td>
                         <td style={{ padding: '11px 14px', borderBottom: `1px solid ${va.separator}`, fontFamily: va.mono, color: va.text2, fontSize: 11.5 }}>{formatBytes(d.fileSizeBytes)}</td>
                         <td style={{ padding: '11px 14px', borderBottom: `1px solid ${va.separator}`, textAlign: 'right', whiteSpace: 'nowrap' }}>
-                          {d.status === 'Pending' ? (
+                          {d.status === 'Pending' && isApprover ? (
                             <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
                               <VABtn kind="ghost" style={{ height: 28, fontSize: 11, padding: '0 9px', color: va.err, borderColor: va.err + '55' }}
                                 onClick={() => handleReject(d.id)} disabled={acting === d.id}>{t('actions.reject')}</VABtn>
@@ -367,7 +447,8 @@ export default function DocumentsPage() {
             )}
           </div>
         </VACard>
-      </div>
+      </div>  {/* END right content */}
+      </div>  {/* END flex row (left panel + right) */}
 
       <BulkUploadDialog open={bulkOpen} onClose={() => setBulkOpen(false)} onDone={load} />
     </div>

@@ -2,28 +2,45 @@
 
 ## 1. Tổng quan
 
-Module cốt lõi của hệ thống chất lượng — định nghĩa kích thước cần kiểm tra và ghi nhận kết quả đo kiểm thực tế.
+Module cốt lõi của hệ thống chất lượng — định nghĩa kích thước cần kiểm tra và ghi nhận kết quả đo kiểm thực tế trong 3 giai đoạn độc lập: Inprocess FAI (Operator), QC Inline (QC ngẫu nhiên trên chuyền), QC Final (QC xuất xưởng).
 
 **Người dùng liên quan:**
 - **Engineer**: định nghĩa Dimension Sheet (kích thước, dung sai).
-- **QC Inspector / Operator**: nhập kết quả đo tại máy (Desktop MES) hoặc văn phòng (Web).
+- **Operator**: nhập kết quả đo Inprocess FAI tại máy (Desktop MES).
+- **Leader**: quyền Operator mở rộng — nhập thay bất kỳ Operator nào.
+- **QC Inspector**: nhập QC Inline (trên chuyền) và QC Final (xuất xưởng).
 
 ---
 
 ## 2. Khái niệm cốt lõi
 
 ```
-PartOP (Công đoạn)
+PartOp (Công đoạn)
  └── Dimension (Kích thước cần kiểm)     ← Engineer định nghĩa
-      ├── BalloonNumber: "1", "2A", "3"...
+      ├── BalloonNumber: "1", "*20", "3"...  (* = kích thước trung gian)
       ├── NominalValue: 25.0000
       ├── MaxValue: 25.0200  (= Nominal + Tolerance+)
       ├── MinValue: 24.9800  (= Nominal - Tolerance-)
-      └── MeasureValue (Kết quả đo)       ← Operator/Inspector nhập
+      ├── IsFinal: true/false             (bắt buộc đo tại QC Final)
+      └── MeasureValue (Kết quả đo)       ← nhập theo Stage
            ├── Value: 25.0050
-           ├── Result: pass / fail
+           ├── Result: Pass / Fail
+           ├── MeasureStage: InprocessFAI | QCInline | QCFinal
            └── GageID (dụng cụ đo sử dụng)
 ```
+
+**3 giai đoạn đo kiểm — hoàn toàn độc lập:**
+
+| Stage | Enum | Người thực hiện | Phạm vi | Thời điểm |
+|---|---|---|---|---|
+| **Inprocess FAI** | `0` | Operator (người gia công SP đó tại OP đó) | Dimensions của OP đó | Sau khi session OP kết thúc |
+| **QC Inline** | `1` | QC Inspector | Bất kỳ balloon nào của bất kỳ SP nào | Ngẫu nhiên trong quá trình sản xuất |
+| **QC Final** | `2` | QC Inspector | Tất cả Dimensions (ưu tiên `IsFinal=true`) | Khi SP hoàn thiện gia công, trước khi xuất xưởng |
+
+**Nguyên tắc cô lập:**
+- Mỗi stage thấy và khóa riêng: `(DimensionId, ProductId, MeasureStage)` chỉ được nhập **một lần** trong một stage
+- Không ghi đè — tạo record mới mỗi lần đo (giữ lịch sử toàn bộ)
+- Mỗi nhóm chỉ thấy data của stage mình khi tra cứu
 
 ---
 
@@ -31,17 +48,17 @@ PartOP (Công đoạn)
 
 ### 3.1 Balloon Number
 - Số hiệu kích thước trên bản vẽ (hình tròn bao quanh số → "balloon").
-- Format tự do: "1", "2A", "3B", "10", "10A"...
-- **UNIQUE trong phạm vi một PartOP** — không được trùng trong cùng một OP.
+- Format tự do: `"1"`, `"2A"`, `"3B"`, `"10"`, `"10A"`, `"*20"`, `"*30"`...
+- **UNIQUE trong phạm vi một PartOp** — không được trùng trong cùng một OP.
 - `balloon_sort`: parse từ balloon_number để sort đúng thứ tự số (1, 2, 3... thay vì 1, 10, 2, 3...).
 
 ### 3.2 Kích thước số vs Kích thước text
 - **Số** (phần lớn): lưu `nominal_value`, `max_value`, `min_value` dạng `DECIMAL(14,4)`.
   - Pass khi: `min_value ≤ measured_value ≤ max_value`.
 - **Text** (`is_text_type = true`): kích thước không phải số — ren, ký hiệu hình học, note đặc biệt.
-  - Ví dụ: "M10x1.5-6H", "Ra 0.8"
+  - Ví dụ: `"M10x1.5-6H"`, `"Ra 0.8"`
   - Lưu vào `nominal_text`, không có min/max.
-  - Kết quả đo: operator chọn Pass/Fail thủ công.
+  - Kết quả đo: operator/QC chọn Pass/Fail thủ công.
 
 ### 3.3 Tolerance
 - `tolerance_plus`: dung sai dương (trên) → `max_value = nominal + tolerance_plus`.
@@ -49,15 +66,29 @@ PartOP (Công đoạn)
 - Cả hai lưu dạng dương: dung sai ±0.02 → `tolerance_plus = 0.02`, `tolerance_minus = 0.02`.
 - Dung sai lệch tâm: `+0.05 / -0.02` → `tolerance_plus = 0.05`, `tolerance_minus = 0.02`.
 
-### 3.4 Final Dimension
-- `is_final = true`: kích thước kiểm tra **lần cuối** sau tất cả rework.
-- OP kiểm tra cuối thường có các dimension đánh dấu `is_final`.
-- MeasureValue cho Final inspection lưu `is_final = true` + `final_op_id`.
-- Phân biệt rõ: đo ban đầu (FAI) vs đo cuối sau rework (FAI Final).
-- `IsFinal = true` → chỉ **QC Inspector** mới được nhập (Operator thấy nhưng disabled).
-- Legacy: 90,061/94,100 dimensions (96%) có `FinalDimension = 1` → FAI Final là flow rất phổ biến.
+### 3.4 IsFinal — Kích thước bắt buộc QC Final
 
-### 3.5 Dimension Category
+`Dimension.IsFinal = true` đánh dấu kích thước **bắt buộc phải kiểm tra** tại QC Final trước khi xuất xưởng.
+
+- Mục đích: thay vì phải đo 100% kích thước, Engineer chọn sẵn các kích thước quan trọng → QC Final chỉ cần đo các kích thước này
+- **Tiến độ QC Final** = số `IsFinal` dimensions đã có `MeasureStage=QCFinal` / tổng `IsFinal` dimensions của sản phẩm
+- Các kích thước không có `IsFinal=true` tại QC Final: được phép bỏ qua
+- QC Final vẫn **có thể đo** các kích thước không `IsFinal` nếu muốn — không bị cấm
+
+> Legacy: 90,061/94,100 dimensions (96%) có `is_final=1` → hầu hết đều bắt buộc kiểm tra QC Final.
+
+### 3.5 Kích thước trung gian (Intermediate Dimensions)
+
+Kích thước **không có trên bản vẽ** — do Engineer tạo thêm khi xây dựng quy trình gia công để kiểm soát chất lượng trung gian (process control).
+
+- Ví dụ: Để gia công OD đạt đường kính X, chia 2 bước: B1 gia công đến X' (trung gian), B2 gia công đến X (cuối). Kích thước X' là kích thước trung gian.
+- **Ký hiệu**: prefix `*` trước balloon number — `*20`, `*30`, `*15A`...
+- Kỹ sư đánh dấu `*` thủ công trước khi import Excel
+- **Hiển thị**: hiện mặc định trong Dimsheet, có visual style khác (màu/icon) để phân biệt
+- **Không dùng** để kiểm soát chất lượng sản phẩm cuối — chỉ dùng trong process control
+- Người dùng có thể toggle ẩn/hiện kích thước trung gian trên Dimsheet
+
+### 3.6 Dimension Category
 Mỗi dimension thuộc một category (phương pháp đo):
 
 | Code | Tên | Gage thường dùng |
@@ -68,70 +99,130 @@ Mỗi dimension thuộc một category (phương pháp đo):
 | `GEO` | Geometric | CMM, dial indicator (IND), profile projector (PPM), radius gage (RAD), visual (VIS) |
 | `SFC` | Surface | Surface roughness machine (SRM), surface roughness template (SRT) |
 
-Category quyết định gage type nào được chọn khi đo.
-
 **Tần suất sử dụng thực tế (từ dữ liệu legacy 94,100 dimensions):**
 PPM 34% · CAL 16% · CMM 7% · IND 6% · MIC 5% · VIS 4% · BOR 4% · DPG 4% · PLG 4% · SRM 4%
 
 → GEO (PPM+CMM+IND+VIS) chiếm ~51%, LIN (CAL+MIC+BOR+DPG+HEG) chiếm ~35%, THD ~8%, SFC ~4%.
 
-### 3.6 Lịch sử thay đổi Dimension
+### 3.7 Lịch sử thay đổi Dimension
 - Mỗi khi thay đổi nominal/tolerance → tạo record trong `dimension_history`.
 - Dữ liệu `measure_values` cũ vẫn giữ nguyên và valid (so với spec tại thời điểm đo).
 
-### 3.7 Import từ Excel
-- Engineer nhận Dimension Sheet từ bộ phận thiết kế dưới dạng Excel.
-- Format chuẩn: `BalloonNumber | Nominal | TolPlus | TolMinus | CategoryCode`.
-- Validation: BalloonNumber không trùng trong OP, Nominal phải là số (trừ `is_text_type`).
-- Upload file Excel gốc lên MinIO sau khi import (lưu vết).
+### 3.8 Dimension Status (Approval Workflow)
+
+Tương tự TechDocuments — dimensions phải được duyệt trước khi dùng trong FAI.
+
+```
+Pending → Approved   (Lead Engineer / Manager / Administrator duyệt)
+        → Rejected   (kèm lý do) → Engineer chỉnh sửa → import lại → Pending
+```
+
+- Import bulk → mọi dimension tạo ra đều là `Pending`
+- Import per-OP (hiện tại) → cũng là `Pending` (consistent)
+- Chỉ dimension `Approved` xuất hiện trong Desktop FAI measurement
+- **Batch approve**: Lead Engineer/Manager/Admin chọn tất cả pending của 1 import → Approve All
+- **Reject từng dòng**: với lý do → Engineer xem lý do, sửa Excel, import lại phần bị reject
+- **Existing dimensions** (trước khi có tính năng này): migration default = `Approved`
+- **Quyền**: `Lead Engineer`, `Manager`, `Administrator` — không phải `QC Inspector`
+
+### 3.9 Import từ Excel
+
+**Import per-OP** (hiện tại — `/parts/[id]/operations`):
+- Engineer import Dimension cho từng OP riêng lẻ
+- Cột Excel: `BalloonNumber`, `Code`, `Description`, `Nominal`, `TolPlus`, `TolMinus`, `Unit`, `Category`
+- Validation: BalloonNumber không trùng trong OP, Nominal phải là số (trừ `is_text_type`)
+
+**Import bulk — toàn bộ Part** (kế hoạch — `/dimsheet`):
+- Sau khi Engineer hoàn tất xây dựng quy trình, import 1 file Excel duy nhất chứa **toàn bộ dimensions của mọi OP** trong 1 Part
+- Cột Excel thêm `OpNumber` để phân loại dimension vào đúng PartOp
+- Cột `IsFinal` (0/1) để đánh dấu bắt buộc QC Final
+- BalloonNumber với prefix `*` → hệ thống nhận diện là kích thước trung gian (không cần cột riêng)
+- Kết quả trả `ImportResultDto` gộp cho toàn bộ các OP: created/skipped/errors
+
+### 3.9 QC Inline Rate (Tỷ lệ kiểm tra ngẫu nhiên)
+
+- **Factory-wide default**: tỷ lệ % sản phẩm cần kiểm tra QC Inline cho toàn nhà máy
+- **Override theo Job → OP**: công đoạn đặc thù có tỷ lệ riêng cao hơn/thấp hơn default
+- Tỷ lệ cụ thể hơn (Job→OP level) thì override factory-wide
+- Lưu trong `qc_inline_rates` hoặc là field trên `PartOp` (thiết kế chi tiết Phase 4b)
+
+### 3.10 Quy tắc "Sản phẩm hoàn thiện gia công" (điều kiện QC Final)
+
+**Định nghĩa**: Sản phẩm được coi là "hoàn thiện gia công" khi **tất cả PartOp trong routing có ít nhất 1 Dimension đều đã có session completed**.
+
+- Logic: OP nào có Dimension = OP gia công thực sự cần kiểm soát chất lượng. OP admin/hành chính (IST, ISS, Feature Prepare, Issue Documents...) thường không có Dimension → tự động bị loại khỏi điều kiện.
+- Query: `PartOps WHERE routingRevId = job.RoutingRevId AND EXISTS(Dimensions) AND NOT EXISTS(Sessions WHERE status = Completed)` → nếu rỗng → product hoàn thiện.
+- **ForJobOnly OPs** cũng áp dụng cùng rule nếu có Dimension.
 
 ---
 
-## 4. Workflow FAI tại máy (Desktop MES)
+## 4. Workflow FAI — 3 giai đoạn
 
-### 4.1 FAI lần đầu (First Article)
+### 4.1 Inprocess FAI (Operator)
 
-```
-Operator login → chọn Máy
-  → Màn hình Monitor: chọn Job → chọn OP → chọn Product Serial
-  → Claim session → Bắt đầu (ghi started_at)
-      → Hiện danh sách Balloon Number (sorted theo balloon_sort)
-        Màu sắc: Xám=chưa đo | Xanh=Pass | Đỏ=Fail
-        Counter: "5 / 20"
-  → Chọn Balloon Number:
-      → Hiện: Nominal, Tolerance (+/-), Category
-      → Chọn Gage *(xem 4.3 — chưa implement, kế hoạch Phase 5)*
-      → Nhập giá trị đo (bàn phím số cảm ứng)
-        → Kích thước số: nhập giá trị, hệ thống tính Pass/Fail tự động
-        → Kích thước text (is_text_type=true): chọn PASS / FAIL thủ công
-      → Kết quả:
-          Pass → Balloon xanh, tự động chuyển balloon tiếp theo
-          Fail → Balloon đỏ, hiện dialog NCR (→ xem 07_ncr.md)
-  → Tất cả đã đo → "Kết thúc" → ghi completed_at
-```
-
-**Dimension đã đo (IsInputLocked):** Khi chọn lại balloon đã có kết quả → hiển thị giá trị cũ, lock toàn bộ input (không cho nhập lại). Mỗi lần đo là 1 record mới — không overwrite (giữ lịch sử).
-
-### 4.2 FAI Final (sau rework NCR)
+**Ai**: Operator gia công — chỉ được nhập cho sản phẩm **do chính mình** gia công tại OP đó.
+**Leader**: được nhập thay bất kỳ Operator nào.
 
 ```
-NCR đã xử lý xong (rework/repair hoàn tất)
-  → QC Inspector mở FAI Final cho Product Serial đó
-  → Chỉ hiển thị các balloon có trạng thái Fail (màu đỏ)
-  → Đo lại từng balloon:
-      → Nhập giá trị đo mới
-      → Lưu với is_final=true + final_op_id (OP kiểm tra cuối)
-      → Pass → balloon chuyển xanh, NCR liên quan đóng tự động
-      → Fail lại → tạo NCR mới, tiếp tục chu kỳ rework
+Operator login (Desktop) → chọn Job → chọn OP → chọn Product Serial
+  → Điều kiện check: ProductionSession của (product, OP) này
+      → session.UserId == currentUser.Id (hoặc role = Leader)
+      → session.CompletedAt IS NOT NULL  (gia công đã kết thúc)
+  → FAI Basic mở:
+      Hiện danh sách Dimensions của OP (sorted theo balloon_sort)
+      Màu: Xám=chưa đo | Xanh=Pass | Đỏ=Fail (lọc MeasureStage=InprocessFAI)
+      Counter: "5 / 20"
+  → Chọn Balloon:
+      → Kích thước số: nhập giá trị → hệ thống tính Pass/Fail tự động
+      → Kích thước text: chọn PASS / FAIL thủ công
+      → Pass → Balloon xanh, tự động chuyển tiếp
+      → Fail → Balloon đỏ → tạo NCR (→ xem 07_ncr.md)
+  → Đã đo tất cả → session cho phép "Kết thúc"
 ```
 
-> **Trạng thái implement:** FAI Final chưa có trên Desktop — ⏳ kế hoạch Phase 4b. Schema database (`is_final`, `final_op_id` trong `measure_values`) đã sẵn sàng.
+**Khi Fail trong Inprocess FAI:**
+- Operator tạo NCR ngay → không được đo lại trong InprocessFAI
+- Sau rework, kết quả quyết định cuối cùng đến từ **QC Final** (MeasureStage=QCFinal)
 
-**Phân quyền FAI Final:**
-- `IsFinal = true` dimensions → chỉ **QC Inspector** nhập được
-- Operator thấy dimension nhưng input bị disabled
+**IsInputLocked**: Balloon đã đo (có MeasureValue với stage=InprocessFAI) → lock toàn bộ input, hiển thị giá trị cũ, không cho nhập lại.
 
-### 4.3 Gage Selection (Chọn dụng cụ đo)
+### 4.2 QC Inline (QC Inspector — ngẫu nhiên trên chuyền)
+
+**Ai**: QC Inspector.
+**Điều kiện**: Product đã có ít nhất 1 session completed tại OP được chọn (Operator đã gia công xong OP đó).
+
+```
+QC Inspector login (Desktop) → FAI Basic
+  → Chọn Job → chọn OP → chọn Product Serial
+  → Điều kiện check:
+      EXISTS(Session WHERE productId = X AND partOpId = Y AND completedAt IS NOT NULL)
+  → Hiện danh sách Dimensions (lọc MeasureStage=QCInline)
+  → Nhập kết quả → lưu với MeasureStage=QCInline
+  → (DimensionId, ProductId, QCInline) đã tồn tại → lock (không đo lại)
+```
+
+**Tỷ lệ QC Inline**: số lượng sản phẩm/balloons cần kiểm tra theo `QcInlineRate` (factory-wide default hoặc override Job→OP).
+
+### 4.3 QC Final (QC Inspector — xuất xưởng)
+
+**Ai**: QC Inspector. **Operator và Leader không truy cập được**.
+**Điều kiện**: Product "hoàn thiện gia công" (xem §3.10).
+**Phạm vi**: Toàn bộ Dimensions của sản phẩm (tất cả OP) — ưu tiên `IsFinal=true`.
+
+```
+QC Inspector login (Desktop) → Tiện ích "FAI Final" (ẩn với Operator/Leader)
+  → Chọn Job → chọn Product Serial
+  → Điều kiện check: tất cả OP có Dimension đều có session completed
+  → Hiện TOÀN BỘ Dimensions (không giới hạn theo OP)
+      Ưu tiên IsFinal=true (badge đặc biệt)
+      Màu: Xám=chưa đo | Xanh=Pass | Đỏ=Fail (lọc MeasureStage=QCFinal)
+  → Nhập kết quả → lưu với MeasureStage=QCFinal
+  → Tiến độ = đã đo IsFinal dims / tổng IsFinal dims
+  → Fail → tạo NCR
+  → Hoàn tất đủ IsFinal dims → Product cho phép đóng gói / xuất xưởng
+```
+
+### 4.4 Gage Selection (Chọn dụng cụ đo) — kế hoạch Phase 5
 
 Mỗi kết quả đo nên ghi nhận dụng cụ nào đã dùng — phục vụ truy vết sau này khi gage bị thu hồi hoặc calibration lỗi.
 
@@ -141,19 +232,11 @@ Tap Balloon Number → Input Panel mở:
        → GET /api/v1/gages?categoryId={dim.categoryId}&status=available
        → Hiện danh sách: GageNo, GageName, GageType
        → Filter: is_calibrated=true + status=available
-       → Nếu không có gage phù hợp → cảnh báo, vẫn cho nhập không chọn gage
   ② Nhập giá trị
   ③ Confirm → POST với gageId (null nếu không chọn)
 ```
 
-**Rules:**
-- Filter theo `dimension.category_id` → chỉ show gage thuộc đúng loại (LIN/THD/GEO...)
-- Gage phải `is_calibrated = true` và `status = available`
-- Không bắt buộc (optional) — không block workflow nếu bỏ qua
-
-> **Trạng thái implement:** Gage selection chưa có trên Desktop (⏳ Phase 5). API endpoint `GET /api/v1/gages` cần implement. Hiện tại `measure_values.gage_id` lưu null.
-
-**Tầm quan trọng (từ legacy data):** Legacy Vinam-MES ghi `GageID` vào 100% trong 904,699 `measurevalue` records — được dùng để invalidate kết quả đo khi gage hỏng/hết hạn calibration.
+> **Trạng thái implement:** Gage selection chưa có trên Desktop (⏳ Phase 5). Hiện tại `measure_values.gage_id` để null.
 
 ---
 
@@ -163,19 +246,24 @@ Tap Balloon Number → Input Panel mở:
 dimension_categories (id, code [UNIQUE], name, description)
 
 dimensions (
-    id [BIGSERIAL], part_op_id → part_ops,
-    balloon_number, balloon_sort,
-    nominal_value [DECIMAL(14,4)],
-    max_value     [DECIMAL(14,4)],
-    min_value     [DECIMAL(14,4)],
+    id              [BIGSERIAL],
+    part_op_id      → part_ops,
+    balloon_number  [VARCHAR(20)],  -- prefix * = kích thước trung gian
+    balloon_sort    [INTEGER],      -- parse từ balloon_number, bỏ prefix *
+    nominal_value   [DECIMAL(14,4)],
+    max_value       [DECIMAL(14,4)],
+    min_value       [DECIMAL(14,4)],
     tolerance_plus  [DECIMAL(14,4)],
     tolerance_minus [DECIMAL(14,4)],
-    nominal_text  [VARCHAR(100)],
-    is_text_type  [BOOLEAN],
-    category_id   → dimension_categories,
-    is_final      [BOOLEAN],
-    created_by, created_at, updated_by, updated_at,
-    deleted_at,
+    nominal_text    [VARCHAR(100)],
+    is_text_type    [BOOLEAN],
+    is_final        [BOOLEAN],      -- bắt buộc đo tại QC Final
+    category_id     → dimension_categories,
+    status          [SMALLINT DEFAULT 0],  -- Pending=0, Approved=1, Rejected=2
+    reviewed_by     → users,        -- người duyệt (Lead Engineer/Manager/Admin)
+    reviewed_at     [TIMESTAMPTZ],
+    review_note     [TEXT],         -- lý do reject
+    created_by, created_at, updated_by, updated_at, deleted_at,
     UNIQUE(part_op_id, balloon_number)
 )
 
@@ -187,24 +275,25 @@ dimension_history (
     changed_by → users, changed_at, change_reason
 )
 
+-- MeasureStage enum: InprocessFAI=0, QCInline=1, QCFinal=2
 measure_values (
-    id [BIGSERIAL],
-    dimension_id → dimensions,
-    product_id   → products,
-    part_op_id   → part_ops,
-    value        [DECIMAL(14,4)],        -- NULL nếu is_text_type
-    result       [measure_result ENUM],  -- 'pass' | 'fail'
-    gage_id      → gages,
-    machine_id   → machines,
-    measured_by  → users,
-    user_type    [VARCHAR(30)],          -- snapshot tại thời điểm đo
+    id              [BIGSERIAL],
+    dimension_id    → dimensions,
+    product_id      → products,
+    part_op_id      → part_ops,
+    measure_stage   [SMALLINT NOT NULL DEFAULT 0],  -- *** MỚI ***
+    value           [DECIMAL(14,4)],    -- NULL nếu is_text_type
+    result          [SMALLINT],         -- Pass=1, Fail=2
+    gage_id         → gages,
+    machine_id      → machines,
+    measured_by     → users,
     measured_at,
     note,
-    is_final     [BOOLEAN],
-    final_op_id  → part_ops,
-    has_ncr      [BOOLEAN],
-    ncr_code     [VARCHAR(50)],
-    updated_by, updated_at
+    -- is_final, final_op_id: legacy columns, deprecated (thay bằng measure_stage=QCFinal)
+    has_ncr         [BOOLEAN],
+    ncr_code        [VARCHAR(50)],
+    created_at,
+    UNIQUE(dimension_id, product_id, measure_stage)  -- mỗi stage chỉ 1 lần/balloon/serial
 )
 
 measure_value_logs (
@@ -214,7 +303,23 @@ measure_value_logs (
     gage_id, note,
     changed_by, changed_at
 )
+
+-- QC Inline Rate (kế hoạch Phase 4b)
+qc_inline_rates (
+    id,
+    job_id      → jobs,        -- NULL = factory-wide default
+    part_op_id  → part_ops,    -- NULL = toàn bộ job
+    rate_percent [DECIMAL(5,2)],
+    created_by, created_at
+    -- job_id IS NULL AND part_op_id IS NULL → factory-wide default (chỉ 1 record)
+    -- job_id SET, part_op_id NULL → toàn bộ Job override
+    -- job_id SET, part_op_id SET → Job→OP override (cụ thể nhất)
+)
 ```
+
+**Constraint UNIQUE trên `measure_values`:**
+- `(dimension_id, product_id, measure_stage)` → đảm bảo mỗi giai đoạn chỉ 1 lần đo / balloon / serial
+- Áp dụng ở application layer (handler check trước khi INSERT) — không phải DB constraint (vì giữ lịch sử bằng cách tạo record mới, nhưng check existence trước)
 
 ---
 
@@ -222,29 +327,42 @@ measure_value_logs (
 
 ```
 -- Dimensions --
-GET    /api/v1/ops/{opId}/dimensions
-POST   /api/v1/ops/{opId}/dimensions
+GET    /api/v1/operations/{opId}/dimensions/definitions
+POST   /api/v1/operations/{opId}/dimensions
 PUT    /api/v1/dimensions/{id}
 DELETE /api/v1/dimensions/{id}
-POST   /api/v1/ops/{opId}/dimensions/import
+POST   /api/v1/operations/{opId}/dimensions/import
 GET    /api/v1/dimensions/{id}/history
+GET    /api/v1/routing-revs/{routingRevId}/dimensions   -- dùng bởi /dimsheet
+
+-- Bulk import toàn bộ Part (kế hoạch)
+POST   /api/v1/routing-revs/{routingRevId}/dimensions/import-bulk
+       Body: multipart/form-data (file Excel)
+       Response: ImportResultDto { created, skipped, errors: [{ rowNumber, opNumber, message }] }
+GET    /api/v1/routing-revs/{routingRevId}/dimensions/import-bulk/template
+       Response: Excel template (.xlsx)
+
+-- Dimension Approval (kế hoạch — role Lead Engineer/Manager/Admin)
+PUT    /api/v1/dimensions/{id}/review
+       Body: { approve: true/false, note?: string }
+POST   /api/v1/dimensions/review-batch
+       Body: { dimensionIds: number[], approve: true/false, note?: string }
 
 -- Measure Values --
-GET    /api/v1/measure-values?dimensionId=&productId=
-POST   /api/v1/measure-values
-PUT    /api/v1/measure-values/{id}
-GET    /api/v1/measure-values/{id}/logs
+GET    /api/v1/fai?jobId=&partOpId=                     -- FaiSheetDto (hiện tại)
+POST   /api/v1/fai/measure                              -- lưu MeasureValue (hiện tại)
+       Body: { dimensionId, productId, partOpId, value, manualResult, isFinal, measureStage }
+GET    /api/v1/measure-values?dimensionId=&productId=&stage=
+GET    /api/v1/dimensions/{id}/measure-history?productId=
 
--- FAI Report --
-GET    /api/v1/reports/fai/{jobId}
-GET    /api/v1/reports/fai/{jobId}/pdf
-GET    /api/v1/reports/fai/{jobId}/excel
+-- QC Final progress
+GET    /api/v1/products/{id}/qcfinal-progress
+       Response: { totalFinal, measuredFinal, passedFinal, failedFinal, isFullyMachined }
 
--- MES --
-GET    /api/v1/mes/ops/{opId}/dimensions?productSerial={serial}
-POST   /api/v1/mes/measure-values
-       Body: { dimensionId, productId, opId, gageId, value, machineId }
-       Response: { result: 'pass'|'fail', measureValueId }
+-- QC Inline Rate (kế hoạch Phase 4b)
+GET    /api/v1/qc-inline-rates?jobId=&partOpId=
+POST   /api/v1/qc-inline-rates
+PUT    /api/v1/qc-inline-rates/{id}
 ```
 
 ---
@@ -254,25 +372,27 @@ POST   /api/v1/mes/measure-values
 Nội dung báo cáo:
 - **Header**: Job Number, Part Number, Revision, Date, Inspector
 - **Bảng kích thước**: BalloonNumber | Nominal | Tol(+/-) | Serial01 | Serial02 | ...
-- Ô Pass: giá trị đo (màu đen)
-- Ô Fail: giá trị đo (màu đỏ, bold)
+  - Ô Pass: giá trị đo (màu đen)
+  - Ô Fail: giá trị đo (màu đỏ, bold)
+  - Kích thước trung gian (`*`): hiện trong bảng với ký hiệu riêng
+- **Stage filter**: báo cáo theo stage (InprocessFAI / QCInline / QCFinal) hoặc gộp
 - **Footer**: tổng Pass/Fail, chữ ký Inspector
-
-**Ghi chú footnote**: Khi `nominal_text` > 7 ký tự → thay bằng N1\*, N2\*... và ghi đầy đủ cuối trang.
 
 ---
 
 ## 8. Edge Cases
 
-- **Sửa MeasureValue sau khi đã có NCR**: cho phép nhưng ghi `measure_value_logs`. Nếu sửa fail → pass, NCR phải được đóng thủ công bởi Inspector.
-- **Đo lại**: tạo record MeasureValue mới (không update cũ) — giữ toàn bộ lịch sử các lần đo.
+- **Operator Fail → NCR, không đo lại**: Inprocess FAI lock sau lần đo đầu. Fail → tạo NCR. QC Final là lần đo quyết định cuối cùng.
+- **QC Inline đo lại cùng balloon/serial**: KHÔNG được phép — `(DimensionId, ProductId, QCInline)` unique.
+- **QC Final trước khi hoàn thiện gia công**: chặn tại application layer — check `isFullyMachined` theo §3.10.
 - **Xóa Dimension đã có MeasureValue**: cấm tuyệt đối — ảnh hưởng audit trail chất lượng.
 - **Tolerance = 0**: max = min = nominal — hiếm nhưng hợp lệ.
-- **Offline tại MES**: measure values queue local (SQLite) → sync khi có mạng.
 - **Value ngoài range rất xa**: cảnh báo "Có thể nhập sai" nếu ngoài ±10× tolerance, nhưng vẫn cho lưu.
-- **Precision**: Legacy Vinam-MES lưu `MeasureValue` dạng `FLOAT` → mất chính xác ở chữ số thập phân 4+. Hệ thống mới dùng `DECIMAL(14,4)` cho tất cả giá trị đo — cải thiện quan trọng khi migrate/import dữ liệu cũ.
-- **NominalDimension dạng text trong legacy**: Legacy lưu `NominalDimension` là `VARCHAR` chứa cả số lẫn ký tự (ví dụ `"72°"`, `"M10x1.5"`). Khi import → parse tách `is_text_type=true` và `nominal_text` thay vì ép sang số.
-- **Gage thu hồi/hỏng**: Nếu gage bị kết luận hỏng sau khi đã đo → cần xác định tất cả `measure_values` dùng `gage_id` đó trong khoảng thời gian → xem xét re-inspect. `gage_id` trong `measure_values` là key truy vết quan trọng (hiện để null — cần implement gage selection).
+- **Kích thước trung gian (`*`) trong QC Final**: được phép đo (không bị cấm), không tính vào progress IsFinal.
+- **Precision**: Legacy lưu `FLOAT` → mất chính xác. Hệ thống mới dùng `DECIMAL(14,4)` — cải thiện khi migrate.
+- **NominalDimension dạng text trong legacy**: Parse tách `is_text_type=true` + `nominal_text`.
+- **Gage thu hồi/hỏng**: `gage_id` trong `measure_values` dùng để truy vết toàn bộ kết quả đo cần re-inspect.
+- **OP không có Dimension**: không tính vào điều kiện "hoàn thiện gia công" (§3.10) → IST, ISS, Feature Prepare, Issue Documents... tự động được bỏ qua.
 
 ---
 
@@ -280,8 +400,9 @@ Nội dung báo cáo:
 
 **FAI stat strip** trên `/fai` và `/jobs/[id]/fai`
 
-- Thêm dải KPI phía trên `FaiMatrix`: Inspector (người đo gần nhất), số dimension Pass/Fail/Pending, Pass rate %.
-- 100% client-side aggregate từ `FaiSheetDto` đã load (đã chứa toàn bộ MeasureValue theo dimension × product) — **không cần API mới**.
+- Thêm dải KPI phía trên `FaiMatrix`: Inspector (người đo gần nhất), Pass/Fail/Pending per stage, Pass rate %.
+- Filter chọn Stage (InprocessFAI / QCInline / QCFinal / All).
+- 100% client-side aggregate từ `FaiSheetDto` — **không cần API mới**.
 
 ---
 
@@ -289,6 +410,52 @@ Nội dung báo cáo:
 
 **Panel "Chi tiết Balloon"** — click vào 1 ô trong `FaiMatrix`
 
-- Mở panel/dialog hiển thị: Nominal/Tolerance/Category của Dimension, danh sách lịch sử đo (mọi `MeasureValue` của `dimensionId` + `productId`, kể cả các lần đo lại — theo nguyên tắc "không upsert, giữ lịch sử" ở §3.6/Edge Cases), và biểu đồ phân bố giá trị nếu có nhiều lần đo (dùng Apache ECharts — đã có trong tech stack Phase 5).
-- **API cần thêm**: `GET /api/v1/dimensions/{id}/history?productId=` — đã có trong mục 6 "API Endpoints" của tài liệu này nhưng **chưa implement** → cần viết `GetMeasureValueHistoryQuery` (additive, không migration), trả `MeasureValueDto[]` sort theo `measured_at` desc.
-- **Nút "Mở NCR cho ô này"**: chỉ hiện khi ô đang Fail — pre-fill form tạo NCR (Phase I, `07_ncr.md`) với `dimensionId`/`productId`/`measureValueId`/`jobId`/`partOpId` từ context balloon hiện tại.
+- Mở panel/dialog: Nominal/Tolerance/Category, lịch sử đo theo từng stage (InprocessFAI/QCInline/QCFinal), biểu đồ phân bố (Apache ECharts).
+- **API cần thêm**: `GET /api/v1/dimensions/{id}/measure-history?productId=&stage=`
+- **Nút "Mở NCR cho ô này"**: pre-fill NCR form khi ô đang Fail.
+
+---
+
+## Kế hoạch triển khai — 3 nhóm
+
+### Nhóm 1 — Roles + Approval permissions (Prerequisite)
+
+| Hạng mục | Loại | Chi tiết |
+|---|---|---|
+| Add `Lead Engineer` role | Backend | `AppConstants.Roles` + DB seed (Id=8); migration insert vào `roles` |
+| TechDocument approval role | Backend | Cập nhật `InspectTechDocumentCommandHandler`: check role `Lead Engineer\|Manager\|Admin` thay `QC Inspector` |
+| Migration `AddDimensionStatus` | Backend | Thêm `status SMALLINT DEFAULT 1` (Approved) + `reviewed_by`, `reviewed_at`, `review_note` vào `dimensions`; existing rows → Approved=1 |
+| `MeasureStage` enum | Domain | `InprocessFAI=0, QCInline=1, QCFinal=2` |
+| Migration `AddMeasureStage` | Backend | Thêm `measure_stage SMALLINT NOT NULL DEFAULT 0` vào `measure_values`; data cũ → InprocessFAI=0 |
+
+### Nhóm 2 — Dimsheet bulk import + layout thống nhất (Web — ưu tiên cao)
+
+| Hạng mục | Loại | Chi tiết |
+|---|---|---|
+| `ImportBulkDimensionsCommand` | Backend | Nhận `routingRevId` + file Excel; phân loại Dimension vào đúng OP theo `OpNumber`; tạo với `status=Pending` |
+| Excel template | Backend | `ExcelTemplateBuilder.BuildDimsheetTemplate()` — cột: BalloonNumber, Code, Desc, Nominal, Tol+, Tol-, Unit, Category, **OpNumber**, **IsFinal** |
+| `GET .../template` endpoint | Backend | Download template |
+| `POST .../import-bulk` endpoint | Backend | Role Engineer+ |
+| `ReviewDimensionCommand` | Backend | `PUT /api/v1/dimensions/{id}/review` + `POST /api/v1/dimensions/review-batch` — role Lead Engineer/Manager/Admin |
+| `/dimsheet` — Part list layout | Web | Giữ Part list hiện tại; bổ sung Drawing Rev + Routing Rev vào filter bar (cascade); `*` balloon có visual khác; toggle ẩn kích thước trung gian |
+| `/dimsheet` — Approval UI | Web | Badge status Pending/Approved/Rejected; nút "Approve All" (batch) + Reject (từng dòng, nhập lý do); chỉ hiện với Lead Engineer/Manager/Admin |
+| `/dimsheet` — Import dialog | Web | `ImportDimsheetDialog`: upload file + download template + hiển thị result per-OP |
+| `/documents` — Part list layout | Web | Bỏ combobox Part; thêm Part list panel 220px bên trái; bắt buộc chọn Part; Drawing Rev + Routing Rev vào filter bar; nút Approve/Reject chỉ với 3 role |
+
+### Nhóm 3 — MeasureStage API + QC Final progress (Backend)
+
+| Hạng mục | Loại | Chi tiết |
+|---|---|---|
+| Update `SaveMeasureCommand` | Backend | Nhận `measureStage`; validate `(dimensionId, productId, stage)` unique trước INSERT |
+| `GetQcFinalProgressQuery` | Backend | `GET /api/v1/products/{id}/qcfinal-progress` → `{totalFinal, measuredFinal, isFullyMachined}` |
+| `isFullyMachined` helper | Backend | Query: all PartOps có Dimension trong routing của Job → tất cả có session completed |
+
+### Nhóm 4 — Desktop role-aware FAI (Phase 4b — riêng)
+
+| Hạng mục | Loại | Chi tiết |
+|---|---|---|
+| FAI Basic role-split | Desktop | Operator → InprocessFAI (chỉ sản phẩm mình gia công); QC Inspector → QCInline |
+| Leader override | Desktop | Leader đo thay bất kỳ Operator |
+| FAI Final utility (QC Final) | Desktop | Ẩn với Operator/Leader; check `isFullyMachined`; hiện toàn bộ dims; ưu tiên IsFinal |
+| Gage selection — mandatory | Desktop | Flow: Chọn balloon → **Chọn gage** (filter theo CategoryId) → Nhập giá trị; block nếu chưa chọn gage |
+| QC Inline Rate config | Web+API | `qc_inline_rates`: factory-wide default + override Job→OP; quản lý từ `/master` |
