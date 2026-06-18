@@ -14,7 +14,8 @@ public record JobDto(
     int PartId, int PartRevId, string PartNumber, string RevCode,
     int RoutingRevId, string RoutingRevCode,
     int? RunQty, int CompletedCount, DateOnly? ShipBy, bool IsComplete,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    int OpenNcrCount = 0);
 
 public record JobDetailDto(
     int Id, string JobNumber,
@@ -80,14 +81,33 @@ public class GetJobsQueryHandler(IShopfloorDbContext db)
             q = q.Where(j => j.PartRevId == req.PartRevId.Value);
 
         var total = await q.CountAsync(ct);
-        var items = await q.OrderByDescending(j => j.CreatedAt)
+        var page = await q.OrderByDescending(j => j.CreatedAt)
             .Skip((req.Page - 1) * req.PageSize).Take(req.PageSize)
-            .Select(j => new JobDto(j.Id, j.JobNumber,
-                j.PartRev.PartId, j.PartRevId, j.PartRev.Part.PartNumber, j.PartRev.RevCode,
-                j.RoutingRevId, j.RoutingRev.RevCode,
-                j.RunQty, j.Products.Count(p => p.IsComplete),
-                j.ShipBy, j.IsComplete, j.CreatedAt))
+            .Select(j => new
+            {
+                j.Id, j.JobNumber,
+                j.PartRev.PartId, j.PartRevId,
+                PartNumber = j.PartRev.Part.PartNumber, RevCode = j.PartRev.RevCode,
+                j.RoutingRevId, RoutingRevCode = j.RoutingRev.RevCode,
+                j.RunQty, CompletedCount = j.Products.Count(p => p.IsComplete),
+                j.ShipBy, j.IsComplete, j.CreatedAt,
+            })
             .ToListAsync(ct);
+
+        var jobIds = page.Select(x => x.Id).ToList();
+        var openNcrCounts = await db.Ncrs
+            .Where(n => jobIds.Contains(n.JobId) && n.Status == NcrStatus.Open)
+            .GroupBy(n => n.JobId)
+            .Select(g => new { JobId = g.Key, Count = g.Count() })
+            .ToListAsync(ct);
+        var ncrCountMap = openNcrCounts.ToDictionary(x => x.JobId, x => x.Count);
+
+        var items = page.Select(x => new JobDto(x.Id, x.JobNumber,
+                x.PartId, x.PartRevId, x.PartNumber, x.RevCode,
+                x.RoutingRevId, x.RoutingRevCode,
+                x.RunQty, x.CompletedCount, x.ShipBy, x.IsComplete, x.CreatedAt,
+                ncrCountMap.GetValueOrDefault(x.Id, 0)))
+            .ToList();
 
         return Result.Ok(new PagedResult<JobDto>(items, req.Page, req.PageSize, total));
     }
