@@ -18,7 +18,9 @@ public record DimensionDto(
     bool IsTextType, string? NominalText,
     string? CategoryCode, bool IsCritical, bool IsFinal, int SortOrder,
     // Approval workflow
-    string Status = "Approved", int? ReviewedBy = null, DateTimeOffset? ReviewedAt = null, string? ReviewNote = null);
+    string Status = "Approved", int? ReviewedBy = null, DateTimeOffset? ReviewedAt = null, string? ReviewNote = null,
+    // OP gốc sở hữu dimension — chỉ set khi xem qua OP INS (xem GetFaiSheetQueryHandler)
+    string? OpNumber = null);
 
 // ── FAI Sheet ─────────────────────────────────────────────────
 
@@ -26,6 +28,7 @@ public record GetFaiSheetQuery(int JobId, int PartOpId) : IRequest<Result<FaiShe
 
 public record FaiSheetDto(
     int JobId, int PartOpId, string OpNumber,
+    string JobNumber, string PartNumber, string PartDescription, string RevCode,
     IReadOnlyList<DimensionDto> Dimensions,
     IReadOnlyList<FaiRowDto> Rows);
 
@@ -33,23 +36,55 @@ public record FaiRowDto(
     string SerialNumber, int ProductId,
     IReadOnlyList<FaiCellDto> Cells, bool AllPass);
 
+public record FaiStageValueDto(
+    decimal? Value, string? Result, string? MeasuredByName, DateTimeOffset? MeasuredAt,
+    string? GageNo, bool HasNcr, string? NcrCode);
+
 public record FaiCellDto(
     long? MeasureValueId, string BalloonNumber,
-    decimal? Value, string? Result);
+    decimal? Value, string? Result,
+    int? MeasureStage, string? MeasuredByName, DateTimeOffset? MeasuredAt,
+    string? GageNo, bool HasNcr, string? NcrCode,
+    IReadOnlyDictionary<int, FaiStageValueDto> ByStage);
 
 public class GetFaiSheetQueryHandler(IShopfloorDbContext db)
     : IRequestHandler<GetFaiSheetQuery, Result<FaiSheetDto>>
 {
     public async Task<Result<FaiSheetDto>> Handle(GetFaiSheetQuery req, CancellationToken ct)
     {
-        var op = await db.PartOps.FindAsync([req.PartOpId], ct);
+        var op = await db.PartOps.Include(o => o.OpType).FirstOrDefaultAsync(o => o.Id == req.PartOpId, ct);
         if (op is null) return Result.Fail("PartOp không tồn tại.");
 
-        var dims = await db.Dimensions
-            .Include(d => d.Category)
-            .Where(d => d.PartOpId == req.PartOpId)
-            .OrderBy(d => d.BalloonSort ?? 9999).ThenBy(d => d.BalloonNumber)
-            .ToListAsync(ct);
+        var job = await db.Jobs
+            .Include(j => j.PartRev).ThenInclude(pr => pr.Part)
+            .FirstOrDefaultAsync(j => j.Id == req.JobId, ct);
+        if (job is null) return Result.Fail("Job không tồn tại.");
+
+        var isInspectionOp = string.Equals(op.OpType?.Code, "INS", StringComparison.OrdinalIgnoreCase);
+
+        List<Dimension> dims;
+        if (isInspectionOp)
+        {
+            var routingOps = await db.PartOps
+                .Where(p => (p.RoutingRevId == job.RoutingRevId && !p.ForJobOnly) || (p.ForJobOnly && p.JobId == job.Id))
+                .ToListAsync(ct);
+            decimal EffectiveSort(PartOp p) => p.OpNumberSort ?? 9999m;
+            var priorOpIds = routingOps.Where(p => EffectiveSort(p) < EffectiveSort(op)).Select(p => p.Id).ToList();
+
+            dims = await db.Dimensions
+                .Include(d => d.Category).Include(d => d.PartOp)
+                .Where(d => priorOpIds.Contains(d.PartOpId))
+                .OrderBy(d => d.PartOp.OpNumberSort ?? 9999).ThenBy(d => d.BalloonSort ?? 9999).ThenBy(d => d.BalloonNumber)
+                .ToListAsync(ct);
+        }
+        else
+        {
+            dims = await db.Dimensions
+                .Include(d => d.Category)
+                .Where(d => d.PartOpId == req.PartOpId)
+                .OrderBy(d => d.BalloonSort ?? 9999).ThenBy(d => d.BalloonNumber)
+                .ToListAsync(ct);
+        }
 
         var products = await db.Products
             .Where(p => p.JobId == req.JobId)
@@ -58,31 +93,137 @@ public class GetFaiSheetQueryHandler(IShopfloorDbContext db)
         var dimIds = dims.Select(d => d.Id).ToList();
         var productIds = products.Select(p => p.Id).ToList();
 
-        // Lấy MeasureValue mới nhất per (DimensionId, ProductId)
-        var measures = await db.MeasureValues
+        // Lấy MeasureValue mới nhất per (DimensionId, ProductId, MeasureStage) — giữ giá trị riêng từng stage
+        var latestPerStage = await db.MeasureValues
             .Where(m => dimIds.Contains(m.DimensionId) && productIds.Contains(m.ProductId))
-            .GroupBy(m => new { m.DimensionId, m.ProductId })
+            .GroupBy(m => new { m.DimensionId, m.ProductId, m.MeasureStage })
             .Select(g => g.OrderByDescending(m => m.MeasuredAt).First())
             .ToListAsync(ct);
+
+        var inspectorIds = latestPerStage.Where(m => m.MeasuredBy.HasValue).Select(m => m.MeasuredBy!.Value).Distinct().ToList();
+        var inspectorNames = await db.Users
+            .Where(u => inspectorIds.Contains(u.Id))
+            .ToDictionaryAsync(u => u.Id, u => u.Name, ct);
+
+        var gageIds = latestPerStage.Where(m => m.GageId.HasValue).Select(m => m.GageId!.Value).Distinct().ToList();
+        var gageNos = await db.Gages
+            .Where(g => gageIds.Contains(g.Id))
+            .ToDictionaryAsync(g => g.Id, g => g.GageNo, ct);
+
+        string? InspectorName(int? userId) => userId != null && inspectorNames.TryGetValue(userId.Value, out var name) ? name : null;
+        string? GageNo(int? gageId) => gageId != null && gageNos.TryGetValue(gageId.Value, out var no) ? no : null;
 
         var dimDtos = dims.Select(d => new DimensionDto(
             d.Id, d.PartOpId, d.BalloonNumber, d.BalloonSort, d.Code, d.Description,
             d.NominalValue, d.TolerancePlus, d.ToleranceMinus, d.MaxValue, d.MinValue, d.Unit,
-            d.IsTextType, d.NominalText, d.Category?.Code, d.IsCritical, d.IsFinal, d.SortOrder))
+            d.IsTextType, d.NominalText, d.Category?.Code, d.IsCritical, d.IsFinal, d.SortOrder,
+            OpNumber: isInspectionOp ? d.PartOp.OpNumber : null))
             .ToList();
 
         var rows = products.Select(p =>
         {
             var cells = dims.Select(d =>
             {
-                var mv = measures.FirstOrDefault(m => m.DimensionId == d.Id && m.ProductId == p.Id);
-                return new FaiCellDto(mv?.Id, d.BalloonNumber, mv?.Value, mv?.Result.ToString());
+                var stageRows = latestPerStage.Where(m => m.DimensionId == d.Id && m.ProductId == p.Id).ToList();
+                var mv = stageRows.OrderByDescending(m => m.MeasuredAt).FirstOrDefault();
+                var byStage = stageRows.ToDictionary(
+                    sr => (int)sr.MeasureStage,
+                    sr => new FaiStageValueDto(sr.Value, sr.Result.ToString(), InspectorName(sr.MeasuredBy), sr.MeasuredAt,
+                        GageNo(sr.GageId), sr.HasNcr, sr.NcrCode));
+                return new FaiCellDto(mv?.Id, d.BalloonNumber, mv?.Value, mv?.Result.ToString(),
+                    mv != null ? (int)mv.MeasureStage : null, InspectorName(mv?.MeasuredBy), mv?.MeasuredAt,
+                    GageNo(mv?.GageId), mv?.HasNcr ?? false, mv?.NcrCode, byStage);
             }).ToList();
             bool allPass = cells.All(c => c.Result == "Pass" || c.Value == null);
             return new FaiRowDto(p.SerialNumber, p.Id, cells, allPass);
         }).ToList();
 
-        return Result.Ok(new FaiSheetDto(req.JobId, req.PartOpId, op.OpNumber, dimDtos, rows));
+        return Result.Ok(new FaiSheetDto(
+            req.JobId, req.PartOpId, op.OpNumber,
+            job.JobNumber, job.PartRev.Part.PartNumber, job.PartRev.Part.Description, job.PartRev.RevCode,
+            dimDtos, rows));
+    }
+}
+
+// ── Product Measure Sheet — xem 1 Serial xuyên suốt mọi OP trong Job ──────
+
+public record GetProductMeasureSheetQuery(int ProductId) : IRequest<Result<ProductMeasureSheetDto>>;
+
+public record ProductMeasureSheetDto(
+    int ProductId, string SerialNumber, int JobId, string JobNumber,
+    string PartNumber, string PartDescription, string RevCode,
+    IReadOnlyList<ProductMeasureRowDto> Rows);
+
+public record ProductMeasureRowDto(
+    string OpNumber, long DimensionId, string BalloonNumber, string? Code, string? Description,
+    decimal? NominalValue, decimal? TolerancePlus, decimal? ToleranceMinus, string Unit,
+    bool IsTextType, string? NominalText, string? CategoryCode, bool IsCritical, bool IsFinal,
+    decimal? Value, string? Result, int? MeasureStage, string? MeasuredByName, DateTimeOffset? MeasuredAt,
+    string? GageNo, bool HasNcr, string? NcrCode);
+
+public class GetProductMeasureSheetQueryHandler(IShopfloorDbContext db)
+    : IRequestHandler<GetProductMeasureSheetQuery, Result<ProductMeasureSheetDto>>
+{
+    public async Task<Result<ProductMeasureSheetDto>> Handle(GetProductMeasureSheetQuery req, CancellationToken ct)
+    {
+        var product = await db.Products.FindAsync([req.ProductId], ct);
+        if (product is null) return Result.Fail("Product không tồn tại.");
+
+        var job = await db.Jobs
+            .Include(j => j.PartRev).ThenInclude(pr => pr.Part)
+            .FirstOrDefaultAsync(j => j.Id == product.JobId, ct);
+        if (job is null) return Result.Fail("Job không tồn tại.");
+
+        // Routing của Job = PartOps thuộc RoutingRev + ForJobOnly OP riêng của Job (theo quy tắc CLAUDE.md)
+        var ops = await db.PartOps
+            .Where(p => p.IsVisible && ((p.RoutingRevId == job.RoutingRevId && !p.ForJobOnly) || (p.ForJobOnly && p.JobId == job.Id)))
+            .OrderBy(p => p.OpNumberSort ?? 9999).ThenBy(p => p.OpNumber)
+            .ToListAsync(ct);
+        var opIds = ops.Select(o => o.Id).ToList();
+
+        var dims = await db.Dimensions
+            .Include(d => d.Category)
+            .Where(d => opIds.Contains(d.PartOpId))
+            .ToListAsync(ct);
+        var dimIds = dims.Select(d => d.Id).ToList();
+        var dimsByOp = dims.GroupBy(d => d.PartOpId)
+            .ToDictionary(g => g.Key, g => g.OrderBy(d => d.BalloonSort ?? 9999).ThenBy(d => d.BalloonNumber).ToList());
+
+        // MeasureValue mới nhất per Dimension (không phân biệt stage — xem tổng quan toàn bộ Job)
+        var latest = await db.MeasureValues
+            .Where(m => dimIds.Contains(m.DimensionId) && m.ProductId == req.ProductId)
+            .GroupBy(m => m.DimensionId)
+            .Select(g => g.OrderByDescending(m => m.MeasuredAt).First())
+            .ToListAsync(ct);
+        var latestByDim = latest.ToDictionary(m => m.DimensionId);
+
+        var inspectorIds = latest.Where(m => m.MeasuredBy.HasValue).Select(m => m.MeasuredBy!.Value).Distinct().ToList();
+        var inspectorNames = await db.Users.Where(u => inspectorIds.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.Name, ct);
+        var gageIds = latest.Where(m => m.GageId.HasValue).Select(m => m.GageId!.Value).Distinct().ToList();
+        var gageNos = await db.Gages.Where(g => gageIds.Contains(g.Id)).ToDictionaryAsync(g => g.Id, g => g.GageNo, ct);
+
+        var rows = new List<ProductMeasureRowDto>();
+        foreach (var op in ops)
+        {
+            if (!dimsByOp.TryGetValue(op.Id, out var opDims)) continue;
+            foreach (var d in opDims)
+            {
+                latestByDim.TryGetValue(d.Id, out var mv);
+                string? inspectorName = mv?.MeasuredBy != null && inspectorNames.TryGetValue(mv.MeasuredBy.Value, out var name) ? name : null;
+                string? gageNo = mv?.GageId != null && gageNos.TryGetValue(mv.GageId.Value, out var no) ? no : null;
+                rows.Add(new ProductMeasureRowDto(
+                    op.OpNumber, d.Id, d.BalloonNumber, d.Code, d.Description,
+                    d.NominalValue, d.TolerancePlus, d.ToleranceMinus, d.Unit,
+                    d.IsTextType, d.NominalText, d.Category?.Code, d.IsCritical, d.IsFinal,
+                    mv?.Value, mv?.Result.ToString(), mv != null ? (int)mv.MeasureStage : null, inspectorName, mv?.MeasuredAt,
+                    gageNo, mv?.HasNcr ?? false, mv?.NcrCode));
+            }
+        }
+
+        return Result.Ok(new ProductMeasureSheetDto(
+            product.Id, product.SerialNumber, job.Id, job.JobNumber,
+            job.PartRev.Part.PartNumber, job.PartRev.Part.Description, job.PartRev.RevCode,
+            rows));
     }
 }
 
@@ -108,7 +249,7 @@ public class GetOpDimensionsQueryHandler(IShopfloorDbContext db)
                 d.NominalValue, d.TolerancePlus, d.ToleranceMinus, d.MaxValue, d.MinValue, d.Unit,
                 d.IsTextType, d.NominalText, d.Category != null ? d.Category.Code : null,
                 d.IsCritical, d.IsFinal, d.SortOrder,
-                d.Status.ToString(), d.ReviewedBy, d.ReviewedAt, d.ReviewNote))
+                d.Status.ToString(), d.ReviewedBy, d.ReviewedAt, d.ReviewNote, null))
             .ToListAsync(ct);
 
         return Result.Ok<IReadOnlyList<DimensionDto>>(dims);
