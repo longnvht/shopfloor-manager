@@ -1,11 +1,19 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useSearchParams, useRouter } from 'next/navigation'
-import { api, type FaiSheetDto } from '@/lib/api-client'
-import { VATopbar, VABtn } from '@/components/va'
+import { api, type FaiSheetDto, MEASURE_STAGE_LABELS } from '@/lib/api-client'
+import { VATopbar, VABtn, VASeg } from '@/components/va'
 import { va } from '@/lib/va-tokens'
+import { downloadBlob } from '@/lib/doc-format'
 import { FaiMatrix } from '@/components/fai/fai-matrix'
+
+const STAGE_OPTIONS = [
+  { id: 'all', label: 'Tất cả' },
+  { id: '0', label: MEASURE_STAGE_LABELS[0] },
+  { id: '1', label: MEASURE_STAGE_LABELS[1] },
+  { id: '2', label: MEASURE_STAGE_LABELS[2] },
+]
 
 export default function FaiPage() {
   const { id }       = useParams<{ id: string }>()
@@ -15,10 +23,8 @@ export default function FaiPage() {
 
   const [sheet,   setSheet]   = useState<FaiSheetDto | null>(null)
   const [loading, setLoading] = useState(true)
-  const [saving,  setSaving]  = useState<string | null>(null)
-
-  // Map to hold pending input values per cell (controlled)
-  const inputValues = useRef<Record<string, string>>({})
+  const [stageFilter, setStageFilter] = useState('all')
+  const [exporting, setExporting] = useState<'excel' | 'pdf' | null>(null)
 
   useEffect(() => {
     if (!opId) { setLoading(false); return }
@@ -27,21 +33,6 @@ export default function FaiPage() {
       setLoading(false)
     })
   }, [id, opId])
-
-  async function handleMeasure(dimId: number, productId: number, rawValue: string) {
-    const num = parseFloat(rawValue)
-    if (isNaN(num)) return
-    const key = `${dimId}-${productId}`
-    setSaving(key)
-    await api.fai.saveMeasure({ dimensionId: dimId, productId, value: num })
-    const res = await api.fai.sheet(Number(opId), Number(id))
-    if (res.success) {
-      setSheet(res.data)
-      // Clear stored input value after successful save
-      delete inputValues.current[key]
-    }
-    setSaving(null)
-  }
 
   // ── No opId state ──────────────────────────────────────────────────────────
   if (!opId) {
@@ -81,6 +72,20 @@ export default function FaiPage() {
     )
   }
 
+  async function handleExport(kind: 'excel' | 'pdf') {
+    if (!sheet) return
+    setExporting(kind)
+    try {
+      const stage = stageFilter === 'all' ? undefined : Number(stageFilter)
+      const blob = kind === 'excel'
+        ? await api.fai.exportExcel(sheet.partOpId, sheet.jobId, stage)
+        : await api.fai.exportPdf(sheet.partOpId, sheet.jobId, stage)
+      downloadBlob(blob, `FAI_OP${sheet.opNumber}.${kind === 'excel' ? 'xlsx' : 'pdf'}`)
+    } finally {
+      setExporting(null)
+    }
+  }
+
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0, background: va.bg }}>
       <VATopbar
@@ -88,11 +93,26 @@ export default function FaiPage() {
         breadcrumb={`Chất lượng › Job #${id} › FAI`}
         right={
           <div style={{ display: 'flex', gap: 8 }}>
+            <VABtn kind="ghost" onClick={() => handleExport('excel')} disabled={exporting !== null}>
+              {exporting === 'excel' ? 'Đang xuất…' : '⤓ Excel'}
+            </VABtn>
+            <VABtn kind="primary" onClick={() => handleExport('pdf')} disabled={exporting !== null}>
+              {exporting === 'pdf' ? 'Đang xuất…' : '⤓ Xuất FAI PDF'}
+            </VABtn>
             <VABtn kind="ghost" onClick={() => router.push(`/jobs/${id}`)}>← Job</VABtn>
           </div>
         }
       />
-      <FaiMatrix sheet={sheet} onMeasure={handleMeasure} saving={saving} />
+      <div style={{ padding: '10px 22px', background: va.surface, borderBottom: `1px solid ${va.border}`, display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+          <span style={{ fontSize: 10.5, color: va.text2, textTransform: 'uppercase', letterSpacing: 0.6, fontWeight: 700 }}>Measure Stage</span>
+          <VASeg options={STAGE_OPTIONS} value={stageFilter} onChange={setStageFilter} />
+        </div>
+        <div style={{ marginLeft: 'auto', fontSize: 11, color: va.text3 }}>
+          {sheet.dimensions.length} balloon hiển thị
+        </div>
+      </div>
+      <FaiMatrix sheet={sheet} stageFilter={stageFilter} />
     </div>
   )
 }

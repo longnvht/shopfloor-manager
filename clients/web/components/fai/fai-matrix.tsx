@@ -3,21 +3,14 @@
 import { useMemo, useState } from 'react'
 import type { MouseEvent } from 'react'
 import Link from 'next/link'
-import { api, type FaiSheetDto, MEASURE_STAGE_LABELS } from '@/lib/api-client'
-import { VABadge, VASeg, VABtn, VACard } from '@/components/va'
+import { type FaiSheetDto, MEASURE_STAGE_LABELS } from '@/lib/api-client'
+import { VABadge, VACard } from '@/components/va'
 import { va } from '@/lib/va-tokens'
-import { downloadBlob } from '@/lib/doc-format'
 
 type Props = {
   sheet: FaiSheetDto
+  stageFilter: string
 }
-
-const STAGE_OPTIONS = [
-  { id: 'all', label: 'Tất cả' },
-  { id: '0', label: MEASURE_STAGE_LABELS[0] },
-  { id: '1', label: MEASURE_STAGE_LABELS[1] },
-  { id: '2', label: MEASURE_STAGE_LABELS[2] },
-]
 
 const CATEGORY_COLOR: Record<string, string> = {
   LIN: va.primary, ANG: va.primaryLt, THD: va.accent, GEO: '#5D4037', SFC: va.text2,
@@ -25,10 +18,8 @@ const CATEGORY_COLOR: Record<string, string> = {
 
 type TooltipState = { x: number; y: number; lines: [string, string][] } | null
 
-export function FaiMatrix({ sheet }: Props) {
+export function FaiMatrix({ sheet, stageFilter }: Props) {
   const { dimensions: dims, rows } = sheet
-  const [stageFilter, setStageFilter] = useState('all')
-  const [exporting, setExporting] = useState<'excel' | 'pdf' | null>(null)
   const [tip, setTip] = useState<TooltipState>(null)
 
   const allCells = useMemo(() => rows.flatMap(r => r.cells), [rows])
@@ -47,19 +38,6 @@ export function FaiMatrix({ sheet }: Props) {
   const lastMeasured = allCells
     .filter(c => c.measuredAt)
     .sort((a, b) => new Date(b.measuredAt!).getTime() - new Date(a.measuredAt!).getTime())[0]
-
-  async function handleExport(kind: 'excel' | 'pdf') {
-    setExporting(kind)
-    try {
-      const stage = stageFilter === 'all' ? undefined : Number(stageFilter)
-      const blob = kind === 'excel'
-        ? await api.fai.exportExcel(sheet.partOpId, sheet.jobId, stage)
-        : await api.fai.exportPdf(sheet.partOpId, sheet.jobId, stage)
-      downloadBlob(blob, `FAI_OP${sheet.opNumber}.${kind === 'excel' ? 'xlsx' : 'pdf'}`)
-    } finally {
-      setExporting(null)
-    }
-  }
 
   function showTip(e: MouseEvent, stageValue: { value: number | null; measuredByName: string | null; measureStage?: number | null; gageNo: string | null; hasNcr: boolean; ncrCode: string | null; measuredAt: string | null } | null, dim: { unit: string }) {
     if (!stageValue?.value && stageValue?.value !== 0) return
@@ -127,19 +105,10 @@ export function FaiMatrix({ sheet }: Props) {
             <div style={{ fontSize: 10, color: va.text2, textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 600, marginTop: 5 }}>{label}</div>
           </div>
         ))}
-        <VASeg options={STAGE_OPTIONS} value={stageFilter} onChange={setStageFilter} />
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 14 }}>
+        <div style={{ marginLeft: 'auto' }}>
           <span style={{ fontSize: 11, color: va.text3 }}>
             Đang xem: <b style={{ color: va.text2 }}>{stageFilter === 'all' ? 'Tất cả' : MEASURE_STAGE_LABELS[Number(stageFilter)]}</b>
           </span>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <VABtn kind="ghost" onClick={() => handleExport('excel')} disabled={exporting !== null}>
-              {exporting === 'excel' ? 'Đang xuất…' : '⤓ Excel'}
-            </VABtn>
-            <VABtn kind="primary" onClick={() => handleExport('pdf')} disabled={exporting !== null}>
-              {exporting === 'pdf' ? 'Đang xuất…' : '⤓ Xuất FAI PDF'}
-            </VABtn>
-          </div>
         </div>
       </div>
 

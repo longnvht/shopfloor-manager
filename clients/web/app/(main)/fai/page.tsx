@@ -2,12 +2,20 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { api, type PartOpDto, type FaiSheetDto, type JobDto } from '@/lib/api-client'
-import { VATopbar, VABtn } from '@/components/va'
+import { api, type PartOpDto, type FaiSheetDto, type JobDto, MEASURE_STAGE_LABELS } from '@/lib/api-client'
+import { VATopbar, VABtn, VASeg } from '@/components/va'
 import { va } from '@/lib/va-tokens'
+import { downloadBlob } from '@/lib/doc-format'
 import { FaiMatrix } from '@/components/fai/fai-matrix'
 import { FaiJobList } from '@/components/fai/fai-job-list'
 import { FaiOpSelect } from '@/components/fai/fai-op-select'
+
+const STAGE_OPTIONS = [
+  { id: 'all', label: 'Tất cả' },
+  { id: '0', label: MEASURE_STAGE_LABELS[0] },
+  { id: '1', label: MEASURE_STAGE_LABELS[1] },
+  { id: '2', label: MEASURE_STAGE_LABELS[2] },
+]
 
 export default function FaiPage() {
   const router = useRouter()
@@ -15,9 +23,11 @@ export default function FaiPage() {
   const [jobId, setJobId] = useState<number | null>(null)
   const [ops, setOps] = useState<PartOpDto[]>([])
   const [opId, setOpId] = useState<number | null>(null)
+  const [stageFilter, setStageFilter] = useState('all')
 
   const [sheet, setSheet] = useState<FaiSheetDto | null>(null)
   const [loading, setLoading] = useState(false)
+  const [exporting, setExporting] = useState<'excel' | 'pdf' | null>(null)
 
   const onSelectJob = useCallback((id: number, _job: JobDto) => {
     setJobId(id)
@@ -47,13 +57,35 @@ export default function FaiPage() {
 
   useEffect(() => { loadSheet() }, [loadSheet])
 
+  async function handleExport(kind: 'excel' | 'pdf') {
+    if (!sheet) return
+    setExporting(kind)
+    try {
+      const stage = stageFilter === 'all' ? undefined : Number(stageFilter)
+      const blob = kind === 'excel'
+        ? await api.fai.exportExcel(sheet.partOpId, sheet.jobId, stage)
+        : await api.fai.exportPdf(sheet.partOpId, sheet.jobId, stage)
+      downloadBlob(blob, `FAI_OP${sheet.opNumber}.${kind === 'excel' ? 'xlsx' : 'pdf'}`)
+    } finally {
+      setExporting(null)
+    }
+  }
+
   return (
     <div style={{ flex: 1, display: 'flex', minWidth: 0, minHeight: 0, background: va.bg }}>
       <FaiJobList selectedJobId={jobId} onSelect={onSelectJob} />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}>
         <VATopbar title="FAI · Ma trận đo kiểm" breadcrumb="Chất lượng › FAI & Đo kiểm"
-          right={jobId ? <VABtn kind="ghost" onClick={() => router.push(`/jobs/${jobId}`)}>→ Job</VABtn> : undefined} />
+          right={<div style={{ display: 'flex', gap: 8 }}>
+            <VABtn kind="ghost" onClick={() => handleExport('excel')} disabled={!sheet || exporting !== null}>
+              {exporting === 'excel' ? 'Đang xuất…' : '⤓ Excel'}
+            </VABtn>
+            <VABtn kind="primary" onClick={() => handleExport('pdf')} disabled={!sheet || exporting !== null}>
+              {exporting === 'pdf' ? 'Đang xuất…' : '⤓ Xuất FAI PDF'}
+            </VABtn>
+            {jobId && <VABtn kind="ghost" onClick={() => router.push(`/jobs/${jobId}`)}>→ Job</VABtn>}
+          </div>} />
 
         {!jobId ? (
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
@@ -65,8 +97,21 @@ export default function FaiPage() {
           </div>
         ) : (
           <>
-            <div style={{ padding: '10px 22px', background: va.surface, borderBottom: `1px solid ${va.border}` }}>
-              <FaiOpSelect ops={ops} value={opId} onChange={setOpId} />
+            <div style={{ padding: '10px 22px', background: va.surface, borderBottom: `1px solid ${va.border}`, display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                <span style={{ fontSize: 10.5, color: va.text2, textTransform: 'uppercase', letterSpacing: 0.6, fontWeight: 700 }}>Operation</span>
+                <FaiOpSelect ops={ops} value={opId} onChange={setOpId} />
+              </div>
+              <div style={{ height: 28, width: 1, background: va.separator }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                <span style={{ fontSize: 10.5, color: va.text2, textTransform: 'uppercase', letterSpacing: 0.6, fontWeight: 700 }}>Measure Stage</span>
+                <VASeg options={STAGE_OPTIONS} value={stageFilter} onChange={setStageFilter} />
+              </div>
+              {sheet && (
+                <div style={{ marginLeft: 'auto', fontSize: 11, color: va.text3 }}>
+                  {sheet.dimensions.length} balloon hiển thị
+                </div>
+              )}
             </div>
 
             {!opId ? (
@@ -81,7 +126,7 @@ export default function FaiPage() {
             ) : !sheet ? (
               <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: va.err, fontSize: 13 }}>Không tải được FAI sheet.</div>
             ) : (
-              <FaiMatrix sheet={sheet} />
+              <FaiMatrix sheet={sheet} stageFilter={stageFilter} />
             )}
           </>
         )}
