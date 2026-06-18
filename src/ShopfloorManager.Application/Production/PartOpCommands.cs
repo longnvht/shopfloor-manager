@@ -14,7 +14,8 @@ public record PartOpDto(
     string? Description, string? Note,
     decimal? SetupTime, decimal? ProdTime,
     bool IsVisible, bool IsComplete,
-    int DimCount, int DocCount);
+    int DimCount, int DocCount,
+    string? OpTypeCode = null);
 
 // ── Queries ───────────────────────────────────────────────────
 
@@ -44,14 +45,39 @@ public class GetJobOpsQueryHandler(IShopfloorDbContext db)
             .Where(o => o.JobId == req.JobId && o.ForJobOnly && o.IsVisible)
             .ToListAsync(ct);
 
-        var all = templateOps.Concat(jobOps)
-            .OrderBy(o => o.OpNumberSort ?? 0)
-            .Select(o => new PartOpDto(o.Id, o.RoutingRevId, o.JobId, o.ForJobOnly,
-                o.OpNumber, o.OpNumberSort, o.OpTypeId, o.OpType != null ? o.OpType.Name : null,
-                o.Description, o.Note, o.SetupTime, o.ProdTime, o.IsVisible, o.IsComplete, 0, 0))
-            .ToList();
+        var all = templateOps.Concat(jobOps).OrderBy(o => o.OpNumberSort ?? 0).ToList();
+        var allIds = all.Select(o => o.Id).ToList();
 
-        return Result.Ok(all);
+        var dimCountsByOp = (await db.Dimensions
+                .Where(d => allIds.Contains(d.PartOpId))
+                .GroupBy(d => d.PartOpId)
+                .Select(g => new { PartOpId = g.Key, Count = g.Count() })
+                .ToListAsync(ct))
+            .ToDictionary(x => x.PartOpId, x => x.Count);
+
+        decimal EffectiveSort(PartOp p) => p.OpNumberSort ?? 9999m;
+
+        var result = all.Select(o =>
+        {
+            var isInspectionOp = string.Equals(o.OpType?.Code, "INS", StringComparison.OrdinalIgnoreCase);
+            int dimCount;
+            if (isInspectionOp)
+            {
+                var priorOpIds = all.Where(p => EffectiveSort(p) < EffectiveSort(o)).Select(p => p.Id).ToHashSet();
+                dimCount = dimCountsByOp.Where(kv => priorOpIds.Contains(kv.Key)).Sum(kv => kv.Value);
+            }
+            else
+            {
+                dimCount = dimCountsByOp.GetValueOrDefault(o.Id, 0);
+            }
+
+            return new PartOpDto(o.Id, o.RoutingRevId, o.JobId, o.ForJobOnly,
+                o.OpNumber, o.OpNumberSort, o.OpTypeId, o.OpType?.Name,
+                o.Description, o.Note, o.SetupTime, o.ProdTime, o.IsVisible, o.IsComplete,
+                dimCount, 0, o.OpType?.Code);
+        }).ToList();
+
+        return Result.Ok(result);
     }
 }
 
@@ -70,7 +96,8 @@ public class GetRoutingRevOpsQueryHandler(IShopfloorDbContext db)
                 o.OpNumber, o.OpNumberSort, o.OpTypeId, o.OpType != null ? o.OpType.Name : null,
                 o.Description, o.Note, o.SetupTime, o.ProdTime, o.IsVisible, o.IsComplete,
                 db.Dimensions.Count(d => d.PartOpId == o.Id),
-                db.TechDocuments.Count(td => td.PartOpId == o.Id && td.DeletedAt == null)))
+                db.TechDocuments.Count(td => td.PartOpId == o.Id && td.DeletedAt == null),
+                o.OpType != null ? o.OpType.Code : null))
             .ToListAsync(ct);
         return Result.Ok(items);
     }
