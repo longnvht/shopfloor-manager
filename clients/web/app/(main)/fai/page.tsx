@@ -39,8 +39,7 @@ export default function FaiPage() {
     api.jobs.operations(jobId).then(res => {
       if (res.success && res.data) {
         setOps(res.data)
-        const firstWithSheet = res.data.find(o => o.dimCount > 0)
-        setOpId(firstWithSheet ? firstWithSheet.id : null)
+        setOpId(0) // mặc định "Tất cả OP"
       }
     })
   }, [jobId])
