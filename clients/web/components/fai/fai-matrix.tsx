@@ -209,7 +209,7 @@ export function FaiMatrix({ sheet }: Props) {
                       const bg = result === 'Pass' ? va.okBg : result === 'Fail' ? va.errBg : va.surface
                       return (
                         <td key={dim.id}
-                          onMouseEnter={e => showTip(e, stageValue ? { ...stageValue, measureStage: cell.measureStage } : null, dim)}
+                          onMouseEnter={e => showTip(e, stageValue ? { ...stageValue, measureStage: stageFilter === 'all' ? cell.measureStage : Number(stageFilter) } : null, dim)}
                           onMouseMove={e => setTip(t => t ? { ...t, x: e.clientX, y: e.clientY } : t)}
                           onMouseLeave={() => setTip(null)}
                           style={{ position: 'relative', padding: 0, borderBottom: `1px solid ${va.separator}`, borderRight: `1px solid ${va.separator}`, background: bg, opacity: hasData ? 1 : 0.35 }}>
