@@ -77,6 +77,7 @@ export type JobDto = {
   partId: number; partRevId: number; partNumber: string; revCode: string
   routingRevId: number; routingRevCode: string
   runQty: number | null; completedCount: number; shipBy: string | null; isComplete: boolean; createdAt: string
+  openNcrCount: number
 }
 
 export type PartOpDto = {
@@ -86,6 +87,7 @@ export type PartOpDto = {
   description: string | null; note: string | null
   setupTime: number | null; prodTime: number | null; isVisible: boolean; isComplete: boolean
   dimCount: number; docCount: number
+  opTypeCode: string | null
 }
 
 export type JobDetailDto = JobDto & {
@@ -110,6 +112,7 @@ export type DimensionDto = {
   isTextType: boolean; nominalText: string | null
   categoryCode: string | null; isCritical: boolean; isFinal: boolean; sortOrder: number
   status: string; reviewedBy: number | null; reviewedAt: string | null; reviewNote: string | null
+  opNumber: string | null
 }
 
 export type RoutingRevDimensionDto = {
@@ -124,10 +127,34 @@ export type RoutingRevDimensionDto = {
 
 export type FaiSheetDto = {
   partOpId: number; jobId: number; opNumber: string
+  jobNumber: string; partNumber: string; partDescription: string; revCode: string
   dimensions: DimensionDto[]
   rows: {
     serialNumber: string; productId: number; allPass: boolean
-    cells: { measureValueId: number | null; balloonNumber: string; value: number | null; result: string | null }[]
+    cells: {
+      measureValueId: number | null; balloonNumber: string; value: number | null; result: string | null
+      measureStage: number | null; measuredByName: string | null; measuredAt: string | null
+      gageNo: string | null; hasNcr: boolean; ncrCode: string | null
+      byStage: Record<string, {
+        value: number | null; result: string | null; measuredByName: string | null; measuredAt: string | null
+        gageNo: string | null; hasNcr: boolean; ncrCode: string | null
+      }>
+    }[]
+  }[]
+}
+
+export const MEASURE_STAGE_LABELS: Record<number, string> = { 0: 'In-process FAI', 1: 'QC Inline', 2: 'QC Final' }
+
+export type ProductMeasureSheetDto = {
+  productId: number; serialNumber: string; jobId: number; jobNumber: string
+  partNumber: string; partDescription: string; revCode: string
+  rows: {
+    opNumber: string; dimensionId: number; balloonNumber: string; code: string | null; description: string | null
+    nominalValue: number | null; tolerancePlus: number | null; toleranceMinus: number | null; unit: string
+    isTextType: boolean; nominalText: string | null; categoryCode: string | null; isCritical: boolean; isFinal: boolean
+    value: number | null; result: string | null; measureStage: number | null
+    measuredByName: string | null; measuredAt: string | null
+    gageNo: string | null; hasNcr: boolean; ncrCode: string | null
   }[]
 }
 
@@ -257,6 +284,12 @@ export const api = {
       request<unknown>('/api/v1/fai/measure', { method: 'POST', body: JSON.stringify(body) }),
     qcFinalProgress: (productId: number) =>
       request<{ totalDim: number; completeDim: number; passDim: number; failDim: number }>(`/api/v1/products/${productId}/qcfinal-progress`),
+    exportExcel: (partOpId: number, jobId: number, stage?: number) =>
+      requestBlob(`/api/v1/fai/export/excel?partOpId=${partOpId}&jobId=${jobId}${stage != null ? `&stage=${stage}` : ''}`),
+    exportPdf: (partOpId: number, jobId: number, stage?: number) =>
+      requestBlob(`/api/v1/fai/export/pdf?partOpId=${partOpId}&jobId=${jobId}${stage != null ? `&stage=${stage}` : ''}`),
+    productSheet: (productId: number) =>
+      request<ProductMeasureSheetDto>(`/api/v1/fai/product/${productId}`),
   },
   dimensions: {
     list: (opId: number) => request<DimensionDto[]>(`/api/v1/operations/${opId}/dimensions`),
