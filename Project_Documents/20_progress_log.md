@@ -376,6 +376,16 @@ Phát hiện từ dữ liệu legacy: `OpType.Code = "INS"` (OP kiểm tra) có 
 - **Worktree branch tách từ git history đã commit sẽ thiếu mọi thay đổi uncommitted local** — nếu spec/plan được viết dựa trên việc đọc file uncommitted, worktree mới tạo sẽ KHÔNG có các thay đổi đó. Phải kiểm tra `git status` trước khi tạo worktree cho 1 feature đang có sửa đổi uncommitted ở đúng những file sẽ động tới.
 - Subagent implementer cần xác nhận `pwd`/`git rev-parse --show-toplevel` ở đầu mỗi dispatch khi làm việc gần ranh giới worktree/working-tree — 1 lần subagent vô tình commit nhầm vào `master` thay vì worktree.
 
+### Follow-up sau review UI thật (cùng ngày, làm trực tiếp — không qua plan/subagent)
+
+So với mockup gốc, layout ban đầu đặt sai vị trí filter + nút export. Sửa trực tiếp, build+verify trên browser sau mỗi bước:
+
+- Filter bar (Operation + Measure Stage) chuyển ra khỏi `FaiMatrix`, lift `stageFilter`/export logic lên page — khớp đúng mockup: Excel/Xuất FAI PDF nằm trong `VATopbar`, filter bar là 1 hàng riêng phía trên info bar.
+- Filter bar đổi từ thanh dính liền topbar (`borderBottom` phẳng) sang card bo tròn + shadow, tách biệt — đồng bộ với info bar/stats card/matrix card.
+- **"Tất cả OP"**: thêm lựa chọn trong `FaiOpSelect`, backend `GetFaiSheetQuery.PartOpId` đổi `int` → `int?` (null = gom Dimension toàn bộ routing của Job, xem §3.11 `06_dimensions_fai.md`). Mặc định chọn "Tất cả OP" ngay khi vào Job (trước đó mặc định OP đầu tiên có dimension).
+- **Measure Stage**: bỏ lựa chọn "Tất cả" — luôn hiển thị đúng 1 stage, mặc định In-process FAI.
+- Endpoint `GET /api/v1/fai`, `/export/excel`, `/export/pdf`: `partOpId` đổi thành query param tùy chọn (bỏ qua = "Tất cả OP").
+
 ---
 
 ## Các quyết định thiết kế quan trọng (theo thời gian)

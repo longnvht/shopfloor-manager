@@ -154,6 +154,21 @@ Pending → Approved   (Lead Engineer / Manager / Administrator duyệt)
 - Query: `PartOps WHERE routingRevId = job.RoutingRevId AND EXISTS(Dimensions) AND NOT EXISTS(Sessions WHERE status = Completed)` → nếu rỗng → product hoàn thiện.
 - **ForJobOnly OPs** cũng áp dụng cùng rule nếu có Dimension.
 
+### 3.11 OP INS — OP kiểm tra (không sở hữu Dimension riêng)
+
+`OpType.Code = "INS"` (so khớp cố định, không phân biệt hoa thường) đánh dấu một **OP kiểm tra** — dùng để QC đo lại các Dimension đã định nghĩa ở các OP gia công trước đó, KHÔNG sở hữu Dimension riêng của chính nó.
+
+- **Một routing có thể có nhiều OP INS** — điển hình quanh 1 bước Coating/Finishing. Ví dụ thật:
+  ```
+  ...OP90 → OP100 STP → OP110 INS → OP120 PPG (Phosphating) → OP130 INS
+  ```
+  Trước khi mạ, tất cả kích thước gia công cần được kiểm tra (OP110 INS); sau khi mạ, kiểm tra lại toàn bộ vì mạ có thể ảnh hưởng kích thước (OP130 INS).
+- **Quy tắc gom Dimension**: khi xem FAI sheet của 1 OP INS, hệ thống gom Dimension của **các PartOp có `OpNumberSort` nhỏ hơn OP INS đó** (không phải toàn bộ Job, không phải chỉ OP liền trước). Vì các OP trung gian không sở hữu Dimension (OP INS khác, OP Coating...) không góp phần vào tập hợp, nhiều OP INS liên tiếp quanh 1 bước Coating sẽ tự nhiên cho ra **cùng một tập Dimension** — đúng ý đồ nghiệp vụ (đo lại y nguyên bộ kích thước, trước và sau mạ).
+  - `OpNumberSort` null → fallback `9999` khi so sánh.
+  - Áp dụng cho cả `GetFaiSheetQueryHandler` (ma trận đo) và `GetJobOpsQueryHandler` (đếm số dimension hiển thị trên dropdown chọn OP).
+- **"Tất cả OP"** (lựa chọn riêng trên web FAI, không phải OP INS): gom Dimension của **toàn bộ PartOp trong routing của Job** (không lọc theo `OpNumberSort`). Dùng khi cần xem/duyệt toàn bộ kích thước của Job bất kể OP nào sở hữu.
+- Cả 2 trường hợp trên đều gắn thêm `OpNumber` (OP gốc sở hữu Dimension) vào `DimensionDto` để phân biệt khi nhiều OP gộp lại trên cùng 1 ma trận.
+
 ---
 
 ## 4. Workflow FAI — 3 giai đoạn
@@ -396,13 +411,14 @@ Nội dung báo cáo:
 
 ---
 
-## UI Redesign — Phase C (đề xuất, chưa triển khai)
+## UI Redesign — Phase C ✅ (đã triển khai 2026-06-18)
 
-**FAI stat strip** trên `/fai` và `/jobs/[id]/fai`
+**`/fai`** (job-list panel trái) + **`/jobs/[id]/fai`** (không panel) — chia sẻ component `FaiMatrix`.
 
-- Thêm dải KPI phía trên `FaiMatrix`: Inspector (người đo gần nhất), Pass/Fail/Pending per stage, Pass rate %.
-- Filter chọn Stage (InprocessFAI / QCInline / QCFinal / All).
-- 100% client-side aggregate từ `FaiSheetDto` — **không cần API mới**.
+- **Filter bar** (card riêng, tách khỏi topbar): Operation (`FaiOpSelect` — gồm cả lựa chọn "— Tất cả OP —", mặc định khi chọn Job) + Measure Stage (`VASeg` — chỉ 3 lựa chọn InprocessFAI/QCInline/QCFinal, luôn chọn đúng 1 stage, không có "Tất cả").
+- **Info bar + Stats strip**: dải KPI (Tổng ô/Đã đo/Pass/Fail·NCR/Pending/Pass rate %), người đo gần nhất — 100% client-side aggregate từ `FaiSheetDto`, không cần API riêng.
+- **Matrix**: balloon dạng vòng tròn màu theo `categoryCode`, tooltip nổi theo con trỏ, nhãn nhỏ "OP{n}" khi xem qua OP INS hoặc "Tất cả OP".
+- **Backend**: `GetFaiSheetQuery.PartOpId` nullable — null = "Tất cả OP" (xem §3.11).
 
 ---
 

@@ -402,7 +402,7 @@ Sidebar 5 nhóm. Thứ tự: **Kỹ thuật ✅ → Sản xuất (D/F ✅) → C
 | Sản xuất | D, F | Jobs: progress bar, serial/product grid | `03_job_management.md` | ✅ |
 | Sản xuất | L | Planning: Gantt + API thật | `10_planning.md` (cần viết) | 🆕 |
 | Sản xuất | M | CNC Live: MQTT thật | `12_cnc_mqtt.md` (cần viết) | 🆕 |
-| Chất lượng | C | FAI: stat strip + stage filter | `06_dimensions_fai.md` § Phase C | ⏳ |
+| Chất lượng | C | FAI: job-list panel, filter bar (Operation + Measure Stage), stat strip, balloon matrix, OP INS | `06_dimensions_fai.md` § Phase C | ✅ |
 | Chất lượng | J | FAI: chi tiết balloon + history | `06_dimensions_fai.md` § Phase J | ⏳ |
 | Chất lượng | I | NCR: workflow 5 bước (cần migration) | `07_ncr.md` § Phase I | ⏳ |
 | Chất lượng | N, O | Gages, Calibration: redesign + API thật | `08`, `09_calibration.md` (cần viết) | 🆕 |
@@ -472,13 +472,14 @@ Sidebar 5 nhóm. Thứ tự: **Kỹ thuật ✅ → Sản xuất (D/F ✅) → C
 
 **Tài liệu là nguồn sự thật duy nhất về business logic.** Nếu code cũ và tài liệu mâu thuẫn → ưu tiên tài liệu.
 
-**Bước 1–6 — Implement theo Clean Architecture:**
+**Bước 1–7 — Implement theo Clean Architecture (test-driven, i18n đầy đủ):**
 1. Đọc tài liệu module → xác định Entity, Business Rules, Workflow, Edge Cases
 2. Define entity trong `Domain` extending `BaseEntity` hoặc `SoftDeletableEntity`
-3. Define command/query + handler trong `Application` (MediatR) — toàn bộ business logic
+3. **Viết test trước** (skill `superpowers:test-driven-development`) cho handler, sau đó define command/query + handler trong `Application` (MediatR) để pass test — toàn bộ business logic nằm ở handler
 4. Define repository interface trong `Application`, implement trong `Infrastructure`
 5. Add thin controller trong `API` — chỉ gọi `_mediator.Send(request)`
 6. Add EF migration + Swagger annotation
+7. **Nếu có UI mới (web/desktop)** → thêm i18n key vào CẢ 2 file ngôn ngữ cùng lúc (`messages/vi.json` + `messages/en.json` cho web, `Strings.resx` + `Strings.en-US.resx` cho desktop) — không để nợ lại như các route hiện có
 
 **Production Core pattern (CRITICAL):**
 - `PartOp` thuộc `RoutingRev`, KHÔNG thuộc `Part` trực tiếp
