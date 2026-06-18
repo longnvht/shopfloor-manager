@@ -9,7 +9,6 @@ import { downloadBlob } from '@/lib/doc-format'
 import { FaiMatrix } from '@/components/fai/fai-matrix'
 
 const STAGE_OPTIONS = [
-  { id: 'all', label: 'Tất cả' },
   { id: '0', label: MEASURE_STAGE_LABELS[0] },
   { id: '1', label: MEASURE_STAGE_LABELS[1] },
   { id: '2', label: MEASURE_STAGE_LABELS[2] },
@@ -23,7 +22,7 @@ export default function FaiPage() {
 
   const [sheet,   setSheet]   = useState<FaiSheetDto | null>(null)
   const [loading, setLoading] = useState(true)
-  const [stageFilter, setStageFilter] = useState('all')
+  const [stageFilter, setStageFilter] = useState('0')
   const [exporting, setExporting] = useState<'excel' | 'pdf' | null>(null)
 
   useEffect(() => {
@@ -76,7 +75,7 @@ export default function FaiPage() {
     if (!sheet) return
     setExporting(kind)
     try {
-      const stage = stageFilter === 'all' ? undefined : Number(stageFilter)
+      const stage = Number(stageFilter)
       const blob = kind === 'excel'
         ? await api.fai.exportExcel(sheet.partOpId, sheet.jobId, stage)
         : await api.fai.exportPdf(sheet.partOpId, sheet.jobId, stage)

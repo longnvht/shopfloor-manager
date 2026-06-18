@@ -278,16 +278,16 @@ export const api = {
     workStatuses: () => request<WorkStatusDto[]>('/api/v1/work-statuses'),
   },
   fai: {
-    sheet: (partOpId: number, jobId: number) =>
-      request<FaiSheetDto>(`/api/v1/fai?partOpId=${partOpId}&jobId=${jobId}`),
+    sheet: (partOpId: number | null, jobId: number) =>
+      request<FaiSheetDto>(`/api/v1/fai?jobId=${jobId}${partOpId != null ? `&partOpId=${partOpId}` : ''}`),
     saveMeasure: (body: { dimensionId: number; productId: number; value?: number; manualResult?: boolean; isFinal?: boolean; note?: string; measureStage?: number }) =>
       request<unknown>('/api/v1/fai/measure', { method: 'POST', body: JSON.stringify(body) }),
     qcFinalProgress: (productId: number) =>
       request<{ totalDim: number; completeDim: number; passDim: number; failDim: number }>(`/api/v1/products/${productId}/qcfinal-progress`),
-    exportExcel: (partOpId: number, jobId: number, stage?: number) =>
-      requestBlob(`/api/v1/fai/export/excel?partOpId=${partOpId}&jobId=${jobId}${stage != null ? `&stage=${stage}` : ''}`),
-    exportPdf: (partOpId: number, jobId: number, stage?: number) =>
-      requestBlob(`/api/v1/fai/export/pdf?partOpId=${partOpId}&jobId=${jobId}${stage != null ? `&stage=${stage}` : ''}`),
+    exportExcel: (partOpId: number | null, jobId: number, stage?: number) =>
+      requestBlob(`/api/v1/fai/export/excel?jobId=${jobId}${partOpId != null ? `&partOpId=${partOpId}` : ''}${stage != null ? `&stage=${stage}` : ''}`),
+    exportPdf: (partOpId: number | null, jobId: number, stage?: number) =>
+      requestBlob(`/api/v1/fai/export/pdf?jobId=${jobId}${partOpId != null ? `&partOpId=${partOpId}` : ''}${stage != null ? `&stage=${stage}` : ''}`),
     productSheet: (productId: number) =>
       request<ProductMeasureSheetDto>(`/api/v1/fai/product/${productId}`),
   },

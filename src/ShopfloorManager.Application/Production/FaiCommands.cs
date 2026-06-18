@@ -24,7 +24,7 @@ public record DimensionDto(
 
 // ── FAI Sheet ─────────────────────────────────────────────────
 
-public record GetFaiSheetQuery(int JobId, int PartOpId) : IRequest<Result<FaiSheetDto>>;
+public record GetFaiSheetQuery(int JobId, int? PartOpId) : IRequest<Result<FaiSheetDto>>;
 
 public record FaiSheetDto(
     int JobId, int PartOpId, string OpNumber,
@@ -52,28 +52,38 @@ public class GetFaiSheetQueryHandler(IShopfloorDbContext db)
 {
     public async Task<Result<FaiSheetDto>> Handle(GetFaiSheetQuery req, CancellationToken ct)
     {
-        var op = await db.PartOps.Include(o => o.OpType).FirstOrDefaultAsync(o => o.Id == req.PartOpId, ct);
-        if (op is null) return Result.Fail("PartOp không tồn tại.");
-
         var job = await db.Jobs
             .Include(j => j.PartRev).ThenInclude(pr => pr.Part)
             .FirstOrDefaultAsync(j => j.Id == req.JobId, ct);
         if (job is null) return Result.Fail("Job không tồn tại.");
 
-        var isInspectionOp = string.Equals(op.OpType?.Code, "INS", StringComparison.OrdinalIgnoreCase);
+        var allOps = !req.PartOpId.HasValue;
+        PartOp? op = null;
+        var isInspectionOp = false;
+        if (!allOps)
+        {
+            op = await db.PartOps.Include(o => o.OpType).FirstOrDefaultAsync(o => o.Id == req.PartOpId, ct);
+            if (op is null) return Result.Fail("PartOp không tồn tại.");
+            isInspectionOp = string.Equals(op.OpType?.Code, "INS", StringComparison.OrdinalIgnoreCase);
+        }
 
+        // Gom dimension từ nhiều OP — khi chọn "Tất cả OP" (gom toàn bộ routing) hoặc khi xem qua OP INS
+        // (gom các OP có OpNumberSort nhỏ hơn OP INS đang xét — xem CLAUDE.md / 06_dimensions_fai.md §4.3)
+        var tagOpNumber = allOps || isInspectionOp;
         List<Dimension> dims;
-        if (isInspectionOp)
+        if (allOps || isInspectionOp)
         {
             var routingOps = await db.PartOps
                 .Where(p => (p.RoutingRevId == job.RoutingRevId && !p.ForJobOnly) || (p.ForJobOnly && p.JobId == job.Id))
                 .ToListAsync(ct);
             decimal EffectiveSort(PartOp p) => p.OpNumberSort ?? 9999m;
-            var priorOpIds = routingOps.Where(p => EffectiveSort(p) < EffectiveSort(op)).Select(p => p.Id).ToList();
+            var scopedOpIds = allOps
+                ? routingOps.Select(p => p.Id).ToList()
+                : routingOps.Where(p => EffectiveSort(p) < EffectiveSort(op!)).Select(p => p.Id).ToList();
 
             dims = await db.Dimensions
                 .Include(d => d.Category).Include(d => d.PartOp)
-                .Where(d => priorOpIds.Contains(d.PartOpId))
+                .Where(d => scopedOpIds.Contains(d.PartOpId))
                 .OrderBy(d => d.PartOp.OpNumberSort ?? 9999).ThenBy(d => d.BalloonSort ?? 9999).ThenBy(d => d.BalloonNumber)
                 .ToListAsync(ct);
         }
@@ -117,7 +127,7 @@ public class GetFaiSheetQueryHandler(IShopfloorDbContext db)
             d.Id, d.PartOpId, d.BalloonNumber, d.BalloonSort, d.Code, d.Description,
             d.NominalValue, d.TolerancePlus, d.ToleranceMinus, d.MaxValue, d.MinValue, d.Unit,
             d.IsTextType, d.NominalText, d.Category?.Code, d.IsCritical, d.IsFinal, d.SortOrder,
-            OpNumber: isInspectionOp ? d.PartOp.OpNumber : null))
+            OpNumber: tagOpNumber ? d.PartOp.OpNumber : null))
             .ToList();
 
         var rows = products.Select(p =>
@@ -139,7 +149,7 @@ public class GetFaiSheetQueryHandler(IShopfloorDbContext db)
         }).ToList();
 
         return Result.Ok(new FaiSheetDto(
-            req.JobId, req.PartOpId, op.OpNumber,
+            req.JobId, op?.Id ?? 0, op?.OpNumber ?? "Tất cả",
             job.JobNumber, job.PartRev.Part.PartNumber, job.PartRev.Part.Description, job.PartRev.RevCode,
             dimDtos, rows));
     }

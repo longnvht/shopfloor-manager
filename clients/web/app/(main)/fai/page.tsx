@@ -11,7 +11,6 @@ import { FaiJobList } from '@/components/fai/fai-job-list'
 import { FaiOpSelect } from '@/components/fai/fai-op-select'
 
 const STAGE_OPTIONS = [
-  { id: 'all', label: 'Tất cả' },
   { id: '0', label: MEASURE_STAGE_LABELS[0] },
   { id: '1', label: MEASURE_STAGE_LABELS[1] },
   { id: '2', label: MEASURE_STAGE_LABELS[2] },
@@ -23,7 +22,7 @@ export default function FaiPage() {
   const [jobId, setJobId] = useState<number | null>(null)
   const [ops, setOps] = useState<PartOpDto[]>([])
   const [opId, setOpId] = useState<number | null>(null)
-  const [stageFilter, setStageFilter] = useState('all')
+  const [stageFilter, setStageFilter] = useState('0')
 
   const [sheet, setSheet] = useState<FaiSheetDto | null>(null)
   const [loading, setLoading] = useState(false)
@@ -47,9 +46,9 @@ export default function FaiPage() {
   }, [jobId])
 
   const loadSheet = useCallback(() => {
-    if (!jobId || !opId) { setSheet(null); return }
+    if (!jobId || opId == null) { setSheet(null); return }
     setLoading(true)
-    api.fai.sheet(opId, jobId).then(res => {
+    api.fai.sheet(opId === 0 ? null : opId, jobId).then(res => {
       if (res.success) setSheet(res.data)
       setLoading(false)
     })
@@ -61,10 +60,10 @@ export default function FaiPage() {
     if (!sheet) return
     setExporting(kind)
     try {
-      const stage = stageFilter === 'all' ? undefined : Number(stageFilter)
+      const stage = Number(stageFilter)
       const blob = kind === 'excel'
-        ? await api.fai.exportExcel(sheet.partOpId, sheet.jobId, stage)
-        : await api.fai.exportPdf(sheet.partOpId, sheet.jobId, stage)
+        ? await api.fai.exportExcel(sheet.partOpId === 0 ? null : sheet.partOpId, sheet.jobId, stage)
+        : await api.fai.exportPdf(sheet.partOpId === 0 ? null : sheet.partOpId, sheet.jobId, stage)
       downloadBlob(blob, `FAI_OP${sheet.opNumber}.${kind === 'excel' ? 'xlsx' : 'pdf'}`)
     } finally {
       setExporting(null)
@@ -114,7 +113,7 @@ export default function FaiPage() {
               )}
             </div>
 
-            {!opId ? (
+            {opId == null ? (
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
                 <div style={{ fontSize: 14, color: va.text2, fontWeight: 600 }}>Chọn Operation</div>
                 <div style={{ fontSize: 12.5, color: va.text3, textAlign: 'center', maxWidth: 320 }}>

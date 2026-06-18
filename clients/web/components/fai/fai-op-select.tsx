@@ -14,16 +14,19 @@ function isInspectionOp(op: PartOpDto): boolean {
   return (op.opTypeCode ?? '').toUpperCase() === 'INS'
 }
 
+const ALL_OPS_ID = 0
+
 export function FaiOpSelect({ ops, value, onChange }: Props) {
   const [open, setOpen] = useState(false)
   const cur = ops.find(o => o.id === value) ?? null
+  const isAll = value === ALL_OPS_ID
 
   return (
     <div style={{ position: 'relative' }}>
       <button type="button" className="va-clickable" onClick={() => setOpen(o => !o)}
         style={{ height: 34, minWidth: 220, padding: '0 12px', borderRadius: 7, border: `1px solid ${va.border}`, background: va.surface, color: va.text, fontSize: 12.5, fontWeight: 600, fontFamily: va.font, display: 'inline-flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
         <span style={{ flex: 1, textAlign: 'left' }}>
-          {cur ? `OP${cur.opNumber}${cur.description ? ` · ${cur.description}` : ''}` : '— Chọn Operation —'}
+          {isAll ? '— Tất cả OP —' : cur ? `OP${cur.opNumber}${cur.description ? ` · ${cur.description}` : ''}` : '— Chọn Operation —'}
         </span>
         {cur && isInspectionOp(cur) && <span title="OP kiểm tra">🔍</span>}
         <span style={{ color: va.text3, fontSize: 11 }}>▾</span>
@@ -32,6 +35,10 @@ export function FaiOpSelect({ ops, value, onChange }: Props) {
         <>
           <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 50 }} />
           <div style={{ position: 'absolute', top: 38, left: 0, zIndex: 51, minWidth: 260, background: va.surface, border: `1px solid ${va.border}`, borderRadius: 9, boxShadow: va.shadowLg, padding: 5, display: 'flex', flexDirection: 'column', gap: 1, maxHeight: 320, overflow: 'auto' }}>
+            <div className="va-clickable" onClick={() => { onChange(ALL_OPS_ID); setOpen(false) }}
+              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 6, background: isAll ? va.accentBg : 'transparent', fontSize: 12.5, fontWeight: isAll ? 600 : 400, color: va.text, borderBottom: `1px solid ${va.separator}`, marginBottom: 2 }}>
+              <span style={{ flex: 1 }}>— Tất cả OP —</span>
+            </div>
             {ops.map(o => {
               const on = o.id === value
               const hasSheet = o.dimCount > 0

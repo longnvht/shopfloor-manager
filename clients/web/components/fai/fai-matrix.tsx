@@ -71,7 +71,7 @@ export function FaiMatrix({ sheet, stageFilter }: Props) {
           ['Mô tả', sheet.partDescription, false],
           ['Rev', sheet.revCode, false],
           ['Job', sheet.jobNumber, false],
-          ['Operation', `OP${sheet.opNumber}`, false],
+          ['Operation', sheet.partOpId === 0 ? 'Tất cả OP' : `OP${sheet.opNumber}`, false],
         ] as [string, string, boolean][]).map(([k, v, mono], i) => (
           <div key={k} style={{ display: 'flex', alignItems: 'center' }}>
             {i > 0 && <div style={{ height: 34, width: 1, background: va.separator, margin: '0 18px' }} />}
