@@ -102,7 +102,7 @@ export default function FaiPage() {
           </div>
         }
       />
-      <div style={{ padding: '10px 22px', background: va.surface, borderBottom: `1px solid ${va.border}`, display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
+      <div style={{ margin: '22px 22px 0', background: va.surface, border: `1px solid ${va.border}`, borderRadius: 11, padding: '12px 18px', boxShadow: va.shadow, display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
           <span style={{ fontSize: 10.5, color: va.text2, textTransform: 'uppercase', letterSpacing: 0.6, fontWeight: 700 }}>Measure Stage</span>
           <VASeg options={STAGE_OPTIONS} value={stageFilter} onChange={setStageFilter} />
