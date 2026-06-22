@@ -111,7 +111,7 @@ public partial class LoginViewModel : ViewModelBase
         var op = new PartOpDto(
             active.PartOpId, RoutingRevId: null, JobId: null,
             ForJobOnly: false, active.OpNumber, OpNumberSort: null,
-            OpTypeId: null, OpTypeName: null, Description: null,
+            OpTypeId: null, OpTypeName: null, OpTypeCode: null, Description: null,
             Note: null, SetupTime: null, ProdTime: null,
             IsVisible: true, IsComplete: false);
 

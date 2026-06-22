@@ -9,6 +9,7 @@ public record PartOpDto(
     decimal? OpNumberSort,
     int? OpTypeId,
     string? OpTypeName,
+    string? OpTypeCode,
     string? Description,
     string? Note,
     decimal? SetupTime,

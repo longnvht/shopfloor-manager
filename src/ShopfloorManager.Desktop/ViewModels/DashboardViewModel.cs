@@ -478,9 +478,12 @@ public partial class DashboardViewModel : ViewModelBase
         Add("Bảng đo",        "ClipboardTextOutline","fai",       when: canFai);
         bool canQcInline = !_work.IsViewMode && hasProd
             && _work.CurrentProduct?.StatusCode == "complete";
+        bool canQcFinal = !_work.IsViewMode && hasProd
+            && _work.CurrentOp?.OpTypeCode == "INS"
+            && _work.CurrentProduct?.StatusCode == "complete";
         if (role is "QC Inspector" or "Administrator")
         {
-            Add("FAI Final",  "ClipboardCheckOutline","fai-final",  when: canFai);
+            Add("FAI Final",  "ClipboardCheckOutline","fai-final",  when: canQcFinal);
             Add("QC Inline",  "Magnify",               "qc-inline", when: canQcInline);
         }
         if (role is "QC Inspector" or "Engineer" or "Administrator")
