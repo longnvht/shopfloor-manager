@@ -142,13 +142,16 @@ public partial class FaiViewModel : Base.ViewModelBase
 
             var row = resp.Data.Rows?.FirstOrDefault(r => r.ProductId == Product!.ProductId);
 
-            var stageKey = ToServerStage(Mode);
             foreach (var dim in resp.Data.Dimensions ?? [])
             {
                 var cell = row?.Cells?.FirstOrDefault(c => c.BalloonNumber == dim.BalloonNumber);
                 // Đọc giá trị riêng của stage hiện tại — KHÔNG dùng cell.Result/Value (đó là "mới nhất
                 // qua mọi stage", có thể lẫn dữ liệu của stage khác cho cùng dimension/product).
-                var stageCell = cell?.ByStage?.GetValueOrDefault(stageKey);
+                // FAI Final là ngoại lệ: cần đọc Fail từ InprocessFAI (Operator) để biết cần re-inspect gì,
+                // nhưng ưu tiên QCFinal nếu QC đã đo lại — ghi luôn vào QCFinal (xem SaveAsync).
+                var stageCell = Mode == FaiMode.Final
+                    ? cell?.ByStage?.GetValueOrDefault(2) ?? cell?.ByStage?.GetValueOrDefault(0)
+                    : cell?.ByStage?.GetValueOrDefault(ToServerStage(Mode));
                 var state = stageCell?.Result switch
                 {
                     "Pass" => MeasureState.Pass,
