@@ -71,6 +71,10 @@
                     <TextBlock Text="{Binding TitleContext, Mode=OneWay}"
                                Foreground="{StaticResource BrandAccentLight}"
                                FontSize="11" Margin="0,1,0,0"/>
+                    <TextBlock Text="{Binding RateInfoText, Mode=OneWay}"
+                               Foreground="{StaticResource BrandAccentLight}"
+                               FontSize="11" FontWeight="Medium" Margin="0,1,0,0"
+                               Visibility="{Binding RateInfoText, Converter={StaticResource StringToVisibilityConverter}}"/>
                 </StackPanel>
                 <ProgressBar Style="{StaticResource MaterialDesignCircularProgressBar}"
                              IsIndeterminate="True" Width="24" Height="24"
