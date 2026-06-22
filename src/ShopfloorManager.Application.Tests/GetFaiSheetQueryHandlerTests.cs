@@ -21,7 +21,7 @@ public class GetFaiSheetQueryHandlerTests
         var routingRev = new RoutingRev { Routing = routing, RevCode = "R1" };
         db.RoutingRevs.Add(routingRev);
 
-        var insType = new OpType { Code = "INS", Name = "INSPECTION" };
+        var insType = new OpType { Code = "INSP", Name = "INSPECTION" };
         var mlaType = new OpType { Code = "MLA", Name = "Medium Lathe" };
         var ppgType = new OpType { Code = "PPG", Name = "PHOSPHATING" };
         db.OpTypes.AddRange(insType, mlaType, ppgType);

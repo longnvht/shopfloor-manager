@@ -11,7 +11,7 @@ type Props = {
 }
 
 function isInspectionOp(op: PartOpDto): boolean {
-  return (op.opTypeCode ?? '').toUpperCase() === 'INS'
+  return (op.opTypeCode ?? '').toUpperCase() === 'INSP'
 }
 
 const ALL_OPS_ID = 0

@@ -21,7 +21,7 @@ public class GetJobOpsQueryHandlerTests
         var routingRev = new RoutingRev { Routing = routing, RevCode = "R1" };
         db.RoutingRevs.Add(routingRev);
 
-        var insType = new OpType { Code = "INS", Name = "INSPECTION" };
+        var insType = new OpType { Code = "INSP", Name = "INSPECTION" };
         var mlaType = new OpType { Code = "MLA", Name = "Medium Lathe" };
         var ppgType = new OpType { Code = "PPG", Name = "PHOSPHATING" };
         db.OpTypes.AddRange(insType, mlaType, ppgType);
@@ -69,7 +69,7 @@ public class GetJobOpsQueryHandlerTests
         var op110Dto = result.Value.Single(o => o.Id == op110Ins.Id);
         var op120Dto = result.Value.Single(o => o.Id == op120.Id);
         Assert.Equal(2, op110Dto.DimCount);   // OP110 INS sees OP60's 2 dimensions
-        Assert.Equal("INS", op110Dto.OpTypeCode);
+        Assert.Equal("INSP", op110Dto.OpTypeCode);
         Assert.Equal(0, op120Dto.DimCount);   // OP120 PPG owns no dimension itself
     }
 

@@ -64,7 +64,7 @@ public class GetFaiSheetQueryHandler(IShopfloorDbContext db)
         {
             op = await db.PartOps.Include(o => o.OpType).FirstOrDefaultAsync(o => o.Id == req.PartOpId, ct);
             if (op is null) return Result.Fail("PartOp không tồn tại.");
-            isInspectionOp = string.Equals(op.OpType?.Code, "INS", StringComparison.OrdinalIgnoreCase);
+            isInspectionOp = string.Equals(op.OpType?.Code, "INSP", StringComparison.OrdinalIgnoreCase);
         }
 
         // Gom dimension: "Tất cả OP" (gom toàn bộ routing, KHÔNG filter IsFinal) hoặc OP INS

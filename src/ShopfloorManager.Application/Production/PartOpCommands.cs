@@ -59,7 +59,7 @@ public class GetJobOpsQueryHandler(IShopfloorDbContext db)
 
         var result = all.Select(o =>
         {
-            var isInspectionOp = string.Equals(o.OpType?.Code, "INS", StringComparison.OrdinalIgnoreCase);
+            var isInspectionOp = string.Equals(o.OpType?.Code, "INSP", StringComparison.OrdinalIgnoreCase);
             int dimCount;
             if (isInspectionOp)
             {

@@ -479,7 +479,7 @@ public partial class DashboardViewModel : ViewModelBase
         bool canQcInline = !_work.IsViewMode && hasProd
             && _work.CurrentProduct?.StatusCode == "complete";
         bool canQcFinal = !_work.IsViewMode && hasProd
-            && _work.CurrentOp?.OpTypeCode == "INS"
+            && _work.CurrentOp?.OpTypeCode == "INSP"
             && _work.CurrentProduct?.StatusCode == "complete";
         if (role is "QC Inspector" or "Administrator")
         {
