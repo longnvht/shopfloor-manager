@@ -18,8 +18,10 @@ public partial class FaiViewModel : Base.ViewModelBase
     public PartOpDto?              Op      { get; private set; }
     public ProductWithSessionDto?  Product { get; private set; }
 
-    /// <summary>Basic = Operator (InprocessFAI). Final = re-inspect sau rework (QCFinal), chỉ Fail dims.
-    /// QcInline = QC Inspector kiểm ngẫu nhiên (QCInline), không bắt buộc đo hết.</summary>
+    /// <summary>Basic = Operator (InprocessFAI), đo theo thứ tự, khóa sau khi đo.
+    /// Final = QC Final (QCFinal) — kiểm tra độc lập 100% dimension, KHÔNG đọc/tham chiếu kết quả
+    /// InprocessFAI hay QCInline ("blind inspection"), khóa sau khi đo, giống hành vi của Basic.
+    /// QcInline = QC Inspector kiểm ngẫu nhiên (QCInline), không bắt buộc đo hết, không tự chọn dimension tiếp theo.</summary>
     public FaiMode Mode { get; set; } = FaiMode.Basic;
 
     /// <summary>Binding read-only cho XAML — giữ tương thích với trigger màu title bar hiện có.</summary>
@@ -63,14 +65,9 @@ public partial class FaiViewModel : Base.ViewModelBase
     public bool ShowPlaceholder  => SelectedDimension is null;
     public bool ShowNumericInput => SelectedDimension is { IsTextType: false };
     public bool ShowTextInput    => SelectedDimension is { IsTextType: true };
-    // Basic: lock sau bất kỳ lần đo nào (ở stage InprocessFAI).
-    // Final: chỉ lock khi Pass ở stage QCFinal (Fail dims vẫn cho phép đo lại).
-    // QcInline: lock nếu đã có record ở stage QCInline cho dim này (không ép tuần tự/đo hết).
-    public bool IsInputLocked    => Mode switch
-    {
-        FaiMode.Final => SelectedDimension?.State == MeasureState.Pass,
-        _             => SelectedDimension?.IsMeasured == true,
-    };
+    // Một rule chung cho cả 3 mode: khóa sau khi đã đo (bất kể Pass/Fail) — mỗi mode chỉ đọc/ghi
+    // đúng MeasureStage của riêng nó (xem ToServerStage), không có ngoại lệ.
+    public bool IsInputLocked    => SelectedDimension?.IsMeasured == true;
     public bool IsInputEnabled   => !IsInputLocked;
 
     public Action? OnBack { get; set; }
@@ -142,16 +139,14 @@ public partial class FaiViewModel : Base.ViewModelBase
 
             var row = resp.Data.Rows?.FirstOrDefault(r => r.ProductId == Product!.ProductId);
 
+            var stageKey = ToServerStage(Mode);
             foreach (var dim in resp.Data.Dimensions ?? [])
             {
                 var cell = row?.Cells?.FirstOrDefault(c => c.BalloonNumber == dim.BalloonNumber);
                 // Đọc giá trị riêng của stage hiện tại — KHÔNG dùng cell.Result/Value (đó là "mới nhất
-                // qua mọi stage", có thể lẫn dữ liệu của stage khác cho cùng dimension/product).
-                // FAI Final là ngoại lệ: cần đọc Fail từ InprocessFAI (Operator) để biết cần re-inspect gì,
-                // nhưng ưu tiên QCFinal nếu QC đã đo lại — ghi luôn vào QCFinal (xem SaveAsync).
-                var stageCell = Mode == FaiMode.Final
-                    ? cell?.ByStage?.GetValueOrDefault(2) ?? cell?.ByStage?.GetValueOrDefault(0)
-                    : cell?.ByStage?.GetValueOrDefault(ToServerStage(Mode));
+                // qua mọi stage", có thể lẫn dữ liệu của stage khác cho cùng dimension/product). QC Final
+                // là "blind inspection" — không đọc/tham chiếu InprocessFAI hay QCInline.
+                var stageCell = cell?.ByStage?.GetValueOrDefault(stageKey);
                 var state = stageCell?.Result switch
                 {
                     "Pass" => MeasureState.Pass,
@@ -177,23 +172,14 @@ public partial class FaiViewModel : Base.ViewModelBase
                 });
             }
 
-            // FAI Final: chỉ giữ lại dims có trạng thái Fail để re-inspect
-            if (Mode == FaiMode.Final)
-            {
-                var failDims = Dimensions.Where(d => d.State == MeasureState.Fail).ToList();
-                Dimensions.Clear();
-                foreach (var d in failDims) Dimensions.Add(d);
-            }
-
             RefreshProgress();
 
             if (!Dimensions.Any())
-                ErrorMessage = Mode == FaiMode.Final
-                    ? "Không có kích thước nào ở trạng thái FAIL để re-inspect."
-                    : "OP này chưa có kích thước nào được định nghĩa.";
+                ErrorMessage = "OP này chưa có kích thước nào được định nghĩa.";
             else
-                SelectedDimension = Dimensions.FirstOrDefault(d =>
-                    Mode == FaiMode.Final ? d.State == MeasureState.Fail : !d.IsMeasured);
+                SelectedDimension = Mode == FaiMode.QcInline
+                    ? null
+                    : Dimensions.FirstOrDefault(d => !d.IsMeasured);
 
             if (Mode == FaiMode.QcInline)
                 _ = LoadRateInfoAsync();
@@ -275,12 +261,9 @@ public partial class FaiViewModel : Base.ViewModelBase
             }
 
             InputValue        = "";
-            SelectedDimension = Mode switch
-            {
-                FaiMode.Final    => Dimensions.FirstOrDefault(d => d.State == MeasureState.Fail),
-                FaiMode.QcInline => null, // QC tự chọn balloon tiếp theo muốn kiểm, không auto-advance
-                _                => Dimensions.FirstOrDefault(d => !d.IsMeasured),
-            };
+            SelectedDimension = Mode == FaiMode.QcInline
+                ? null  // QC tự chọn balloon tiếp theo muốn kiểm, không auto-advance
+                : Dimensions.FirstOrDefault(d => !d.IsMeasured);  // Basic & Final: auto-advance
             RefreshProgress();
         }
         catch (Exception ex) { ErrorMessage = $"Lỗi: {ex.Message}"; }
