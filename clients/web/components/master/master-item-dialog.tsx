@@ -4,14 +4,14 @@ import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { api, type MachineDto, type MachineGroupDto, type OpTypeDto, type DimensionCategoryDto, type FileTypeDto } from '@/lib/api-client'
+import { api, type MachineDto, type MachineGroupDto, type OpTypeDto, type DimensionCategoryDto, type FileTypeDto, type QcInlineRateDto, type JobDto, type PartOpDto } from '@/lib/api-client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
-export type MasterKind = 'machine' | 'machineGroup' | 'opType' | 'dimCategory' | 'fileType'
-export type MasterItem = MachineDto | MachineGroupDto | OpTypeDto | DimensionCategoryDto | FileTypeDto
+export type MasterKind = 'machine' | 'machineGroup' | 'opType' | 'dimCategory' | 'fileType' | 'qcInlineRate'
+export type MasterItem = MachineDto | MachineGroupDto | OpTypeDto | DimensionCategoryDto | FileTypeDto | QcInlineRateDto
 
 const TITLES: Record<MasterKind, string> = {
   machine: 'Máy',
@@ -19,10 +19,11 @@ const TITLES: Record<MasterKind, string> = {
   opType: 'Loại OP',
   dimCategory: 'Dimension Category',
   fileType: 'Loại tài liệu',
+  qcInlineRate: 'Mức kiểm QC Inline',
 }
 
 const schema = z.object({
-  code: z.string().min(1, 'Bắt buộc').max(20),
+  code: z.string().max(20).optional(),
   name: z.string().max(100).optional(),
   description: z.string().optional(),
   machineType: z.string().optional(),
@@ -46,6 +47,26 @@ export function MasterItemDialog({ open, kind, item, onClose, onSaved }: Props) 
   const [error, setError] = useState<string | null>(null)
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<FormData>({ resolver: zodResolver(schema) })
 
+  const [qrJobSearch, setQrJobSearch] = useState('')
+  const [qrJobOptions, setQrJobOptions] = useState<JobDto[]>([])
+  const [qrJobId, setQrJobId] = useState<number | null>(null)
+  const [qrOpOptions, setQrOpOptions] = useState<PartOpDto[]>([])
+  const [qrOpId, setQrOpId] = useState<number | null>(null)
+  const [qrRatePercent, setQrRatePercent] = useState('10')
+
+  useEffect(() => {
+    if (kind !== 'qcInlineRate' || !open) return
+    const t = setTimeout(() => {
+      api.jobs.list(1, qrJobSearch || undefined).then(res => { if (res.success && res.data) setQrJobOptions(res.data) })
+    }, 250)
+    return () => clearTimeout(t)
+  }, [kind, open, qrJobSearch])
+
+  useEffect(() => {
+    if (kind !== 'qcInlineRate' || !qrJobId) { setQrOpOptions([]); return }
+    api.jobs.operations(qrJobId).then(res => { if (res.success && res.data) setQrOpOptions(res.data) })
+  }, [kind, qrJobId])
+
   useEffect(() => {
     if (!open) return
     setError(null)
@@ -54,6 +75,7 @@ export function MasterItemDialog({ open, kind, item, onClose, onSaved }: Props) 
         code: '', name: '', description: '', machineType: '', serialNumber: '', folder: '', sortOrder: '0',
         isCnc: false, isActive: true, isSegment: false, isGcode: false, isPartNumber: false, isRevision: false, isOpNumber: false, isJobNumber: false,
       })
+      setQrJobId(null); setQrOpId(null); setQrRatePercent('10'); setQrJobSearch(''); setQrJobOptions([]); setQrOpOptions([])
       return
     }
     switch (kind) {
@@ -86,6 +108,15 @@ export function MasterItemDialog({ open, kind, item, onClose, onSaved }: Props) 
         })
         break
       }
+      case 'qcInlineRate': {
+        const r = item as QcInlineRateDto
+        reset({ isActive: r.isActive })
+        setQrJobId(r.jobId)
+        setQrOpId(r.partOpId)
+        setQrRatePercent(String(r.ratePercent))
+        setQrJobSearch(r.jobNumber ?? '')
+        break
+      }
     }
   }, [open, item, kind, reset])
 
@@ -93,8 +124,10 @@ export function MasterItemDialog({ open, kind, item, onClose, onSaved }: Props) 
 
   async function onSubmit(data: FormData) {
     setError(null)
-    const code = data.code.trim()
+    const code = data.code?.trim() ?? ''
     const isActive = data.isActive ?? true
+
+    if (kind !== 'qcInlineRate' && !code) { setError('Nhập mã (Code)'); return }
 
     switch (kind) {
       case 'machine': {
@@ -147,6 +180,16 @@ export function MasterItemDialog({ open, kind, item, onClose, onSaved }: Props) 
         if (res.success) { onClose(); onSaved() } else setError(res.error ?? 'Lỗi lưu loại tài liệu')
         break
       }
+      case 'qcInlineRate': {
+        const ratePercent = Number(qrRatePercent)
+        if (!Number.isFinite(ratePercent) || ratePercent < 0 || ratePercent > 100) { setError('Mức kiểm phải từ 0 đến 100'); return }
+        const r = item as QcInlineRateDto | null
+        const res = r
+          ? await api.qcInlineRates.update(r.id, { id: r.id, ratePercent, isActive })
+          : await api.qcInlineRates.create({ jobId: qrJobId, partOpId: qrOpId, ratePercent })
+        if (res.success) { onClose(); onSaved() } else setError(res.error ?? 'Lỗi lưu mức kiểm QC Inline')
+        break
+      }
     }
   }
 
@@ -158,6 +201,7 @@ export function MasterItemDialog({ open, kind, item, onClose, onSaved }: Props) 
         <CardHeader><CardTitle>{item ? `Sửa — ${TITLES[kind]}` : `Thêm — ${TITLES[kind]}`}</CardTitle></CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            {kind !== 'qcInlineRate' && (
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>Mã (Code) *</Label>
@@ -169,6 +213,7 @@ export function MasterItemDialog({ open, kind, item, onClose, onSaved }: Props) 
                 <Input {...register('name')} />
               </div>
             </div>
+            )}
 
             {kind === 'machine' && (
               <>
@@ -219,8 +264,40 @@ export function MasterItemDialog({ open, kind, item, onClose, onSaved }: Props) 
               </>
             )}
 
+            {kind === 'qcInlineRate' && (
+              <>
+                <div className="space-y-1.5">
+                  <Label>Job (để trống = áp dụng mọi Job)</Label>
+                  <Input value={qrJobSearch} onChange={e => { setQrJobSearch(e.target.value); setQrJobId(null) }} placeholder="Tìm theo số Job..." disabled={!!item} />
+                  {!item && qrJobOptions.length > 0 && (
+                    <div className="border rounded-md max-h-32 overflow-y-auto">
+                      {qrJobOptions.map(j => (
+                        <div key={j.id} className={`px-2 py-1 text-sm cursor-pointer hover:bg-accent ${qrJobId === j.id ? 'bg-accent' : ''}`}
+                          onClick={() => { setQrJobId(j.id); setQrJobSearch(j.jobNumber) }}>
+                          {j.jobNumber}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="space-y-1.5">
+                  <Label>OP (để trống = áp dụng mọi OP của Job trên)</Label>
+                  <select className="w-full h-9 rounded-md border px-2 text-sm" disabled={!!item || !qrJobId}
+                    value={qrOpId ?? ''} onChange={e => setQrOpId(e.target.value ? Number(e.target.value) : null)}>
+                    <option value="">— Tất cả OP —</option>
+                    {qrOpOptions.map(o => <option key={o.id} value={o.id}>{o.opNumber}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Mức kiểm (%) *</Label>
+                  <Input type="number" min={0} max={100} value={qrRatePercent} onChange={e => setQrRatePercent(e.target.value)} />
+                </div>
+              </>
+            )}
+
             <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" {...register('isActive')} className="h-4 w-4" />
+              <input type="checkbox" {...register('isActive')} className="h-4 w-4"
+                disabled={kind === 'qcInlineRate' && !!item && (item as QcInlineRateDto).jobId == null && (item as QcInlineRateDto).partOpId == null} />
               Đang hoạt động (hiện trong dropdown)
             </label>
 

@@ -1,13 +1,13 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { api, type MachineDto, type MachineGroupDto, type OpTypeDto, type DimensionCategoryDto, type FileTypeDto } from '@/lib/api-client'
+import { api, type MachineDto, type MachineGroupDto, type OpTypeDto, type DimensionCategoryDto, type FileTypeDto, type QcInlineRateDto } from '@/lib/api-client'
 import { VATopbar, VACard, VABtn, VABadge } from '@/components/va'
 import { va } from '@/lib/va-tokens'
 import { MasterItemDialog, type MasterKind, type MasterItem } from '@/components/master/master-item-dialog'
 
-const TABS = ['Máy móc', 'Nhóm máy', 'Loại OP', 'Dimension Category', 'Loại tài liệu']
-const TAB_KINDS: MasterKind[] = ['machine', 'machineGroup', 'opType', 'dimCategory', 'fileType']
+const TABS = ['Máy móc', 'Nhóm máy', 'Loại OP', 'Dimension Category', 'Loại tài liệu', 'Mức kiểm QC Inline']
+const TAB_KINDS: MasterKind[] = ['machine', 'machineGroup', 'opType', 'dimCategory', 'fileType', 'qcInlineRate']
 
 const CodeTag = ({ c }: { c: string }) => (
   <span style={{ fontFamily: va.mono, fontSize: 11, fontWeight: 700, color: va.primary, background: va.surface2, padding: '2px 7px', borderRadius: 4, border: `1px solid ${va.border}` }}>{c}</span>
@@ -25,6 +25,7 @@ export default function MasterPage() {
   const [opTypes,    setOpTypes]    = useState<OpTypeDto[]>([])
   const [dimCats,    setDimCats]    = useState<DimensionCategoryDto[]>([])
   const [fileTypes,  setFileTypes]  = useState<FileTypeDto[]>([])
+  const [qcRates,    setQcRates]    = useState<QcInlineRateDto[]>([])
   const [loading,    setLoading]    = useState(true)
 
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -38,12 +39,14 @@ export default function MasterPage() {
       api.dimCategories.list(),
       api.fileTypes2.list(),
       api.machineGroups.list(),
-    ]).then(([mRes, otRes, dcRes, ftRes, mgRes]) => {
+      api.qcInlineRates.list(),
+    ]).then(([mRes, otRes, dcRes, ftRes, mgRes, qrRes]) => {
       if (mRes.success  && mRes.data)  setMachines(mRes.data)
       if (otRes.success && otRes.data) setOpTypes(otRes.data)
       if (dcRes.success && dcRes.data) setDimCats(dcRes.data)
       if (ftRes.success && ftRes.data) setFileTypes(ftRes.data)
       if (mgRes.success && mgRes.data) setGroups(mgRes.data)
+      if (qrRes.success && qrRes.data) setQcRates(qrRes.data)
       setLoading(false)
     })
   }, [])
@@ -154,6 +157,24 @@ export default function MasterPage() {
             <td style={tdStyle}>{f.isOpNumber  ? '✓' : ''}</td>
             <td style={tdStyle}>{f.isJobNumber ? '✓' : ''}</td>
             <td style={tdStyle}><ActiveBadge active={f.isActive} /></td>
+          </tr>
+        ))}
+      </tbody>
+    </table>,
+
+    // QC Inline Rates
+    <table key="qcrates" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
+      <thead><tr style={{ background: va.surface2 }}>
+        {['Job', 'OP', 'Mức kiểm (%)', 'Trạng thái'].map((h, i) => <th key={i} style={thStyle()}>{h}</th>)}
+      </tr></thead>
+      <tbody>
+        {loading ? <tr><td colSpan={4} style={tdStyle}><span style={{ color: va.text3 }}>Đang tải…</span></td></tr>
+          : qcRates.map(r => (
+          <tr key={r.id} className="va-row va-clickable" onClick={() => openEdit(r)}>
+            <td style={tdStyle}>{r.jobNumber ?? <span style={{ color: va.text3 }}>— Tất cả Job —</span>}</td>
+            <td style={tdStyle}>{r.opNumber ?? <span style={{ color: va.text3 }}>— Tất cả OP —</span>}</td>
+            <td style={{ ...tdStyle, fontFamily: va.mono, fontWeight: 600 }}>{r.ratePercent}%</td>
+            <td style={tdStyle}><ActiveBadge active={r.isActive} /></td>
           </tr>
         ))}
       </tbody>
