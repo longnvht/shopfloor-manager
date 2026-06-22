@@ -21,9 +21,19 @@ public record FaiRowData(
     string SerialNumber, int ProductId,
     List<FaiCellData> Cells, bool AllPass);
 
+public record FaiStageCellData(decimal? Value, string? Result);
+
 public record FaiCellData(
     long? MeasureValueId, string BalloonNumber,
-    decimal? Value, string? Result);
+    decimal? Value, string? Result,
+    Dictionary<int, FaiStageCellData>? ByStage = null);
+
+/// <summary>
+/// 3 chế độ FAI trên Desktop — KHÔNG tham chiếu ShopfloorManager.Domain.Enums.MeasureStage
+/// (Desktop không có project reference tới Domain). Giá trị int khớp thủ công với
+/// ShopfloorManager.Domain.Enums.MeasureStage: InprocessFAI=0, QCInline=1, QCFinal=2.
+/// </summary>
+public enum FaiMode { Basic, Final, QcInline }
 
 public record MeasureResultResponse(
     long Id, string BalloonNumber, decimal? Value, string Result);
