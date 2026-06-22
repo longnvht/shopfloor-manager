@@ -80,6 +80,16 @@ export type JobDto = {
   openNcrCount: number
 }
 
+export type QcInlineRateDto = {
+  id: number
+  jobId: number | null
+  jobNumber: string | null
+  partOpId: number | null
+  opNumber: string | null
+  ratePercent: number
+  isActive: boolean
+}
+
 export type PartOpDto = {
   id: number; routingRevId: number | null; jobId: number | null; forJobOnly: boolean
   opNumber: string; opNumberSort: number | null
@@ -386,6 +396,13 @@ export const api = {
       request<MachineGroupDto>('/api/v1/machine-groups', { method: 'POST', body: JSON.stringify(body) }),
     update: (id: number, body: { id: number; code: string; name: string; isActive: boolean }) =>
       request<MachineGroupDto>(`/api/v1/machine-groups/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  },
+  qcInlineRates: {
+    list: () => request<QcInlineRateDto[]>('/api/v1/qc-inline-rates'),
+    create: (body: { jobId: number | null; partOpId: number | null; ratePercent: number }) =>
+      request<QcInlineRateDto>('/api/v1/qc-inline-rates', { method: 'POST', body: JSON.stringify(body) }),
+    update: (id: number, body: { id: number; ratePercent: number; isActive: boolean }) =>
+      request<QcInlineRateDto>(`/api/v1/qc-inline-rates/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   },
   dashboard: {
     overview:   () => request<unknown>('/api/v1/dashboard/overview'),
