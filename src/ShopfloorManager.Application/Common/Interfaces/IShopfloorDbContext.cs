@@ -63,6 +63,7 @@ public interface IShopfloorDbContext
     DbSet<DimensionCategory> DimensionCategories { get; }
     DbSet<Dimension> Dimensions { get; }
     DbSet<MeasureValue> MeasureValues { get; }
+    DbSet<QcInlineRate> QcInlineRates { get; }
     DbSet<NcrReason> NcrReasons { get; }
     DbSet<Ncr> Ncrs { get; }
     DbSet<NcrLog> NcrLogs { get; }

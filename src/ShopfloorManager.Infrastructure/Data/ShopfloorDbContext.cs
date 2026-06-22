@@ -63,6 +63,7 @@ public class ShopfloorDbContext(DbContextOptions<ShopfloorDbContext> options)
     public DbSet<DimensionCategory> DimensionCategories => Set<DimensionCategory>();
     public DbSet<Dimension> Dimensions => Set<Dimension>();
     public DbSet<MeasureValue> MeasureValues => Set<MeasureValue>();
+    public DbSet<QcInlineRate> QcInlineRates => Set<QcInlineRate>();
     public DbSet<NcrReason> NcrReasons => Set<NcrReason>();
     public DbSet<Ncr> Ncrs => Set<Ncr>();
     public DbSet<NcrLog> NcrLogs => Set<NcrLog>();
