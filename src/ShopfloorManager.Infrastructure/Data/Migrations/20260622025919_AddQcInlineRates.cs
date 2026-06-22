@@ -35,7 +35,7 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
             migrationBuilder.InsertData(
                 table: "qc_inline_rates",
                 columns: new[] { "job_id", "part_op_id", "rate_percent", "is_active", "created_at", "updated_at" },
-                values: new object?[] { null, null, 10m, true, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow });
+                values: new object[] { DBNull.Value, DBNull.Value, 10m, true, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow });
         }
 
         /// <inheritdoc />

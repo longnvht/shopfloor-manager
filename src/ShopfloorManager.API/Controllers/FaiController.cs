@@ -83,6 +83,47 @@ public class FaiController(IMediator mediator) : ControllerBase
         var bytes = FaiExportBuilder.BuildPdf(result.Value, stage);
         return File(bytes, "application/pdf", $"FAI_OP{result.Value.OpNumber}.pdf");
     }
+
+    // ── QC Inline Rate config ────────────────────────────────
+
+    /// <summary>List toàn bộ mức kiểm QC Inline — phục vụ trang Master Data (Web).</summary>
+    [HttpGet("/api/v1/qc-inline-rates")]
+    public async Task<IActionResult> GetQcInlineRates()
+    {
+        var result = await mediator.Send(new GetQcInlineRatesQuery());
+        return Ok(ApiResponse<List<QcInlineRateDto>>.Ok(result.Value));
+    }
+
+    /// <summary>Mức kiểm hiệu lực cho 1 Job/OP — Desktop dùng để hiển thị banner ở màn QC Inline.</summary>
+    [HttpGet("/api/v1/fai/qc-inline-rate")]
+    public async Task<IActionResult> GetEffectiveQcInlineRate([FromQuery] int jobId, [FromQuery] int? partOpId)
+    {
+        var result = await mediator.Send(new GetEffectiveQcInlineRateQuery(jobId, partOpId));
+        return result.IsSuccess
+            ? Ok(ApiResponse<decimal>.Ok(result.Value))
+            : Ok(ApiResponse<decimal>.Ok(0));
+    }
+
+    [HttpPost("/api/v1/qc-inline-rates")]
+    [Authorize(Roles = "Administrator,Manager")]
+    public async Task<IActionResult> CreateQcInlineRate([FromBody] CreateQcInlineRateCommand command)
+    {
+        var result = await mediator.Send(command);
+        return result.IsSuccess
+            ? StatusCode(201, ApiResponse<QcInlineRateDto>.Ok(result.Value))
+            : BadRequest(ApiResponse<QcInlineRateDto>.Fail(result.Errors));
+    }
+
+    [HttpPut("/api/v1/qc-inline-rates/{id:int}")]
+    [Authorize(Roles = "Administrator,Manager")]
+    public async Task<IActionResult> UpdateQcInlineRate(int id, [FromBody] UpdateQcInlineRateCommand command)
+    {
+        if (id != command.Id) return BadRequest(ApiResponse<QcInlineRateDto>.Fail("ID không khớp."));
+        var result = await mediator.Send(command);
+        return result.IsSuccess
+            ? Ok(ApiResponse<QcInlineRateDto>.Ok(result.Value))
+            : BadRequest(ApiResponse<QcInlineRateDto>.Fail(result.Errors));
+    }
 }
 
 public record SaveMeasureRequest(
