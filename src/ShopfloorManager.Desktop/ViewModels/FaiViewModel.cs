@@ -18,15 +18,23 @@ public partial class FaiViewModel : Base.ViewModelBase
     public PartOpDto?              Op      { get; private set; }
     public ProductWithSessionDto?  Product { get; private set; }
 
-    /// <summary>
-    /// true = FAI Final mode: re-inspect sau rework, chỉ hiển thị Fail dims,
-    /// chỉ QC Inspector, lưu với IsFinal=true.
-    /// </summary>
-    public bool IsFinalMode { get; set; }
+    /// <summary>Basic = Operator (InprocessFAI). Final = re-inspect sau rework (QCFinal), chỉ Fail dims.
+    /// QcInline = QC Inspector kiểm ngẫu nhiên (QCInline), không bắt buộc đo hết.</summary>
+    public FaiMode Mode { get; set; } = FaiMode.Basic;
 
-    public string PageTitle => IsFinalMode
-        ? "NHẬP KẾT QUẢ ĐO (FAI FINAL)"
-        : "NHẬP KẾT QUẢ ĐO (FAI)";
+    /// <summary>Binding read-only cho XAML — giữ tương thích với trigger màu title bar hiện có.</summary>
+    public bool IsFinalMode => Mode == FaiMode.Final;
+    public bool IsQcInlineMode => Mode == FaiMode.QcInline;
+
+    public string PageTitle => Mode switch
+    {
+        FaiMode.Final    => "NHẬP KẾT QUẢ ĐO (FAI FINAL)",
+        FaiMode.QcInline => "NHẬP KẾT QUẢ ĐO (QC INLINE)",
+        _                => "NHẬP KẾT QUẢ ĐO (FAI)",
+    };
+
+    [ObservableProperty]
+    private string? _rateInfoText;
 
     public string TitleContext => Product is null ? "" :
         $"{Job?.JobNumber}  ·  OP {Op?.OpNumber}  ·  S/N: {Product.SerialNumber}";
@@ -55,11 +63,14 @@ public partial class FaiViewModel : Base.ViewModelBase
     public bool ShowPlaceholder  => SelectedDimension is null;
     public bool ShowNumericInput => SelectedDimension is { IsTextType: false };
     public bool ShowTextInput    => SelectedDimension is { IsTextType: true };
-    // Normal FAI: lock sau bất kỳ lần đo nào.
-    // FAI Final: chỉ lock khi Pass (Fail dims vẫn cho phép đo lại).
-    public bool IsInputLocked    => IsFinalMode
-        ? SelectedDimension?.State == MeasureState.Pass
-        : SelectedDimension?.IsMeasured == true;
+    // Basic: lock sau bất kỳ lần đo nào (ở stage InprocessFAI).
+    // Final: chỉ lock khi Pass ở stage QCFinal (Fail dims vẫn cho phép đo lại).
+    // QcInline: lock nếu đã có record ở stage QCInline cho dim này (không ép tuần tự/đo hết).
+    public bool IsInputLocked    => Mode switch
+    {
+        FaiMode.Final => SelectedDimension?.State == MeasureState.Pass,
+        _             => SelectedDimension?.IsMeasured == true,
+    };
     public bool IsInputEnabled   => !IsInputLocked;
 
     public Action? OnBack { get; set; }
@@ -96,6 +107,24 @@ public partial class FaiViewModel : Base.ViewModelBase
             InputValue = "";
     }
 
+    /// <summary>Khớp thủ công với ShopfloorManager.Domain.Enums.MeasureStage trên server (int): 0/1/2.</summary>
+    private static int ToServerStage(FaiMode mode) => mode switch
+    {
+        FaiMode.Final    => 2, // QCFinal
+        FaiMode.QcInline => 1, // QCInline
+        _                => 0, // InprocessFAI
+    };
+
+    private async Task LoadRateInfoAsync()
+    {
+        try
+        {
+            var resp = await _api.GetAsync<decimal>($"/api/v1/fai/qc-inline-rate?jobId={Job!.Id}&partOpId={Op!.Id}");
+            RateInfoText = resp?.Data is decimal rate ? $"Mức kiểm đề xuất: {rate:0.#}%" : null;
+        }
+        catch { RateInfoText = null; }
+    }
+
     private async Task LoadAsync()
     {
         IsBusy = true; ClearError();
@@ -113,10 +142,14 @@ public partial class FaiViewModel : Base.ViewModelBase
 
             var row = resp.Data.Rows?.FirstOrDefault(r => r.ProductId == Product!.ProductId);
 
+            var stageKey = ToServerStage(Mode);
             foreach (var dim in resp.Data.Dimensions ?? [])
             {
                 var cell = row?.Cells?.FirstOrDefault(c => c.BalloonNumber == dim.BalloonNumber);
-                var state = cell?.Result switch
+                // Đọc giá trị riêng của stage hiện tại — KHÔNG dùng cell.Result/Value (đó là "mới nhất
+                // qua mọi stage", có thể lẫn dữ liệu của stage khác cho cùng dimension/product).
+                var stageCell = cell?.ByStage?.GetValueOrDefault(stageKey);
+                var state = stageCell?.Result switch
                 {
                     "Pass" => MeasureState.Pass,
                     "Fail" => MeasureState.Fail,
@@ -137,12 +170,12 @@ public partial class FaiViewModel : Base.ViewModelBase
                     IsFinal       = dim.IsFinal,
                     IsCritical    = dim.IsCritical,
                     State         = state,
-                    MeasuredValue = cell?.Value
+                    MeasuredValue = stageCell?.Value
                 });
             }
 
             // FAI Final: chỉ giữ lại dims có trạng thái Fail để re-inspect
-            if (IsFinalMode)
+            if (Mode == FaiMode.Final)
             {
                 var failDims = Dimensions.Where(d => d.State == MeasureState.Fail).ToList();
                 Dimensions.Clear();
@@ -152,12 +185,15 @@ public partial class FaiViewModel : Base.ViewModelBase
             RefreshProgress();
 
             if (!Dimensions.Any())
-                ErrorMessage = IsFinalMode
+                ErrorMessage = Mode == FaiMode.Final
                     ? "Không có kích thước nào ở trạng thái FAIL để re-inspect."
                     : "OP này chưa có kích thước nào được định nghĩa.";
             else
                 SelectedDimension = Dimensions.FirstOrDefault(d =>
-                    IsFinalMode ? d.State == MeasureState.Fail : !d.IsMeasured);
+                    Mode == FaiMode.Final ? d.State == MeasureState.Fail : !d.IsMeasured);
+
+            if (Mode == FaiMode.QcInline)
+                _ = LoadRateInfoAsync();
         }
         catch (Exception ex) { ErrorMessage = $"Lỗi: {ex.Message}"; }
         finally { IsBusy = false; }
@@ -209,8 +245,9 @@ public partial class FaiViewModel : Base.ViewModelBase
                 ProductId    = Product!.ProductId,
                 Value        = value,
                 ManualResult = manualResult,
-                IsFinal      = IsFinalMode,
-                Note         = (string?)null
+                IsFinal      = Mode == FaiMode.Final,
+                Note         = (string?)null,
+                MeasureStage = ToServerStage(Mode)
             };
 
             var resp = await _api.PostAsync<object, MeasureResultResponse>("/api/v1/fai/measure", req);
@@ -235,9 +272,12 @@ public partial class FaiViewModel : Base.ViewModelBase
             }
 
             InputValue        = "";
-            SelectedDimension = IsFinalMode
-                ? Dimensions.FirstOrDefault(d => d.State == MeasureState.Fail)
-                : Dimensions.FirstOrDefault(d => !d.IsMeasured);
+            SelectedDimension = Mode switch
+            {
+                FaiMode.Final    => Dimensions.FirstOrDefault(d => d.State == MeasureState.Fail),
+                FaiMode.QcInline => null, // QC tự chọn balloon tiếp theo muốn kiểm, không auto-advance
+                _                => Dimensions.FirstOrDefault(d => !d.IsMeasured),
+            };
             RefreshProgress();
         }
         catch (Exception ex) { ErrorMessage = $"Lỗi: {ex.Message}"; }
