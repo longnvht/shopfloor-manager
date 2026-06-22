@@ -57,6 +57,7 @@ public partial class MainViewModel : ViewModelBase
             case "products": NavigateToProducts();      break;
             case "fai":      NavigateToFai();           break;
             case "fai-final": NavigateToFaiFinal();    break;
+            case "qc-inline": NavigateToQcInline();    break;
             case "gcode":
             case "drawing":
             case "fixture":
@@ -168,7 +169,26 @@ public partial class MainViewModel : ViewModelBase
             return;
         }
         var vm = _sp.GetRequiredService<FaiViewModel>();
-        vm.IsFinalMode = true;
+        vm.Mode = FaiMode.Final;
+        vm.OnBack = NavigateToDashboard;
+        vm.OnDimensionFail = ShowNcrDialog;
+        SetPage(vm);
+        _ = vm.InitializeAsync();
+    }
+
+    // ===== QC Inline (QC kiểm ngẫu nhiên trên sản phẩm đã hoàn thành OP) =====
+
+    public void NavigateToQcInline()
+    {
+        _keyboard.Hide();
+        if (_work.CurrentJob is null || _work.CurrentOp is null || _work.CurrentProduct is null
+            || _work.CurrentProduct.StatusCode != "complete")
+        {
+            NavigateToDashboard();
+            return;
+        }
+        var vm = _sp.GetRequiredService<FaiViewModel>();
+        vm.Mode = FaiMode.QcInline;
         vm.OnBack = NavigateToDashboard;
         vm.OnDimensionFail = ShowNcrDialog;
         SetPage(vm);
