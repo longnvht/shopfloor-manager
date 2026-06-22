@@ -67,25 +67,48 @@ public class GetFaiSheetQueryHandler(IShopfloorDbContext db)
             isInspectionOp = string.Equals(op.OpType?.Code, "INS", StringComparison.OrdinalIgnoreCase);
         }
 
-        // Gom dimension từ nhiều OP — khi chọn "Tất cả OP" (gom toàn bộ routing) hoặc khi xem qua OP INS
-        // (gom các OP có OpNumberSort nhỏ hơn OP INS đang xét — xem CLAUDE.md / 06_dimensions_fai.md §4.3)
+        // Gom dimension: "Tất cả OP" (gom toàn bộ routing, KHÔNG filter IsFinal) hoặc OP INS
+        // (= dimension riêng của chính OP INS — dung sai QC ∪ dimension IsFinal=true từ các OP
+        // trước — dung sai kỹ thuật QC chấp nhận tái sử dụng; trùng BalloonNumber thì dimension
+        // riêng của OP INS thắng). Xem CLAUDE.md / 06_dimensions_fai.md §4.3.
         var tagOpNumber = allOps || isInspectionOp;
         List<Dimension> dims;
-        if (allOps || isInspectionOp)
+        if (allOps)
         {
             var routingOps = await db.PartOps
                 .Where(p => (p.RoutingRevId == job.RoutingRevId && !p.ForJobOnly) || (p.ForJobOnly && p.JobId == job.Id))
                 .ToListAsync(ct);
-            decimal EffectiveSort(PartOp p) => p.OpNumberSort ?? 9999m;
-            var scopedOpIds = allOps
-                ? routingOps.Select(p => p.Id).ToList()
-                : routingOps.Where(p => EffectiveSort(p) < EffectiveSort(op!)).Select(p => p.Id).ToList();
+            var scopedOpIds = routingOps.Select(p => p.Id).ToList();
 
             dims = await db.Dimensions
                 .Include(d => d.Category).Include(d => d.PartOp)
                 .Where(d => scopedOpIds.Contains(d.PartOpId))
                 .OrderBy(d => d.PartOp.OpNumberSort ?? 9999).ThenBy(d => d.BalloonSort ?? 9999).ThenBy(d => d.BalloonNumber)
                 .ToListAsync(ct);
+        }
+        else if (isInspectionOp)
+        {
+            var routingOps = await db.PartOps
+                .Where(p => (p.RoutingRevId == job.RoutingRevId && !p.ForJobOnly) || (p.ForJobOnly && p.JobId == job.Id))
+                .ToListAsync(ct);
+            decimal EffectiveSort(PartOp p) => p.OpNumberSort ?? 9999m;
+            var priorOpIds = routingOps.Where(p => EffectiveSort(p) < EffectiveSort(op!)).Select(p => p.Id).ToList();
+
+            var priorFinalDims = await db.Dimensions
+                .Include(d => d.Category).Include(d => d.PartOp)
+                .Where(d => priorOpIds.Contains(d.PartOpId) && d.IsFinal)
+                .ToListAsync(ct);
+
+            var ownDims = await db.Dimensions
+                .Include(d => d.Category).Include(d => d.PartOp)
+                .Where(d => d.PartOpId == op!.Id)
+                .ToListAsync(ct);
+
+            var ownBalloons = ownDims.Select(d => d.BalloonNumber).ToHashSet();
+            dims = ownDims
+                .Concat(priorFinalDims.Where(d => !ownBalloons.Contains(d.BalloonNumber)))
+                .OrderBy(d => d.PartOp.OpNumberSort ?? 9999).ThenBy(d => d.BalloonSort ?? 9999).ThenBy(d => d.BalloonNumber)
+                .ToList();
         }
         else
         {
@@ -127,7 +150,7 @@ public class GetFaiSheetQueryHandler(IShopfloorDbContext db)
             d.Id, d.PartOpId, d.BalloonNumber, d.BalloonSort, d.Code, d.Description,
             d.NominalValue, d.TolerancePlus, d.ToleranceMinus, d.MaxValue, d.MinValue, d.Unit,
             d.IsTextType, d.NominalText, d.Category?.Code, d.IsCritical, d.IsFinal, d.SortOrder,
-            OpNumber: tagOpNumber ? d.PartOp.OpNumber : null))
+            OpNumber: tagOpNumber && d.PartOpId != (op?.Id ?? -1) ? d.PartOp.OpNumber : null))
             .ToList();
 
         var rows = products.Select(p =>

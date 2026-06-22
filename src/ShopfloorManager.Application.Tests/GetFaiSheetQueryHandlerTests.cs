@@ -39,8 +39,8 @@ public class GetFaiSheetQueryHandlerTests
         await db.SaveChangesAsync();
 
         db.Dimensions.AddRange(
-            new Dimension { PartOpId = op60.Id, BalloonNumber = "1", NominalValue = 50, TolerancePlus = 0.02m, ToleranceMinus = 0.02m, MaxValue = 50.02m, MinValue = 49.98m, Unit = "mm" },
-            new Dimension { PartOpId = op60.Id, BalloonNumber = "2", NominalValue = 80, TolerancePlus = 0.1m, ToleranceMinus = 0.1m, MaxValue = 80.1m, MinValue = 79.9m, Unit = "mm" });
+            new Dimension { PartOpId = op60.Id, BalloonNumber = "1", NominalValue = 50, TolerancePlus = 0.02m, ToleranceMinus = 0.02m, MaxValue = 50.02m, MinValue = 49.98m, Unit = "mm", IsFinal = true },
+            new Dimension { PartOpId = op60.Id, BalloonNumber = "2", NominalValue = 80, TolerancePlus = 0.1m, ToleranceMinus = 0.1m, MaxValue = 80.1m, MinValue = 79.9m, Unit = "mm", IsFinal = true });
         await db.SaveChangesAsync();
 
         return (db, job, op60, op110Ins, op130Ins, product);

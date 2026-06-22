@@ -45,7 +45,12 @@ public class Dimension
     // ── Classification ────────────────────────────────────────
     public int? CategoryId { get; set; }           // → DimensionCategory (LIN/ANG/THD/GEO/SFC)
     public bool IsCritical { get; set; }
-    public bool IsFinal { get; set; }              // Kích thước kiểm tra lần cuối sau rework
+    /// <summary>
+    /// QC tái sử dụng dimension này (do kỹ thuật tạo) cho QC Final — không cần QC tạo riêng.
+    /// Dimension nào QC cần dung sai khác bản vẽ kỹ thuật (ví dụ bám sát yêu cầu khách hàng) thì
+    /// KHÔNG đánh dấu IsFinal — QC tự tạo dimension mới (cùng BalloonNumber) gán cho OP loại INS.
+    /// </summary>
+    public bool IsFinal { get; set; }
     public int SortOrder { get; set; }
 
     // ── Approval workflow (tương tự TechDocument) ─────────────
