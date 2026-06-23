@@ -68,6 +68,15 @@ due_date = last_calibration + calib_frequency_days
 - `has_pending_calib`: đang có yêu cầu hiệu chuẩn chờ xử lý.
 - Hai flags này là **denormalized** để query nhanh — cập nhật đồng thời với borrow_transactions và calib_requests.
 
+### 3.7 Gage Selection trong FAI (Desktop MES) — ✅ Done (2026-06-23)
+
+Khi nhập kết quả đo, Desktop hiện danh sách gage hợp lệ lọc theo category của dimension đang đo (`Dimension.CategoryId → DimensionCategory.Code → GageType.CategoryId`).
+
+- **`Dimension.CategoryCode = 'VIS'`** (Visual) → **bỏ qua hoàn toàn** bước chọn dụng cụ đo — dùng cho dimension kiểm bằng mắt (không có min/max số, ví dụ "No burr, no scratch"). Dimension đo góc/ren/độ nhám không có tolerance số (ví dụ "45°", "HƯỚNG REN PHẢI") **không** thuộc `VIS` — vẫn giữ category LIN/ANG/THD/GEO/SFC và vẫn cần chọn dụng cụ.
+- **UI tìm dụng cụ** (touch-friendly): nhập để filter theo `GageNo`/`Description` → kết quả hiện dạng thẻ. Click chỉ highlight (không xung đột với kéo-thả cuộn danh sách) — double-click hoặc nút "Chọn" mới xác nhận.
+- **Đổi dimension → luôn yêu cầu chọn lại gage** (không carry-over từ dimension trước), **trừ khi** cùng balloon đã được đo ở serial khác trong cùng Job — khi đó tự động gợi ý lại gage đã dùng lần trước (`WorkContext.LastGageIdByBalloon`, key `PartOpId:BalloonNumber`, reset khi đổi Job).
+- `MeasureValue.GageId` lưu lựa chọn — gage là **tùy chọn**, không chặn lưu kết quả đo nếu không chọn.
+
 ---
 
 ## 4. Workflow Mượn / Trả Gage

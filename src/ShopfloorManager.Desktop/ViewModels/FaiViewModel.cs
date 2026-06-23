@@ -43,16 +43,74 @@ public partial class FaiViewModel : Base.ViewModelBase
 
     public ObservableCollection<DimensionCardVm> Dimensions { get; } = [];
 
+    public ObservableCollection<MesGageData> AvailableGages { get; } = [];
+    public ObservableCollection<MesGageData> FilteredGages  { get; } = [];
+
+    [ObservableProperty]
+    private MesGageData? _selectedGage;
+
+    /// <summary>true = đang hiện ô tìm + danh sách thẻ; false = đã chọn, chỉ hiện chip tóm tắt.</summary>
+    [ObservableProperty]
+    private bool _isGageSearchOpen = true;
+
+    [ObservableProperty]
+    private string _gageSearchText = "";
+
+    /// <summary>Thẻ đang được click chọn (chưa xác nhận) — click chỉ highlight để không xung đột với
+    /// kéo-thả cuộn danh sách; phải double-click hoặc bấm "Chọn" mới chốt vào SelectedGage.</summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(ConfirmHighlightedGageCommand))]
+    private MesGageData? _highlightedGage;
+
+    partial void OnGageSearchTextChanged(string value) => RefreshFilteredGages();
+
+    private void RefreshFilteredGages()
+    {
+        FilteredGages.Clear();
+        var matches = string.IsNullOrWhiteSpace(GageSearchText)
+            ? AvailableGages
+            : AvailableGages.Where(g =>
+                g.GageNo.Contains(GageSearchText, StringComparison.OrdinalIgnoreCase) ||
+                g.Description.Contains(GageSearchText, StringComparison.OrdinalIgnoreCase));
+        foreach (var g in matches) FilteredGages.Add(g);
+    }
+
+    [RelayCommand]
+    private void SelectGage(MesGageData gage)
+    {
+        SelectedGage = gage;
+        HighlightedGage = null;
+        IsGageSearchOpen = false;
+        GageSearchText = "";
+    }
+
+    [RelayCommand(CanExecute = nameof(CanConfirmHighlightedGage))]
+    private void ConfirmHighlightedGage() => SelectGage(HighlightedGage!);
+    private bool CanConfirmHighlightedGage() => HighlightedGage is not null;
+
+    [RelayCommand]
+    private void ChangeGage()
+    {
+        IsGageSearchOpen = true;
+        GageSearchText = "";
+        HighlightedGage = null;
+        RefreshFilteredGages();
+    }
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowPlaceholder))]
     [NotifyPropertyChangedFor(nameof(ShowNumericInput))]
     [NotifyPropertyChangedFor(nameof(ShowTextInput))]
     [NotifyPropertyChangedFor(nameof(IsInputLocked))]
     [NotifyPropertyChangedFor(nameof(IsInputEnabled))]
+    [NotifyPropertyChangedFor(nameof(ShowGageSelection))]
     [NotifyCanExecuteChangedFor(nameof(ConfirmCommand))]
     [NotifyCanExecuteChangedFor(nameof(SetPassCommand))]
     [NotifyCanExecuteChangedFor(nameof(SetFailCommand))]
     private DimensionCardVm? _selectedDimension;
+
+    /// <summary>Category VIS = kiểm bằng mắt (visual inspection) — không cần dụng cụ đo.</summary>
+    public bool ShowGageSelection => SelectedDimension is not null && SelectedDimension.CategoryCode != "VIS";
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(ConfirmCommand))]
@@ -102,7 +160,52 @@ public partial class FaiViewModel : Base.ViewModelBase
             InputValue = value.MeasuredValue?.ToString("F4", System.Globalization.CultureInfo.InvariantCulture) ?? "";
         else
             InputValue = "";
+
+        _ = LoadGagesAsync(value);
     }
+
+    /// <summary>Danh sách gage hợp lệ phù hợp dimension đang chọn — xem 08_gage_management.md §6 (MES).
+    /// Đổi dimension luôn yêu cầu chọn lại gage (KHÔNG carry-over từ dimension trước) — trừ khi job hiện
+    /// tại đã có gage dùng cho đúng balloon này ở serial khác (xem WorkContext.LastGageIdByBalloon).</summary>
+    private async Task LoadGagesAsync(DimensionCardVm? dim)
+    {
+        if (dim?.CategoryCode == "VIS")
+        {
+            AvailableGages.Clear();
+            FilteredGages.Clear();
+            SelectedGage = null;
+            HighlightedGage = null;
+            return;
+        }
+
+        try
+        {
+            var categoryCode = dim?.CategoryCode;
+            var url = string.IsNullOrWhiteSpace(categoryCode)
+                ? "/api/v1/mes/gages"
+                : $"/api/v1/mes/gages?categoryCode={categoryCode}";
+            var resp = await _api.GetAsync<List<MesGageData>>(url);
+
+            AvailableGages.Clear();
+            foreach (var gage in resp?.Data ?? [])
+                AvailableGages.Add(gage);
+
+            MesGageData? remembered = null;
+            if (dim is not null && _work.LastGageIdByBalloon.TryGetValue(GageMemoryKey(dim.BalloonNumber), out var lastGageId))
+                remembered = AvailableGages.FirstOrDefault(g => g.Id == lastGageId);
+
+            SelectedGage = remembered;
+            HighlightedGage = null;
+            IsGageSearchOpen = remembered is null;
+            GageSearchText = "";
+            RefreshFilteredGages();
+        }
+        catch { /* Gage selection là tùy chọn — lỗi tải danh sách không chặn nhập đo */ }
+    }
+
+    /// <summary>Key cho WorkContext.LastGageIdByBalloon — gồm PartOpId vì BalloonNumber chỉ UNIQUE trong 1 PartOp
+    /// (cùng số bóng có thể là dimension khác nhau ở OP khác).</summary>
+    private string GageMemoryKey(string balloonNumber) => $"{Op!.Id}:{balloonNumber}";
 
     /// <summary>Khớp thủ công với ShopfloorManager.Domain.Enums.MeasureStage trên server (int): 0/1/2.</summary>
     private static int ToServerStage(FaiMode mode) => mode switch
@@ -167,6 +270,7 @@ public partial class FaiViewModel : Base.ViewModelBase
                     NominalText   = dim.NominalText,
                     IsFinal       = dim.IsFinal,
                     IsCritical    = dim.IsCritical,
+                    CategoryCode  = dim.CategoryCode,
                     State         = state,
                     MeasuredValue = stageCell?.Value
                 });
@@ -236,7 +340,8 @@ public partial class FaiViewModel : Base.ViewModelBase
                 ManualResult = manualResult,
                 IsFinal      = Mode == FaiMode.Final,
                 Note         = (string?)null,
-                MeasureStage = ToServerStage(Mode)
+                MeasureStage = ToServerStage(Mode),
+                GageId       = SelectedGage?.Id
             };
 
             var resp = await _api.PostAsync<object, MeasureResultResponse>("/api/v1/fai/measure", req);
@@ -245,6 +350,9 @@ public partial class FaiViewModel : Base.ViewModelBase
             var current = SelectedDimension;
             current.State         = resp.Data.Result == "Pass" ? MeasureState.Pass : MeasureState.Fail;
             current.MeasuredValue = value;
+
+            if (SelectedGage is not null)
+                _work.LastGageIdByBalloon[GageMemoryKey(current.BalloonNumber)] = SelectedGage.Id;
 
             if (current.State == MeasureState.Fail && OnDimensionFail is not null)
             {

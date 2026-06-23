@@ -90,7 +90,9 @@ public partial class DashboardViewModel : ViewModelBase
     public bool CanNavigate  => HasWork && !_work.HasProduct && _work.ActiveSession is null;
     public bool IsWip        => _work.IsWip;
     // "Bắt đầu" — đã chọn product nhưng chưa có session active
-    public bool CanStart     => _work.HasProduct && !_work.IsWip && _work.IsOperationMode;
+    // Chỉ Operator/Leader/Administrator được tạo session mới — QC/Engineer/Manager chỉ inspect/view.
+    public bool CanStart     => _work.HasProduct && !_work.IsWip && _work.IsOperationMode
+        && _auth.Role is "Operator" or "Leader" or "Administrator";
     public bool CanStop      => _work.IsWip && _work.IsOperationMode;
 
     // ── Mutually exclusive button visibility ───────────────────────────────
@@ -112,11 +114,15 @@ public partial class DashboardViewModel : ViewModelBase
         && _work.IncomingSession.ClaimedBy != _auth.UserId
         && _auth.Role is "Leader" or "Manager" or "Administrator";
 
-    /// <summary>Có thể toggle mode: false khi máy đang bị dùng bởi người khác VÀ role không phải Leader/Admin.</summary>
+    /// <summary>QC Inspector/Engineer không có vai trò vận hành máy — luôn ở View_Mode, không được toggle sang Operation dù máy trống.</summary>
+    private bool RoleCanEnterOperationMode => _auth.Role is not ("QC Inspector" or "Engineer");
+
+    /// <summary>Có thể toggle mode: false khi máy đang bị dùng bởi người khác VÀ role không phải Leader/Admin, hoặc role không có vai trò vận hành máy.</summary>
     public bool CanSwitchMode =>
-        _work.IncomingSession is null
-        || _work.IncomingSession.ClaimedBy == _auth.UserId
-        || _auth.Role is "Leader" or "Manager" or "Administrator";
+        RoleCanEnterOperationMode
+        && (_work.IncomingSession is null
+            || _work.IncomingSession.ClaimedBy == _auth.UserId
+            || _auth.Role is "Leader" or "Manager" or "Administrator");
 
     /// <summary>Hiện nút "Kết thúc" bình thường — ẩn khi đang hiện ForceFinish.</summary>
     public bool ShowStopButton => CanStop && !CanForceFinish;

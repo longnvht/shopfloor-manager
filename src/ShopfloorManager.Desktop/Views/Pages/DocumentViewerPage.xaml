@@ -16,8 +16,9 @@
         </Grid.RowDefinitions>
 
         <!-- ══ TITLE BAR ══ -->
-        <Border Grid.Row="0" Background="{StaticResource BrandPrimary}">
-            <Grid Margin="16,0">
+        <Border Grid.Row="0" Background="{StaticResource BrandPrimary}"
+                kb:WindowDragBehavior.IsDragHandle="True">
+            <Grid Margin="16,0,0,0">
                 <StackPanel VerticalAlignment="Center">
                     <TextBlock Text="TÀI LIỆU KỸ THUẬT"
                                Foreground="White" FontWeight="Bold" FontSize="14"/>
@@ -27,8 +28,9 @@
                 </StackPanel>
                 <ProgressBar Style="{StaticResource MaterialDesignCircularProgressBar}"
                              IsIndeterminate="True" Width="24" Height="24"
-                             HorizontalAlignment="Right"
+                             HorizontalAlignment="Right" Margin="0,0,140,0"
                              Visibility="{Binding IsBusy, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                <ctrl:WindowChromeButtons HorizontalAlignment="Right"/>
             </Grid>
         </Border>
 

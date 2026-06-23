@@ -5,6 +5,8 @@
         MinWidth="1024" MinHeight="600"
         WindowStartupLocation="CenterScreen"
         WindowState="Maximized"
+        WindowStyle="None"
+        ResizeMode="NoResize"
         Background="{StaticResource BrandBg}">
 
     <!-- Shell đơn giản — chỉ ContentControl, không sidebar.

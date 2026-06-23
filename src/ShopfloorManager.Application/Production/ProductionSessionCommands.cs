@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using ShopfloorManager.Application.Common.Interfaces;
 using ShopfloorManager.Domain.Entities;
 using ShopfloorManager.Domain.Enums;
+using ShopfloorManager.Shared.Constants;
 
 namespace ShopfloorManager.Application.Production;
 
@@ -55,7 +56,7 @@ public record ProductWithSessionDto(
 
 // ===== BEGIN (operator bấm "Bắt đầu" — tạo session và bắt đầu ngay) =====
 
-public record BeginSessionCommand(int ProductId, int PartOpId, string MachineCode, int UserId)
+public record BeginSessionCommand(int ProductId, int PartOpId, string MachineCode, int UserId, string Role)
     : IRequest<Result<ProductionSessionDto>>;
 
 public class BeginSessionCommandValidator : AbstractValidator<BeginSessionCommand>
@@ -71,8 +72,17 @@ public class BeginSessionCommandValidator : AbstractValidator<BeginSessionComman
 public class BeginSessionHandler(IShopfloorDbContext db)
     : IRequestHandler<BeginSessionCommand, Result<ProductionSessionDto>>
 {
+    // Chỉ role có nhiệm vụ vận hành máy mới được tạo session — QC/Engineer/Manager chỉ inspect/view.
+    private static readonly HashSet<string> AllowedRoles = new(StringComparer.OrdinalIgnoreCase)
+    {
+        AppConstants.Roles.Operator, AppConstants.Roles.Leader, AppConstants.Roles.Admin
+    };
+
     public async Task<Result<ProductionSessionDto>> Handle(BeginSessionCommand req, CancellationToken ct)
     {
+        if (!AllowedRoles.Contains(req.Role))
+            return Result.Fail("Role không có quyền bắt đầu phiên gia công.");
+
         var product = await db.Products.FindAsync([req.ProductId], ct);
         if (product is null)
             return Result.Fail("Sản phẩm không tồn tại.");

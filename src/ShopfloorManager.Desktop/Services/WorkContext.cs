@@ -35,6 +35,11 @@ public partial class WorkContext : ObservableObject
     public bool IsOperationMode => Mode == AppMode.Operation;
     public bool IsViewMode      => Mode == AppMode.View;
 
+    /// <summary>Gage cuối dùng cho mỗi (PartOpId:BalloonNumber) trong job hiện tại — gợi ý lại khi
+    /// đo cùng dimension này ở serial khác. KHÔNG carry-over giữa các dimension khác nhau (FaiViewModel
+    /// luôn yêu cầu chọn lại khi đổi dimension). Reset khi đổi Job (xem SetJob/Clear).</summary>
+    public Dictionary<string, int> LastGageIdByBalloon { get; } = new();
+
     public bool HasJob     => CurrentJob     is not null;
     public bool HasOp      => CurrentOp      is not null;
     public bool HasProduct => CurrentProduct is not null;
@@ -94,6 +99,7 @@ public partial class WorkContext : ObservableObject
         CurrentOp      = null;
         CurrentProduct = null;
         ActiveSession  = null;
+        LastGageIdByBalloon.Clear();
     }
 
     public void SetOp(PartOpDto op)
@@ -135,6 +141,7 @@ public partial class WorkContext : ObservableObject
         ActiveSession   = null;
         IncomingSession = null;
         Mode            = AppMode.Operation;
+        LastGageIdByBalloon.Clear();
         // View context cleared via OnModeChanged
     }
 }

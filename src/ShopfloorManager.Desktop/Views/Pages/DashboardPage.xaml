@@ -3,6 +3,8 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:md="http://materialdesigninxaml.net/winfx/xaml/themes"
              xmlns:models="clr-namespace:ShopfloorManager.Desktop.Models"
+             xmlns:behaviors="clr-namespace:ShopfloorManager.Desktop.Behaviors"
+             xmlns:controls="clr-namespace:ShopfloorManager.Desktop.Controls"
              Background="{StaticResource BrandBg}">
 
     <UserControl.Resources>
@@ -87,13 +89,18 @@
 
         <!-- ══════════════ TITLE BAR ══════════════ -->
         <Border Grid.Row="0" Background="{StaticResource BrandPrimary}">
-            <Grid Margin="16,0">
+            <Grid Margin="16,0,0,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
+
+                <!-- Vùng kéo cửa sổ (trống) — double-click để Maximize/Restore -->
+                <Border Grid.Column="1" Background="Transparent"
+                        behaviors:WindowDragBehavior.IsDragHandle="True"/>
 
                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                     <md:PackIcon Kind="Factory" Width="24" Height="24"
@@ -177,6 +184,8 @@
                         <TextBlock Text="Đăng xuất" VerticalAlignment="Center" FontSize="13"/>
                     </StackPanel>
                 </Button>
+
+                <controls:WindowChromeButtons Grid.Column="4" Margin="8,0,0,0"/>
             </Grid>
         </Border>
 

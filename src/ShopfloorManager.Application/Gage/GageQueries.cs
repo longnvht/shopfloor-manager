@@ -21,6 +21,8 @@ public record GageDto(
     bool IsBorrowed, bool HasPendingCalib,
     string? Note);
 
+public record MesGageDto(int Id, string GageNo, string Description, string Unit, string? CategoryCode);
+
 public record GageTypeDto(int Id, string Code, string Name, string? CategoryCode);
 public record GageLocationDto(int Id, string Code, string Description);
 public record CalibVendorDto(int Id, string Name, string? Contact, string? Phone, string? Email);
@@ -82,6 +84,34 @@ public class GetGagesQueryHandler(IShopfloorDbContext db)
         g.GageTypeId, g.GageType?.Name, g.GageType?.Category?.Code,
         g.CurrentLocationId, g.CurrentLocation?.Description,
         g.IsBorrowed, g.HasPendingCalib, g.Note);
+}
+
+// ── MES: chọn gage khi nhập measure value ──────────────────────────────────
+// Chỉ trả gage is_valid=true, chưa bị mượn, sorted by gage_no (xem 08_gage_management.md §6).
+
+public record GetMesGagesQuery(string? CategoryCode = null) : IRequest<Result<List<MesGageDto>>>;
+
+public class GetMesGagesQueryHandler(IShopfloorDbContext db)
+    : IRequestHandler<GetMesGagesQuery, Result<List<MesGageDto>>>
+{
+    public async Task<Result<List<MesGageDto>>> Handle(GetMesGagesQuery req, CancellationToken ct)
+    {
+        var q = db.Gages
+            .Include(g => g.GageType).ThenInclude(t => t!.Category)
+            .Where(g => (g.StatusCode == GageStatusCode.Valid || g.StatusCode == GageStatusCode.Borrowed) && !g.IsBorrowed)
+            .AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(req.CategoryCode))
+            q = q.Where(g => g.GageType != null && g.GageType.Category != null
+                           && g.GageType.Category.Code == req.CategoryCode);
+
+        var items = await q.OrderBy(g => g.GageNo)
+            .Select(g => new MesGageDto(g.Id, g.GageNo, g.Description, g.Unit,
+                g.GageType != null && g.GageType.Category != null ? g.GageType.Category.Code : null))
+            .ToListAsync(ct);
+
+        return Result.Ok(items);
+    }
 }
 
 public record GetGagesCalibDueQuery(int DaysThreshold = 60) : IRequest<Result<List<GageDto>>>;

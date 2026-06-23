@@ -38,6 +38,12 @@ public enum FaiMode { Basic, Final, QcInline }
 public record MeasureResultResponse(
     long Id, string BalloonNumber, decimal? Value, string Result);
 
+/// <summary>Gage hợp lệ, chưa bị mượn — danh sách trả về từ GET /api/v1/mes/gages.</summary>
+public record MesGageData(int Id, string GageNo, string Description, string? Unit, string? CategoryCode)
+{
+    public string Display => $"{GageNo} — {Description}";
+}
+
 // ── Card ViewModel ─────────────────────────────────────────────────────────
 
 public enum MeasureState { Unmeasured, Pass, Fail }
@@ -56,6 +62,7 @@ public partial class DimensionCardVm : ObservableObject
     public string? NominalText { get; init; }
     public bool IsFinal { get; init; }
     public bool IsCritical { get; init; }
+    public string? CategoryCode { get; init; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsMeasured))]

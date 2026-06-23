@@ -49,10 +49,12 @@ public class ProductionSessionsController(IMediator mediator) : ControllerBase
 
     /// <summary>Operator bấm "Bắt đầu" — tạo session và bắt đầu gia công ngay.</summary>
     [HttpPost("production-sessions")]
+    [Authorize(Roles = $"{AppConstants.Roles.Operator},{AppConstants.Roles.Leader},{AppConstants.Roles.Admin}")]
     public async Task<IActionResult> Begin([FromBody] BeginSessionRequest request)
     {
+        var role = User.FindFirstValue(ClaimTypes.Role) ?? "";
         var result = await mediator.Send(new BeginSessionCommand(
-            request.ProductId, request.PartOpId, request.MachineCode, UserId));
+            request.ProductId, request.PartOpId, request.MachineCode, UserId, role));
         return result.IsSuccess
             ? Ok(ApiResponse<ProductionSessionDto>.Ok(result.Value))
             : BadRequest(ApiResponse<ProductionSessionDto>.Fail(result.Errors));

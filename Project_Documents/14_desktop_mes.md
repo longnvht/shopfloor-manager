@@ -18,7 +18,7 @@ Desktop MES là ứng dụng chạy tại shop floor — trên máy tính công 
 - Tạo NCR khi sản phẩm không đạt
 - Theo dõi trạng thái sản xuất real-time
 
-## Trạng thái implement *(cập nhật 2026-06-09, phase 4b hoàn tất)*
+## Trạng thái implement *(cập nhật 2026-06-23)*
 
 | Tính năng | Trạng thái |
 |---|---|
@@ -44,9 +44,12 @@ Desktop MES là ứng dụng chạy tại shop floor — trên máy tính công 
 | Shortcut lock khi inprogress (Chọn Job/OP/SP disabled, opacity 0.4) | ✅ Done |
 | DocumentViewer — PDF viewer (WebView2 — Drawing, Route Card) | ✅ Done |
 | Settings Page (Admin — ApiBaseUrl, MachineCode, MachineName) | ✅ Done |
-| FAI Final (re-inspect sau rework, is_final=true, chỉ QC Inspector) | ✅ Done |
+| FAI Final — blind inspection 100% dimension (xem §5b) | ✅ Done |
 | SignalR real-time notifications (NCR banner trên Dashboard) | ✅ Done |
-| Gage Selection trong FAI (chọn dụng cụ đo trước khi nhập) | ⏳ Phase 5 |
+| Window chrome tự vẽ (ẩn titlebar Windows, nút Minimize/Maximize/Close, kéo cửa sổ) | ✅ Done |
+| Gage Selection trong FAI (tìm + chọn dạng thẻ, filter theo category, nhớ gage theo balloon trong Job) | ✅ Done |
+| Login không phân biệt hoa/thường tên đăng nhập | ✅ Done |
+| ProductionSession — chỉ Operator/Leader/Administrator được tạo session mới (chặn ở cả API + Desktop) | ✅ Done |
 
 ---
 
@@ -120,12 +123,14 @@ Mỗi máy tính tại shop floor có file `local.json` riêng:
 
 | Role (API)       | Vinam cũ | Quyền trong Desktop MES |
 |---|---|---|
-| Operator         | OPR      | Chọn Job/OP, nhập MeasureValue, xem docs; forced View_Mode khi máy đang có session của người khác |
+| Operator         | OPR      | Chọn Job/OP, **tạo/bắt đầu session**, nhập MeasureValue, xem docs; forced View_Mode khi máy đang có session của người khác |
 | Leader           | —        | Như Operator + có thể force-finish session của người khác trên cùng máy |
-| QC Inspector     | QC       | Nhập MeasureValue, approve/reject, tạo NCR; View_Mode khi máy bận |
-| Engineer         | ME       | Xem tất cả, không nhập measure; View_Mode khi máy bận |
-| Manager          | PLN      | Read-only — monitor; View_Mode khi máy bận |
+| QC Inspector     | QC       | **Không tạo session mới** — luôn View_Mode; nhập MeasureValue, approve/reject, tạo NCR |
+| Engineer         | ME       | **Không tạo session mới** — luôn View_Mode; xem tất cả, không nhập measure |
+| Manager          | PLN      | **Không tạo session mới** — luôn View_Mode; read-only — monitor |
 | Administrator    | —        | Full access + force-finish + Settings page |
+
+**Chỉ Operator/Leader/Administrator được tạo `ProductionSession` mới** (`BeginSessionCommand` chặn role khác ở Application layer + `[Authorize(Roles=...)]` ở controller). QC Inspector/Engineer/Manager luôn ở View_Mode, kể cả khi máy đang trống — không chỉ "khi máy bận".
 
 Menu items bị ẩn/disabled theo role — gọi `GET /api/v1/roles/{id}/menus` sau login.
 
@@ -141,7 +146,7 @@ Menu items bị ẩn/disabled theo role — gọi `GET /api/v1/roles/{id}/menus`
   → POST /api/v1/auth/login
   → Nhận JWT token → lưu in-memory (không persist ra disk)
   → GET /api/v1/machines/{machineCode}/active-session
-      ├── Không có session active   → Operation_Mode
+      ├── Không có session active   → Operation_Mode nếu role Operator/Leader/Admin, ngược lại View_Mode
       ├── Session của chính mình    → Operation_Mode + resume WorkContext
       ├── Session của người khác + Role Leader/Admin → Operation_Mode (có ForceFinish button)
       └── Session của người khác + Role Operator/khác → View_Mode (forced)
@@ -278,23 +283,30 @@ Menu items bị ẩn/disabled theo role — gọi `GET /api/v1/roles/{id}/menus`
 
 **IsTextType dimensions**: `is_text_type=true` → nút PASS / FAIL (không có NumPad), gửi `manualResult=true/false`, `value=null`. Auto-save ngay khi bấm.
 
-**IsFinal dimensions**: `is_final=true` → chỉ QC Inspector nhập được, Operator thấy nhưng disabled.
+**`Dimension.IsFinal`**: KHÔNG liên quan tới quyền nhập của Operator — đây là cờ "QC chấp nhận tái sử dụng nguyên dung sai kỹ thuật của dimension này cho QC Final", dùng khi gộp dimsheet ở OP loại INS (xem §5b).
 
 ---
 
-### 5b. FAI Final flow (sau rework — ⏳ Phase 4b)
+### 5b. QC Final — Blind Inspection (✅ Done, 2026-06-22)
+
+**Bản chất nghiệp vụ**: QC Final là một công đoạn đo kiểm **độc lập hoàn toàn** ("blind inspection") — KHÔNG đọc/tham chiếu kết quả InprocessFAI hay QCInline, kiểm **100% dimension trên 100% sản phẩm** (không phải re-inspect chỉ các dims Fail như thiết kế ban đầu).
 
 ```
-NCR đã xử lý xong (rework/repair hoàn tất)
-  → QC Inspector mở FAI Page cho Serial bị fail
-  → Chỉ hiển thị dimensions có trạng thái Fail
-  → Đo lại từng dimension:
-      → POST /api/v1/fai/measure với is_final=true + final_op_id
-      → Pass → balloon xanh, NCR liên quan tự đóng
-      → Fail lại → NCR mới, tiếp tục chu kỳ rework
+3 mode trên FaiPage (FaiViewModel.Mode): Basic | QcInline | Final
+  Basic     → Operator, stage InprocessFAI(0), đo theo thứ tự, auto-advance, khóa sau khi đo
+  QcInline  → QC Inspector, stage QCInline(1), kiểm ngẫu nhiên theo rate, không auto-advance
+  Final     → QC Inspector, stage QCFinal(2), đo lại TOÀN BỘ dimension, auto-advance, khóa sau khi đo
+             — đọc/ghi đúng stage QCFinal, không fallback sang InprocessFAI/QCInline
 ```
 
-> Schema đã sẵn sàng (`is_final`, `final_op_id` trong `measure_values`). Cần thêm: filter UI "chỉ hiện dims Fail", API param `isFinal=true`, quyền chỉ QC Inspector.
+**Dimsheet riêng cho QC** (khi OP đang chọn là loại `INS`):
+- Phòng kỹ thuật và phòng QC có thể có dung sai khác nhau cho cùng kích thước (QC bám yêu cầu khách hàng, kỹ thuật có thể siết dung sai hơn cho sản xuất).
+- `Dimension.IsFinal = true` → QC chấp nhận tái sử dụng nguyên dung sai kỹ thuật, không cần tạo riêng.
+- Dimension nào QC cần dung sai khác → QC tự tạo dimension mới (cùng `BalloonNumber`) gán cho OP loại INS — dimension riêng của OP INS luôn thắng nếu trùng `BalloonNumber` với dimension `IsFinal=true` từ OP trước.
+
+**Điều kiện hiện shortcut "FAI Final" trên Dashboard**: OP đang chọn là loại INS **VÀ** sản phẩm đã hoàn thiện gia công (cả hai điều kiện, không phải một trong hai). Chỉ role `QC Inspector`/`Administrator` thấy shortcut này.
+
+> Chi tiết thiết kế: [`docs/superpowers/specs/2026-06-22-qc-final-blind-inspection-design.md`](../docs/superpowers/specs/2026-06-22-qc-final-blind-inspection-design.md)
 
 ---
 

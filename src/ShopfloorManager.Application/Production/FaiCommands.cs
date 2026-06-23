@@ -713,7 +713,8 @@ public record SaveMeasureCommand(
     bool IsFinal,          // true khi re-inspect sau rework (FAI Final)
     int? FinalOpId,
     string? Note, int RequesterId,
-    MeasureStage MeasureStage = MeasureStage.InprocessFAI)
+    MeasureStage MeasureStage = MeasureStage.InprocessFAI,
+    int? GageId = null)    // Dụng cụ đo đã chọn — xem GetMesGagesQuery (08_gage_management.md)
     : IRequest<Result<MeasureValueDto>>;
 
 public record MeasureValueDto(
@@ -756,6 +757,7 @@ public class SaveMeasureCommandHandler(IShopfloorDbContext db, IRealtimeNotifier
             IsFinal = req.IsFinal, FinalOpId = req.FinalOpId,
             MeasuredBy = req.RequesterId,
             MeasureStage = req.MeasureStage,
+            GageId = req.GageId,
         };
         db.MeasureValues.Add(mv);
         await db.SaveChangesAsync(ct);

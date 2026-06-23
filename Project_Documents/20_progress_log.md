@@ -388,6 +388,44 @@ So với mockup gốc, layout ban đầu đặt sai vị trí filter + nút expo
 
 ---
 
+## Desktop: Session permission fix + Gage Selection trong FAI ✅ (2026-06-23)
+
+### Bug — QC/Engineer/Manager tạo được session gia công
+
+`BeginSessionHandler` và Desktop UI không check role — mọi role đăng nhập vào máy trống đều vào `Operation_Mode` và bấm "Bắt đầu" được, sai với CLAUDE.md ("Operator (own session)").
+
+- `BeginSessionCommand` thêm `Role`, handler chặn role ngoài `Operator/Leader/Administrator` (`Result.Fail`). Controller thêm `[Authorize(Roles=...)]` (defense-in-depth, cùng pattern với `ForceComplete`).
+- `LoginViewModel.DetermineAppMode`: máy trống/lỗi API → chỉ vào `Operation_Mode` nếu role hợp lệ, còn lại `View_Mode`.
+- `DashboardViewModel.CanStart` + `CanSwitchMode`: thêm điều kiện role — QC Inspector/Engineer không bao giờ toggle được sang Operation_Mode dù máy trống.
+- Login `UserLogin` so sánh `ToLower()` — không phân biệt hoa/thường.
+- Test: `BeginSessionCommandTests`, `LoginCommandTests`.
+
+### Desktop UI polish
+
+- Window chrome tự vẽ: `WindowChromeButtons` (UserControl dùng chung) + `WindowDragBehavior` (attached property `IsDragHandle`) — ẩn titlebar Windows (`WindowStyle=None`), áp dụng cho cả 7 trang. `ResizeMode=NoResize` để tránh dải viền lạ ở Normal state (do thiếu `WindowChrome` đúng cách).
+- Login + ô tìm gage: bỏ `MaterialDesignOutlinedTextBox`/`PasswordBox` — template Outlined có `TextBoxViewMargin` nội bộ không khớp `Padding`, gây lệch placeholder vs caret. Tự vẽ `Border` bo tròn + `TextBox`/`PasswordBox` trần (`Style="{x:Null}"`) + `TextBlock` placeholder riêng cùng `Margin`.
+
+### Gage Selection trong FAI (Phase 5 → Done)
+
+- `GetMesGagesQuery` (`GET /api/v1/mes/gages?categoryCode=`) — gage `is_valid=true`, chưa mượn, filter theo category. `SaveMeasureCommand` thêm `GageId` lưu vào `MeasureValue.GageId`. Test: `GetMesGagesQueryTests`, `SaveMeasureCommandGageTests`.
+- Desktop: ô tìm + danh sách thẻ (touch-friendly) thay ComboBox — click chỉ highlight (không chặn kéo-thả cuộn), double-click hoặc nút "Chọn" mới xác nhận.
+- **Đổi dimension → luôn chọn lại gage** (không carry-over) — trừ khi cùng balloon đã đo ở serial khác trong Job thì tự gợi ý lại (`WorkContext.LastGageIdByBalloon`, key `PartOpId:BalloonNumber`, reset khi đổi Job).
+- Category **`VIS`** (Visual) — category thứ 6 mới thêm vào `dimension_categories` (data-only, không migration) — dimension kiểm bằng mắt (không min/max số) ẩn hoàn toàn bước chọn gage.
+
+### Data fix — gage_type_id / category_id (dev DB)
+
+- 85 gage chưa có `gage_type_id` → đối chiếu legacy MySQL (`gage.GageType → gagetype.TypeCode`) để gán đúng.
+- 12 `gage_types` chưa có `category_id` → suy luận từ tên thiết bị thật + đối chiếu `categories`/`categoriesfix` (legacy không có cột LIN/ANG/THD/GEO/SFC trực tiếp) — gán 9, giữ NULL 3 (Hardness Tester, Pressure Gauge, Tachometer — không thuộc category kích thước).
+- Phát hiện + sửa lỗi: 3 gage (`HTB-002`, `TMG-001`, `PHM-001` — hardness test block/thermocouple/pH meter) bị map nhầm vào gage_type "Temperature" rồi gán nhầm category LIN — revert về NULL.
+- 4 dimension thực sự visual (`No burr, no scratch`, `Visual Inspection`, `SAW CUT...`, `Lam sach bavia`) gán category `VIS`. **Không** gán `VIS` cho dimension đo góc/ren/độ nhám thiếu tolerance số (vẫn cần dụng cụ đo thật).
+
+### Lessons learned
+
+- **`Dimension.IsValid` (computed property) không dịch được sang SQL** trong EF Core query — phải filter trực tiếp bằng `StatusCode` enum values, không dùng property tính toán trong `Where()`.
+- **Đừng suy diễn category từ tên cột/field một mình** — gage_type "Temperature" hoá ra chứa cả thermocouple/pH meter/hardness block (3 thiết bị hoàn toàn không liên quan tới "Temperature" hay category đề xuất ban đầu); luôn xác minh bằng cách liệt kê thực tế gage nào đang trỏ vào type đó trước khi gán category.
+
+---
+
 ## Các quyết định thiết kế quan trọng (theo thời gian)
 
 | Ngày | Quyết định |
@@ -402,3 +440,6 @@ So với mockup gốc, layout ban đầu đặt sai vị trí filter + nút expo
 | 2026-06-17 | Approve/Reject Documents + Dimensions: `Lead Engineer|Manager|Admin` (không phải QC Inspector) |
 | 2026-06-18 | OP INS nhận diện bằng `OpType.Code == "INS"` so khớp cố định (không thêm cờ schema mới); gom dimension theo `OpNumberSort` nhỏ hơn, không gom toàn bộ job |
 | 2026-06-18 | Job-list panel `/fai` bỏ field "khách hàng" — domain chưa có bảng Customer để resolve tên, chỉ có `PoLine.CustomerId` |
+| 2026-06-23 | ProductionSession: chỉ Operator/Leader/Administrator tạo session mới — QC/Engineer/Manager luôn View_Mode kể cả máy trống |
+| 2026-06-23 | Gage Selection trong FAI: filter theo Category (không theo GageType cụ thể) — đúng granularity thiết kế ban đầu, không mở rộng thêm ràng buộc |
+| 2026-06-23 | Thêm category `VIS` (Visual) — thứ 6 ngoài LIN/ANG/THD/GEO/SFC — chỉ cho dimension kiểm bằng mắt thuần túy, không gộp chung dimension thiếu tolerance số nói chung |

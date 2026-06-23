@@ -26,9 +26,10 @@ public class LoginCommandHandler(
 {
     public async Task<Result<LoginResponse>> Handle(LoginCommand req, CancellationToken ct)
     {
+        var login = req.UserLogin.ToLowerInvariant();
         var user = await db.Users
             .Include(u => u.Role)
-            .FirstOrDefaultAsync(u => u.UserLogin == req.UserLogin && u.IsActive, ct);
+            .FirstOrDefaultAsync(u => u.UserLogin.ToLower() == login && u.IsActive, ct);
 
         if (user is null || !hasher.Verify(req.Password, user.PasswordHash))
             return Result.Fail("Tên đăng nhập hoặc mật khẩu không đúng.");

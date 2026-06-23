@@ -96,13 +96,16 @@ Mỗi dimension thuộc một category (phương pháp đo):
 | `LIN` | Linear | Thước cặp (CAL), panme (MIC), bore gage (BOR), depth gage (DPG), height gage (HEG) |
 | `ANG` | Angular | Thước góc (ANG) |
 | `THD` | Thread | Dưỡng ren (PLG/RIG), pitch diameter gage (PDG), taper gage (ETG/IGT), thread height gage (THG) |
-| `GEO` | Geometric | CMM, dial indicator (IND), profile projector (PPM), radius gage (RAD), visual (VIS) |
+| `GEO` | Geometric | CMM, dial indicator (IND), profile projector (PPM), radius gage (RAD) |
 | `SFC` | Surface | Surface roughness machine (SRM), surface roughness template (SRT) |
+| `VIS` | Visual | Kiểm bằng mắt (No burr, Visual Inspection...) — **không cần chọn dụng cụ đo** trong FAI (xem `08_gage_management.md` §3.7) |
 
 **Tần suất sử dụng thực tế (từ dữ liệu legacy 94,100 dimensions):**
 PPM 34% · CAL 16% · CMM 7% · IND 6% · MIC 5% · VIS 4% · BOR 4% · DPG 4% · PLG 4% · SRM 4%
 
-→ GEO (PPM+CMM+IND+VIS) chiếm ~51%, LIN (CAL+MIC+BOR+DPG+HEG) chiếm ~35%, THD ~8%, SFC ~4%.
+→ GEO (PPM+CMM+IND) chiếm ~47%, LIN (CAL+MIC+BOR+DPG+HEG) chiếm ~35%, THD ~8%, SFC ~4%, VIS ~4%.
+
+> `VIS` được thêm thành category thứ 6 (2026-06-23) — trước đó bị gộp nhầm vào `GEO`. Chỉ dimension thực sự kiểm bằng mắt (không có min/max số, text mô tả tiêu chí định tính) mới gán `VIS`; dimension đo góc/ren/độ nhám không có tolerance số nhưng vẫn cần dụng cụ đo thật (thước góc, dưỡng ren, máy đo nhám) **không** gán `VIS` — vẫn giữ category LIN/ANG/THD/GEO/SFC tương ứng.
 
 ### 3.7 Lịch sử thay đổi Dimension
 - Mỗi khi thay đổi nominal/tolerance → tạo record trong `dimension_history`.

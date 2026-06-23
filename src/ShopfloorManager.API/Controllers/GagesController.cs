@@ -27,6 +27,14 @@ public class GagesController(IMediator mediator) : ControllerBase
         return Ok(ApiResponse<List<GageDto>>.Ok(result.Value));
     }
 
+    /// <summary>MES (Desktop): danh sách gage hợp lệ, chưa bị mượn — chọn khi nhập measure value.</summary>
+    [HttpGet("mes/gages")]
+    public async Task<IActionResult> GetMesGages([FromQuery] string? categoryCode)
+    {
+        var result = await mediator.Send(new GetMesGagesQuery(categoryCode));
+        return Ok(ApiResponse<List<MesGageDto>>.Ok(result.Value));
+    }
+
     [HttpGet("gages/calib-due")]
     public async Task<IActionResult> GetCalibDue([FromQuery] int days = 60)
     {

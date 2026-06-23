@@ -4,6 +4,7 @@
              xmlns:md="http://materialdesigninxaml.net/winfx/xaml/themes"
              xmlns:models="clr-namespace:ShopfloorManager.Desktop.Models"
              xmlns:kb="clr-namespace:ShopfloorManager.Desktop.Behaviors"
+             xmlns:ctrl="clr-namespace:ShopfloorManager.Desktop.Controls"
              Background="{StaticResource BrandBg}">
 
     <UserControl.Resources>
@@ -53,7 +54,8 @@
         </Grid.RowDefinitions>
 
         <!-- ══ TITLE BAR ══ -->
-        <Border Grid.Row="0" Background="{StaticResource BrandPrimary}">
+        <Border Grid.Row="0" Background="{StaticResource BrandPrimary}"
+                kb:WindowDragBehavior.IsDragHandle="True">
             <Border.Style>
                 <Style TargetType="Border">
                     <Setter Property="Background" Value="{StaticResource BrandPrimary}"/>
@@ -64,7 +66,7 @@
                     </Style.Triggers>
                 </Style>
             </Border.Style>
-            <Grid Margin="16,0">
+            <Grid Margin="16,0,0,0">
                 <StackPanel VerticalAlignment="Center">
                     <TextBlock Text="{Binding PageTitle, Mode=OneWay}"
                                Foreground="White" FontWeight="Bold" FontSize="14"/>
@@ -78,8 +80,9 @@
                 </StackPanel>
                 <ProgressBar Style="{StaticResource MaterialDesignCircularProgressBar}"
                              IsIndeterminate="True" Width="24" Height="24"
-                             HorizontalAlignment="Right"
+                             HorizontalAlignment="Right" Margin="0,0,140,0"
                              Visibility="{Binding IsBusy, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                <ctrl:WindowChromeButtons HorizontalAlignment="Right"/>
             </Grid>
         </Border>
 
@@ -192,9 +195,146 @@
 
             <!-- ── RIGHT: Input panel ── -->
             <Grid Grid.Column="2" Margin="0,8,8,8">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- Gage selection — nhập để tìm, kết quả dạng thẻ (touch-friendly), §6 08_gage_management.md.
+                     Ẩn hoàn toàn khi category = VIS (kiểm bằng mắt, không cần dụng cụ đo). -->
+                <Border Grid.Row="0" Background="White" CornerRadius="8" Padding="10,8" Margin="0,0,0,8"
+                        BorderBrush="#E8D5C4" BorderThickness="1"
+                        Visibility="{Binding ShowGageSelection, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <StackPanel>
+                        <TextBlock Text="Dụng cụ đo" FontSize="10" FontWeight="Bold"
+                                   Foreground="{StaticResource BrandTextSecondary}" Margin="0,0,0,6"/>
+
+                        <!-- Đã chọn — chip tóm tắt -->
+                        <Grid Visibility="{Binding IsGageSearchOpen, Converter={StaticResource InverseBoolToVisibilityConverter}}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="{Binding SelectedGage.Display, Mode=OneWay}"
+                                       FontSize="14" FontWeight="Medium" VerticalAlignment="Center"
+                                       Foreground="{StaticResource BrandText}" TextTrimming="CharacterEllipsis"/>
+                            <Button Grid.Column="1" Content="Đổi" Command="{Binding ChangeGageCommand}"
+                                    Style="{StaticResource MaterialDesignOutlinedButton}"
+                                    BorderBrush="{StaticResource BrandPrimary}" Foreground="{StaticResource BrandPrimary}"
+                                    Height="36" Padding="14,0" FontSize="12"/>
+                        </Grid>
+
+                        <!-- Tìm dụng cụ — nhập để filter, chọn từ danh sách thẻ -->
+                        <StackPanel Visibility="{Binding IsGageSearchOpen, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <!-- Textbox trần (không dùng MaterialDesignOutlinedTextBox) — template Outlined có
+                                 margin nội bộ riêng cho phần text (TextBoxViewMargin), khiến placeholder hint
+                                 bị lệch/che so với Padding thật. Tự vẽ Border + TextBox + placeholder riêng. -->
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Grid.Column="0" CornerRadius="8" Background="White"
+                                        BorderBrush="{StaticResource BrandPrimaryLight}"
+                                        BorderThickness="1.5" Height="40">
+                                    <Grid>
+                                        <TextBox Text="{Binding GageSearchText, UpdateSourceTrigger=PropertyChanged}"
+                                                 kb:KeyboardBehavior.Mode="Qwerty"
+                                                 Style="{x:Null}"
+                                                 Background="Transparent" BorderThickness="0"
+                                                 FontSize="13" Padding="10,0"
+                                                 VerticalContentAlignment="Center"/>
+                                        <TextBlock Text="Nhập mã hoặc tên dụng cụ..."
+                                                   Foreground="{StaticResource BrandTextSecondary}" Opacity="0.7"
+                                                   FontSize="13" Margin="10,0" VerticalAlignment="Center"
+                                                   IsHitTestVisible="False">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding GageSearchText}" Value="">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </Grid>
+                                </Border>
+
+                                <!-- Xác nhận thẻ đang highlight — thay thế cho double-click -->
+                                <Button Grid.Column="1" Content="Chọn" Margin="6,0,0,0"
+                                        Command="{Binding ConfirmHighlightedGageCommand}"
+                                        Style="{StaticResource MaterialDesignRaisedButton}"
+                                        Background="{StaticResource BrandAccent}" Foreground="White"
+                                        Height="40" Padding="14,0" FontSize="13"/>
+                            </Grid>
+
+                            <!-- Click chỉ highlight (kéo để cuộn) — double-click hoặc nút "Chọn" mới xác nhận -->
+                            <ScrollViewer MaxHeight="180" VerticalScrollBarVisibility="Auto"
+                                          PanningMode="VerticalFirst" kb:DragScrollBehavior.Enabled="True">
+                                <ListBox ItemsSource="{Binding FilteredGages}"
+                                         SelectedItem="{Binding HighlightedGage, Mode=TwoWay}"
+                                         Background="Transparent" BorderThickness="0"
+                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                         ScrollViewer.VerticalScrollBarVisibility="Disabled">
+                                    <ListBox.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel/>
+                                        </ItemsPanelTemplate>
+                                    </ListBox.ItemsPanel>
+                                    <ListBox.ItemContainerStyle>
+                                        <Style TargetType="ListBoxItem">
+                                            <Setter Property="Padding" Value="0"/>
+                                            <Setter Property="Margin" Value="0,0,6,6"/>
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="ListBoxItem">
+                                                        <Border x:Name="bd" CornerRadius="8" BorderThickness="1.5"
+                                                                BorderBrush="#E8D5C4" Background="White"
+                                                                Padding="10,6" Width="150" Height="56" Cursor="Hand">
+                                                            <Border.InputBindings>
+                                                                <MouseBinding MouseAction="LeftDoubleClick"
+                                                                              Command="{Binding DataContext.SelectGageCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                              CommandParameter="{Binding}"/>
+                                                            </Border.InputBindings>
+                                                            <ContentPresenter/>
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsSelected" Value="True">
+                                                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource BrandAccent}"/>
+                                                                <Setter TargetName="bd" Property="BorderThickness" Value="2.5"/>
+                                                                <Setter TargetName="bd" Property="Background" Value="{StaticResource BrandAccentLight}"/>
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </ListBox.ItemContainerStyle>
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate DataType="{x:Type models:MesGageData}">
+                                            <StackPanel VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding GageNo}" FontWeight="Bold" FontSize="13"
+                                                           Foreground="{StaticResource BrandText}"/>
+                                                <TextBlock Text="{Binding Description}" FontSize="10"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           Foreground="{StaticResource BrandTextSecondary}"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </ScrollViewer>
+
+                            <TextBlock Text="Không tìm thấy dụng cụ phù hợp" FontSize="11" Margin="2,4,0,0"
+                                       Foreground="{StaticResource BrandTextSecondary}"
+                                       Visibility="{Binding FilteredGages.Count, Converter={StaticResource ZeroToVisibilityConverter}}"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
 
                 <!-- Placeholder -->
-                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center"
+                <StackPanel Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center"
                             Visibility="{Binding ShowPlaceholder, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <md:PackIcon Kind="CursorDefaultOutline" Width="48" Height="48"
                                  HorizontalAlignment="Center" Foreground="#BDBDBD"/>
@@ -207,7 +347,7 @@
                 </StackPanel>
 
                 <!-- Numeric input panel -->
-                <Grid Margin="12,0"
+                <Grid Grid.Row="1" Margin="12,0"
                       Visibility="{Binding ShowNumericInput, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -219,12 +359,19 @@
                     <Border Grid.Row="0" Background="White" CornerRadius="10" Padding="14,10"
                             BorderBrush="#E8D5C4" BorderThickness="1" Margin="0,0,0,12">
                         <StackPanel>
-                            <!-- Header row: balloon + critical badge -->
+                            <!-- Header row: balloon + category badge + critical badge -->
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
                                 <TextBlock Text="{Binding SelectedDimension.BalloonNumber, Mode=OneWay}"
                                            FontSize="28" FontWeight="Bold"
                                            Foreground="{StaticResource BrandText}"/>
                                 <Border Margin="10,6,0,0" CornerRadius="4" Padding="6,2"
+                                        Background="{StaticResource BrandAccentLight}" VerticalAlignment="Top"
+                                        Visibility="{Binding SelectedDimension.CategoryCode, Converter={StaticResource StringToVisibilityConverter}}">
+                                    <TextBlock Text="{Binding SelectedDimension.CategoryCode, Mode=OneWay}"
+                                               FontSize="10" FontWeight="Bold"
+                                               Foreground="{StaticResource BrandPrimary}"/>
+                                </Border>
+                                <Border Margin="6,6,0,0" CornerRadius="4" Padding="6,2"
                                         Background="#FFEBEE" VerticalAlignment="Top">
                                     <Border.Style>
                                         <Style TargetType="Border">
@@ -332,7 +479,7 @@
                 </Grid>
 
                 <!-- Text type input panel (PASS / FAIL) -->
-                <Grid Margin="12,0"
+                <Grid Grid.Row="1" Margin="12,0"
                       Visibility="{Binding ShowTextInput, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -343,10 +490,18 @@
                     <Border Grid.Row="0" Background="White" CornerRadius="10" Padding="14,12"
                             BorderBrush="#E8D5C4" BorderThickness="1" Margin="0,0,0,16">
                         <StackPanel>
-                            <TextBlock Text="{Binding SelectedDimension.BalloonNumber, Mode=OneWay}"
-                                       FontSize="28" FontWeight="Bold"
-                                       Foreground="{StaticResource BrandText}"
-                                       Margin="0,0,0,6"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                <TextBlock Text="{Binding SelectedDimension.BalloonNumber, Mode=OneWay}"
+                                           FontSize="28" FontWeight="Bold"
+                                           Foreground="{StaticResource BrandText}"/>
+                                <Border Margin="10,6,0,0" CornerRadius="4" Padding="6,2"
+                                        Background="{StaticResource BrandAccentLight}" VerticalAlignment="Top"
+                                        Visibility="{Binding SelectedDimension.CategoryCode, Converter={StaticResource StringToVisibilityConverter}}">
+                                    <TextBlock Text="{Binding SelectedDimension.CategoryCode, Mode=OneWay}"
+                                               FontSize="10" FontWeight="Bold"
+                                               Foreground="{StaticResource BrandPrimary}"/>
+                                </Border>
+                            </StackPanel>
                             <TextBlock Text="Yêu cầu kỹ thuật:" FontSize="11"
                                        Foreground="{StaticResource BrandTextSecondary}"
                                        Margin="0,0,0,4"/>

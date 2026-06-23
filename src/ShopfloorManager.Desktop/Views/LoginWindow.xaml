@@ -35,19 +35,71 @@
 
             <!-- Form -->
             <StackPanel Grid.Row="1" Margin="40,0" VerticalAlignment="Center">
-                <TextBox Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}"
-                         kb:KeyboardBehavior.Mode="Qwerty"
-                         md:HintAssist.Hint="{loc:Loc Key=Login_UsernameHint}"
-                         md:HintAssist.IsFloating="True"
-                         Style="{StaticResource MaterialDesignOutlinedTextBox}"
-                         IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBoolConverter}}"/>
+                <!-- Textbox trần (không dùng MaterialDesignOutlinedTextBox) — template Outlined có margin nội bộ
+                     riêng cho phần text (TextBoxViewMargin) không trùng với Padding, gây lệch placeholder vs caret.
+                     Tự vẽ Border bo tròn + TextBox Padding để caret và placeholder dùng đúng 1 mốc toạ độ. -->
+                <Border CornerRadius="26" Background="White"
+                        BorderBrush="{StaticResource BrandPrimaryLight}" BorderThickness="1.5" Height="52">
+                    <Grid>
+                        <TextBox Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}"
+                                 kb:KeyboardBehavior.Mode="Qwerty"
+                                 Style="{x:Null}"
+                                 Background="Transparent" BorderThickness="0"
+                                 FontSize="15" Padding="44,0,16,0"
+                                 VerticalContentAlignment="Center"
+                                 IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBoolConverter}}"/>
+                        <md:PackIcon Kind="AccountOutline" Width="20" Height="20"
+                                     Foreground="{StaticResource BrandTextSecondary}"
+                                     HorizontalAlignment="Left" VerticalAlignment="Center"
+                                     Margin="16,0,0,0" IsHitTestVisible="False"/>
+                        <TextBlock Text="{loc:Loc Key=Login_UsernameHint}"
+                                   Foreground="{StaticResource BrandTextSecondary}" Opacity="0.7"
+                                   FontSize="15" Margin="44,0,16,0" VerticalAlignment="Center"
+                                   IsHitTestVisible="False">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Username}" Value="">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </Grid>
+                </Border>
 
-                <PasswordBox Margin="0,16,0,0"
-                             md:HintAssist.Hint="{loc:Loc Key=Login_PasswordHint}"
-                             md:HintAssist.IsFloating="True"
-                             Style="{StaticResource MaterialDesignOutlinedPasswordBox}"
-                             md:PasswordBoxAssist.Password="{Binding Password, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                             IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBoolConverter}}"/>
+                <Border CornerRadius="26" Background="White" Margin="0,16,0,0"
+                        BorderBrush="{StaticResource BrandPrimaryLight}" BorderThickness="1.5" Height="52">
+                    <Grid>
+                        <PasswordBox Style="{x:Null}"
+                                     Background="Transparent" BorderThickness="0"
+                                     FontSize="15" Padding="44,0,16,0"
+                                     VerticalContentAlignment="Center"
+                                     md:PasswordBoxAssist.Password="{Binding Password, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                     IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBoolConverter}}"/>
+                        <md:PackIcon Kind="LockOutline" Width="20" Height="20"
+                                     Foreground="{StaticResource BrandTextSecondary}"
+                                     HorizontalAlignment="Left" VerticalAlignment="Center"
+                                     Margin="16,0,0,0" IsHitTestVisible="False"/>
+                        <TextBlock Text="{loc:Loc Key=Login_PasswordHint}"
+                                   Foreground="{StaticResource BrandTextSecondary}" Opacity="0.7"
+                                   FontSize="15" Margin="44,0,16,0" VerticalAlignment="Center"
+                                   IsHitTestVisible="False">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Password}" Value="">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </Grid>
+                </Border>
 
                 <TextBlock Margin="0,8,0,0"
                            Text="{Binding ErrorMessage}"
@@ -58,9 +110,11 @@
                 <Button Content="{loc:Loc Key=Login_LoginButton}"
                         Command="{Binding LoginCommand}"
                         Style="{StaticResource MaterialDesignRaisedButton}"
-                        md:ButtonAssist.CornerRadius="6"
-                        Height="44"
-                        Margin="0,16,0,0"/>
+                        Background="{StaticResource BrandAccent}"
+                        BorderBrush="{StaticResource BrandAccent}"
+                        md:ButtonAssist.CornerRadius="26"
+                        Height="52"
+                        Margin="0,20,0,0"/>
             </StackPanel>
 
             <!-- Footer -->

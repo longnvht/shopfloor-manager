@@ -5,6 +5,7 @@
              xmlns:conv="clr-namespace:ShopfloorManager.Desktop.Converters"
              xmlns:models="clr-namespace:ShopfloorManager.Desktop.Models"
              xmlns:kb="clr-namespace:ShopfloorManager.Desktop.Behaviors"
+             xmlns:ctrl="clr-namespace:ShopfloorManager.Desktop.Controls"
              Background="{StaticResource BrandBg}">
 
     <UserControl.Resources>
@@ -47,8 +48,9 @@
         </Grid.RowDefinitions>
 
         <!-- ══ TITLE BAR ══ -->
-        <Border Grid.Row="0" Background="{StaticResource BrandPrimary}">
-            <Grid Margin="16,0">
+        <Border Grid.Row="0" Background="{StaticResource BrandPrimary}"
+                kb:WindowDragBehavior.IsDragHandle="True">
+            <Grid Margin="16,0,0,0">
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center">
                     <md:PackIcon Kind="Factory" Width="20" Height="20"
                                  Foreground="{StaticResource BrandAccentLight}"
@@ -61,8 +63,10 @@
                 <!-- Loading indicator -->
                 <ProgressBar Style="{StaticResource MaterialDesignCircularProgressBar}"
                              IsIndeterminate="True" Width="24" Height="24"
-                             HorizontalAlignment="Right"
+                             HorizontalAlignment="Right" Margin="0,0,140,0"
                              Visibility="{Binding IsBusy, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+
+                <ctrl:WindowChromeButtons HorizontalAlignment="Right"/>
             </Grid>
         </Border>
 

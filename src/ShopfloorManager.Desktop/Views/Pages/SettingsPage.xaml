@@ -3,6 +3,8 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:md="http://materialdesigninxaml.net/winfx/xaml/themes"
              xmlns:loc="clr-namespace:ShopfloorManager.Desktop.Localization"
+             xmlns:kb="clr-namespace:ShopfloorManager.Desktop.Behaviors"
+             xmlns:ctrl="clr-namespace:ShopfloorManager.Desktop.Controls"
              Background="{StaticResource BrandBg}">
 
     <UserControl.Resources>
@@ -54,8 +56,9 @@
         </Grid.RowDefinitions>
 
         <!-- ══ TITLE BAR ══ -->
-        <Border Grid.Row="0" Background="{StaticResource BrandPrimary}">
-            <Grid Margin="16,0">
+        <Border Grid.Row="0" Background="{StaticResource BrandPrimary}"
+                kb:WindowDragBehavior.IsDragHandle="True">
+            <Grid Margin="16,0,0,0">
                 <StackPanel VerticalAlignment="Center">
                     <TextBlock Text="{loc:Loc Key=Settings_Title}"
                                Foreground="White" FontWeight="Bold" FontSize="14"/>
@@ -63,6 +66,7 @@
                                Foreground="{StaticResource BrandAccentLight}"
                                FontSize="11" Margin="0,1,0,0"/>
                 </StackPanel>
+                <ctrl:WindowChromeButtons HorizontalAlignment="Right"/>
             </Grid>
         </Border>
 

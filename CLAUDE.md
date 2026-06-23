@@ -292,7 +292,7 @@ CalibRequestStatus:Pending=0, Approved=1, Completed=2, Cancelled=3
 **Phân quyền:**
 - Approve/Reject TechDocuments & Dimensions: chỉ `Lead Engineer`, `Manager`, `Administrator`
 - `QC Inspector`, `Operator`: chỉ xem file/dimension đã Approved — không có quyền duyệt
-- Desktop ProductionSession: `Operator` (own session) · `Leader` (force-finish) · `Administrator` (Leader + Settings) · Các role khác → View_Mode when máy có session người khác
+- Desktop ProductionSession: `Operator` (own session) · `Leader` (force-finish) · `Administrator` (Leader + Settings) · Các role khác (QC Inspector/Engineer/Manager) → **luôn** View_Mode, không tạo session mới được (kể cả khi máy trống) — chặn ở cả API (`BeginSessionHandler` + `[Authorize(Roles=...)]`) và Desktop
 
 **MinIO:** bucket `shopfloor-storage`, pre-signed URL — client upload thẳng.
 **MQTT topics:** `factory/cnc/#` (all CNC), `factory/cnc/{machineCode}/status` per machine.
@@ -305,7 +305,7 @@ CalibRequestStatus:Pending=0, Approved=1, Completed=2, Cancelled=3
 |---|---|---|
 | 0–4 | Foundation, Auth, Production Core, Quality, Desktop MES | ✅ Done |
 | Gage + Web UI | Gage/Calibration, 18 web routes, VA design system | ✅ Done |
-| **Phase 5 active** | Dimension Approval ✅, MeasureStage ✅, Web UI Redesign (C/J/I/H/K ⏳) | ⏳ |
+| **Phase 5 active** | Dimension Approval ✅, MeasureStage ✅, QC Final blind inspection ✅, Gage Selection FAI ✅, Web UI Redesign (C/J/I/H/K ⏳) | ⏳ |
 | Phase 5 remaining | Planning (L), CNC Live (M), Dashboard web | ⏳ |
 | Phase 6 | Multi-factory, migration tool, docs site, one-command setup | ⏳ |
 

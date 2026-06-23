@@ -71,7 +71,7 @@ public partial class LoginViewModel : ViewModelBase
             var active = resp?.Data;
             if (active is null)
             {
-                _work.Mode = AppMode.Operation;
+                _work.Mode = CanBeginSession ? AppMode.Operation : AppMode.View;
                 return;
             }
 
@@ -93,10 +93,13 @@ public partial class LoginViewModel : ViewModelBase
         }
         catch
         {
-            // If the check fails, fall back to Operation mode
-            _work.Mode = AppMode.Operation;
+            // If the check fails, fall back based on role only (no session info available)
+            _work.Mode = CanBeginSession ? AppMode.Operation : AppMode.View;
         }
     }
+
+    /// <summary>Chỉ Operator/Leader/Administrator được tạo session gia công mới — QC/Engineer/Manager chỉ inspect/view.</summary>
+    private bool CanBeginSession => _auth.Role is "Operator" or "Leader" or "Administrator";
 
     private void RestoreWorkContext(ActiveSessionDto active)
     {
