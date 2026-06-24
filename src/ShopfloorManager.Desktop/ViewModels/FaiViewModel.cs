@@ -43,6 +43,48 @@ public partial class FaiViewModel : Base.ViewModelBase
 
     public ObservableCollection<DimensionCardVm> Dimensions { get; } = [];
 
+    /// <summary>Dải chip chuyển sản phẩm — chỉ dùng ở FaiMode.Final (xem ShowProductSwitcher).
+    /// Cache lại 1 lần fetch /api/v1/fai duy nhất — chuyển sản phẩm không gọi lại API.</summary>
+    private FaiSheetResponse? _cachedSheet;
+    public ObservableCollection<ProductChipVm> ProductChips { get; } = [];
+    public bool ShowProductSwitcher => Mode == FaiMode.Final && ProductChips.Count > 1;
+
+    [ObservableProperty]
+    private ProductChipVm? _selectedProductChip;
+
+    partial void OnSelectedProductChipChanged(ProductChipVm? value)
+    {
+        if (value is null || !value.IsActive || value.ProductId == Product?.ProductId) return;
+        SwitchToProduct(value);
+    }
+
+    [RelayCommand(CanExecute = nameof(CanGoNextProduct))]
+    private void NextProduct() => SelectedProductChip = NextActiveChip(1);
+    private bool CanGoNextProduct() => NextActiveChip(1) is not null;
+
+    [RelayCommand(CanExecute = nameof(CanGoPrevProduct))]
+    private void PrevProduct() => SelectedProductChip = NextActiveChip(-1);
+    private bool CanGoPrevProduct() => NextActiveChip(-1) is not null;
+
+    private ProductChipVm? NextActiveChip(int direction)
+    {
+        if (SelectedProductChip is null || ProductChips.Count == 0) return null;
+        var startIndex = ProductChips.IndexOf(SelectedProductChip);
+        for (var i = startIndex + direction; i >= 0 && i < ProductChips.Count; i += direction)
+            if (ProductChips[i].IsActive) return ProductChips[i];
+        return null;
+    }
+
+    private void SwitchToProduct(ProductChipVm chip)
+    {
+        if (_cachedSheet is null) return;
+        Product = new ProductWithSessionDto(chip.ProductId, chip.SerialNumber, 0, null, null, null, null, null, null);
+        OnPropertyChanged(nameof(TitleContext));
+        ApplyDimensionsForCurrentProduct(_cachedSheet);
+        NextProductCommand.NotifyCanExecuteChanged();
+        PrevProductCommand.NotifyCanExecuteChanged();
+    }
+
     public ObservableCollection<MesGageData> AvailableGages { get; } = [];
     public ObservableCollection<MesGageData> FilteredGages  { get; } = [];
 
@@ -140,15 +182,19 @@ public partial class FaiViewModel : Base.ViewModelBase
 
     public async Task InitializeAsync()
     {
-        if (_work.CurrentJob is null || _work.CurrentOp is null || _work.CurrentProduct is null)
+        // QC Inspector luôn ở View Mode (không tạo session) — Final/QcInline phải đọc View*, không phải Current*.
+        var job     = _work.IsViewMode ? _work.ViewJob     : _work.CurrentJob;
+        var op      = _work.IsViewMode ? _work.ViewOp      : _work.CurrentOp;
+        var product = _work.IsViewMode ? _work.ViewProduct : _work.CurrentProduct;
+        if (job is null || op is null || product is null)
         {
             OnBack?.Invoke();
             return;
         }
 
-        Job     = _work.CurrentJob;
-        Op      = _work.CurrentOp;
-        Product = _work.CurrentProduct;
+        Job     = job;
+        Op      = op;
+        Product = product;
         OnPropertyChanged(nameof(TitleContext));
 
         await LoadAsync();
@@ -235,65 +281,111 @@ public partial class FaiViewModel : Base.ViewModelBase
             var resp = await _api.GetAsync<FaiSheetResponse>(
                 $"/api/v1/fai?jobId={Job!.Id}&partOpId={Op!.Id}");
 
-            Dimensions.Clear();
             if (resp?.Data is null)
             {
+                Dimensions.Clear();
                 ErrorMessage = "Không tải được danh sách kích thước.";
                 return;
             }
 
-            var row = resp.Data.Rows?.FirstOrDefault(r => r.ProductId == Product!.ProductId);
-
-            var stageKey = ToServerStage(Mode);
-            foreach (var dim in resp.Data.Dimensions ?? [])
-            {
-                var cell = row?.Cells?.FirstOrDefault(c => c.BalloonNumber == dim.BalloonNumber);
-                // Đọc giá trị riêng của stage hiện tại — KHÔNG dùng cell.Result/Value (đó là "mới nhất
-                // qua mọi stage", có thể lẫn dữ liệu của stage khác cho cùng dimension/product). QC Final
-                // là "blind inspection" — không đọc/tham chiếu InprocessFAI hay QCInline.
-                var stageCell = cell?.ByStage?.GetValueOrDefault(stageKey);
-                var state = stageCell?.Result switch
-                {
-                    "Pass" => MeasureState.Pass,
-                    "Fail" => MeasureState.Fail,
-                    _      => MeasureState.Unmeasured
-                };
-                Dimensions.Add(new DimensionCardVm
-                {
-                    Id            = dim.Id,
-                    BalloonNumber = dim.BalloonNumber,
-                    NominalValue  = dim.NominalValue,
-                    TolerancePlus = dim.TolerancePlus,
-                    ToleranceMinus = dim.ToleranceMinus,
-                    MaxValue      = dim.MaxValue,
-                    MinValue      = dim.MinValue,
-                    Unit          = dim.Unit ?? "",
-                    IsTextType    = dim.IsTextType,
-                    NominalText   = dim.NominalText,
-                    IsFinal       = dim.IsFinal,
-                    IsCritical    = dim.IsCritical,
-                    CategoryCode  = dim.CategoryCode,
-                    GageTypeId    = dim.GageTypeId,
-                    GageTypeCode  = dim.GageTypeCode,
-                    State         = state,
-                    MeasuredValue = stageCell?.Value
-                });
-            }
-
-            RefreshProgress();
-
-            if (!Dimensions.Any())
-                ErrorMessage = "OP này chưa có kích thước nào được định nghĩa.";
-            else
-                SelectedDimension = Mode == FaiMode.QcInline
-                    ? null
-                    : Dimensions.FirstOrDefault(d => !d.IsMeasured);
+            _cachedSheet = resp.Data;
+            if (Mode == FaiMode.Final) BuildProductChips(resp.Data);
+            ApplyDimensionsForCurrentProduct(resp.Data);
 
             if (Mode == FaiMode.QcInline)
                 _ = LoadRateInfoAsync();
         }
         catch (Exception ex) { ErrorMessage = $"Lỗi: {ex.Message}"; }
         finally { IsBusy = false; }
+    }
+
+    /// <summary>Dựng lại Dimensions cho Product hiện tại từ sheet đã cache — dùng cho cả lần load đầu
+    /// và mỗi lần chuyển sản phẩm trong FAI Final (không gọi lại API).</summary>
+    private void ApplyDimensionsForCurrentProduct(FaiSheetResponse sheet)
+    {
+        Dimensions.Clear();
+        var row = sheet.Rows?.FirstOrDefault(r => r.ProductId == Product!.ProductId);
+
+        var stageKey = ToServerStage(Mode);
+        foreach (var dim in sheet.Dimensions ?? [])
+        {
+            var cell = row?.Cells?.FirstOrDefault(c => c.BalloonNumber == dim.BalloonNumber);
+            // Đọc giá trị riêng của stage hiện tại — KHÔNG dùng cell.Result/Value (đó là "mới nhất
+            // qua mọi stage", có thể lẫn dữ liệu của stage khác cho cùng dimension/product). QC Final
+            // là "blind inspection" — không đọc/tham chiếu InprocessFAI hay QCInline.
+            var stageCell = cell?.ByStage?.GetValueOrDefault(stageKey);
+            var state = stageCell?.Result switch
+            {
+                "Pass" => MeasureState.Pass,
+                "Fail" => MeasureState.Fail,
+                _      => MeasureState.Unmeasured
+            };
+            Dimensions.Add(new DimensionCardVm
+            {
+                Id            = dim.Id,
+                BalloonNumber = dim.BalloonNumber,
+                NominalValue  = dim.NominalValue,
+                TolerancePlus = dim.TolerancePlus,
+                ToleranceMinus = dim.ToleranceMinus,
+                MaxValue      = dim.MaxValue,
+                MinValue      = dim.MinValue,
+                Unit          = dim.Unit ?? "",
+                IsTextType    = dim.IsTextType,
+                NominalText   = dim.NominalText,
+                IsFinal       = dim.IsFinal,
+                IsCritical    = dim.IsCritical,
+                CategoryCode  = dim.CategoryCode,
+                GageTypeId    = dim.GageTypeId,
+                GageTypeCode  = dim.GageTypeCode,
+                State         = state,
+                MeasuredValue = stageCell?.Value
+            });
+        }
+
+        RefreshProgress();
+
+        if (!Dimensions.Any())
+            ErrorMessage = "OP này chưa có kích thước nào được định nghĩa.";
+        else
+            SelectedDimension = Mode == FaiMode.QcInline
+                ? null
+                : Dimensions.FirstOrDefault(d => !d.IsMeasured);
+    }
+
+    /// <summary>Tính trạng thái chip cho mỗi sản phẩm — xem quy tắc ở 06_dimensions_fai.md §4.4b
+    /// (InprocessFAI của dim gộp từ OP trước phải xong mới active; QCFinal đủ 100% dim mới done).</summary>
+    private void BuildProductChips(FaiSheetResponse sheet)
+    {
+        ProductChips.Clear();
+        var dims = sheet.Dimensions ?? [];
+        // Dim gộp từ OP trước (OpNumber != null) — dim riêng của chính OP INS không thuộc điều kiện InprocessFAI.
+        var priorOpBalloons = dims.Where(d => d.OpNumber is not null).Select(d => d.BalloonNumber).ToHashSet();
+
+        foreach (var row in sheet.Rows ?? [])
+        {
+            ProductChips.Add(new ProductChipVm
+            {
+                ProductId    = row.ProductId,
+                SerialNumber = row.SerialNumber,
+                Status       = ComputeChipStatus(row, dims, priorOpBalloons)
+            });
+        }
+
+        SelectedProductChip = ProductChips.FirstOrDefault(c => c.ProductId == Product?.ProductId);
+        OnPropertyChanged(nameof(ShowProductSwitcher));
+    }
+
+    private static ProductChipStatus ComputeChipStatus(
+        FaiRowData row, IReadOnlyList<DimensionData> dims, HashSet<string> priorOpBalloons)
+    {
+        bool InprocessDone(string balloon) =>
+            row.Cells?.FirstOrDefault(c => c.BalloonNumber == balloon)?.ByStage?.GetValueOrDefault(0)?.Result is not null;
+        bool inprocessComplete = priorOpBalloons.All(InprocessDone);
+        if (!inprocessComplete) return ProductChipStatus.Inactive;
+
+        var qcFinalCells = dims.Select(d => row.Cells?.FirstOrDefault(c => c.BalloonNumber == d.BalloonNumber)?.ByStage?.GetValueOrDefault(2));
+        if (qcFinalCells.Any(c => c?.Result is null)) return ProductChipStatus.Ready;
+        return qcFinalCells.Any(c => c!.Result == "Fail") ? ProductChipStatus.DoneFail : ProductChipStatus.DonePass;
     }
 
     // ── Numeric input confirm ──────────────────────────────────────────────
@@ -377,6 +469,7 @@ public partial class FaiViewModel : Base.ViewModelBase
                 ? null  // QC tự chọn balloon tiếp theo muốn kiểm, không auto-advance
                 : Dimensions.FirstOrDefault(d => !d.IsMeasured);  // Basic & Final: auto-advance
             RefreshProgress();
+            RefreshCurrentChipStatus();
         }
         catch (Exception ex) { ErrorMessage = $"Lỗi: {ex.Message}"; }
         finally { IsBusy = false; }
@@ -390,5 +483,20 @@ public partial class FaiViewModel : Base.ViewModelBase
         OnPropertyChanged(nameof(MeasuredCount));
         OnPropertyChanged(nameof(TotalCount));
         OnPropertyChanged(nameof(Progress));
+    }
+
+    /// <summary>Cập nhật chip của sản phẩm đang xem ngay sau khi lưu — Dimensions đã phản ánh đúng
+    /// stage QCFinal (Mode.Final), không cần load lại sheet để biết chip đã Done/DoneFail chưa.</summary>
+    private void RefreshCurrentChipStatus()
+    {
+        if (Mode != FaiMode.Final || SelectedProductChip is null) return;
+        if (!Dimensions.All(d => d.IsMeasured))
+        {
+            SelectedProductChip.Status = ProductChipStatus.Ready;
+            return;
+        }
+        SelectedProductChip.Status = Dimensions.Any(d => d.State == MeasureState.Fail)
+            ? ProductChipStatus.DoneFail
+            : ProductChipStatus.DonePass;
     }
 }

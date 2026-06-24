@@ -43,11 +43,53 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <!-- Product chip style — 4 trạng thái (Inactive/Ready/DonePass/DoneFail) + viền cam khi đang chọn -->
+        <Style x:Key="ProductChipItem" TargetType="ListBoxItem">
+            <Setter Property="Width" Value="112"/>
+            <Setter Property="Height" Value="88"/>
+            <Setter Property="Margin" Value="5"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="MinHeight" Value="0"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="IsEnabled" Value="{Binding IsActive}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="bd" CornerRadius="8" BorderThickness="2"
+                                BorderBrush="#E8D5C4" Background="White" Cursor="Hand">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <DataTrigger Binding="{Binding Status}" Value="Inactive">
+                                <Setter TargetName="bd" Property="Background" Value="#F0F0F0"/>
+                                <Setter TargetName="bd" Property="BorderBrush" Value="#E0E0E0"/>
+                                <Setter TargetName="bd" Property="Cursor" Value="Arrow"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding Status}" Value="DonePass">
+                                <Setter TargetName="bd" Property="BorderBrush" Value="#2E7D32"/>
+                                <Setter TargetName="bd" Property="Background" Value="#F1F8F1"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding Status}" Value="DoneFail">
+                                <Setter TargetName="bd" Property="BorderBrush" Value="#C62828"/>
+                                <Setter TargetName="bd" Property="Background" Value="#FFF1F1"/>
+                            </DataTrigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="bd" Property="BorderBrush" Value="#F57C00"/>
+                                <Setter TargetName="bd" Property="BorderThickness" Value="3"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </UserControl.Resources>
 
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="52"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="34"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="64"/>
@@ -86,8 +128,85 @@
             </Grid>
         </Border>
 
+        <!-- ══ PRODUCT SWITCHER (chỉ FAI Final, >1 sản phẩm) ══ -->
+        <Border Grid.Row="1" Background="White" BorderBrush="#E8D5C4" BorderThickness="0,0,0,1"
+                Padding="8,4"
+                Visibility="{Binding ShowProductSwitcher, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <Button Grid.Column="0" Command="{Binding PrevProductCommand}"
+                        Style="{StaticResource MaterialDesignIconButton}"
+                        Width="48" Height="48" Margin="0,0,4,0">
+                    <md:PackIcon Kind="ChevronLeft" Width="26" Height="26"/>
+                </Button>
+
+                <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Auto"
+                              VerticalScrollBarVisibility="Disabled"
+                              PanningMode="HorizontalFirst"
+                              kb:DragScrollBehavior.Enabled="True"
+                              kb:DragScrollBehavior.Orientation="Horizontal">
+                    <ListBox ItemsSource="{Binding ProductChips}"
+                             SelectedItem="{Binding SelectedProductChip}"
+                             ItemContainerStyle="{StaticResource ProductChipItem}"
+                             Background="Transparent" BorderThickness="0"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             ScrollViewer.VerticalScrollBarVisibility="Disabled">
+                        <ListBox.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal"/>
+                            </ItemsPanelTemplate>
+                        </ListBox.ItemsPanel>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate DataType="{x:Type models:ProductChipVm}">
+                                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
+                                            Margin="4,6">
+                                    <TextBlock Text="{Binding SerialNumber, Mode=OneWay}"
+                                               FontSize="20" FontWeight="Bold"
+                                               HorizontalAlignment="Center"
+                                               Foreground="#212121"/>
+                                    <TextBlock FontSize="10" HorizontalAlignment="Center"
+                                               FontWeight="Medium">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Foreground" Value="#9E9E9E"/>
+                                                <Setter Property="Text" Value="Sẵn sàng"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Status}" Value="Inactive">
+                                                        <Setter Property="Text" Value="Chưa hoàn thiện"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding Status}" Value="DonePass">
+                                                        <Setter Property="Foreground" Value="#2E7D32"/>
+                                                        <Setter Property="Text" Value="PASS"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding Status}" Value="DoneFail">
+                                                        <Setter Property="Foreground" Value="#C62828"/>
+                                                        <Setter Property="Text" Value="FAIL"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </ScrollViewer>
+
+                <Button Grid.Column="2" Command="{Binding NextProductCommand}"
+                        Style="{StaticResource MaterialDesignIconButton}"
+                        Width="48" Height="48" Margin="4,0,0,0">
+                    <md:PackIcon Kind="ChevronRight" Width="26" Height="26"/>
+                </Button>
+            </Grid>
+        </Border>
+
         <!-- ══ PROGRESS STRIP ══ -->
-        <Border Grid.Row="1" Background="White" BorderBrush="#E8D5C4" BorderThickness="0,0,0,1">
+        <Border Grid.Row="2" Background="White" BorderBrush="#E8D5C4" BorderThickness="0,0,0,1">
             <Grid Margin="16,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
@@ -112,7 +231,7 @@
         </Border>
 
         <!-- ══ MAIN: SPLIT LAYOUT ══ -->
-        <Grid Grid.Row="2">
+        <Grid Grid.Row="3">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="0.55*"/>
                 <ColumnDefinition Width="1"/>
@@ -550,7 +669,7 @@
         </Grid>
 
         <!-- ══ BOTTOM BAR ══ -->
-        <Border Grid.Row="3" Background="White" BorderBrush="#E8D5C4" BorderThickness="0,1,0,0">
+        <Border Grid.Row="4" Background="White" BorderBrush="#E8D5C4" BorderThickness="0,1,0,0">
             <Grid Margin="16,0">
                 <Button Command="{Binding GoBackCommand}"
                         HorizontalAlignment="Left"

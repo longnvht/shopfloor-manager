@@ -482,11 +482,11 @@ public partial class DashboardViewModel : ViewModelBase
         Add("Hướng dẫn CW",   "FileDocumentOutline", "routecard", when: hasOp);
         Add("Xem G-code",     "Download",            "gcode",     when: hasOp);
         Add("Bảng đo",        "ClipboardTextOutline","fai",       when: canFai);
-        bool canQcInline = !_work.IsViewMode && hasProd
-            && _work.CurrentProduct?.StatusCode == "complete";
-        bool canQcFinal = !_work.IsViewMode && hasProd
-            && _work.CurrentOp?.OpTypeCode == "INSP"
-            && _work.CurrentProduct?.StatusCode == "complete";
+        var ctxOp = _work.IsViewMode ? _work.ViewOp : _work.CurrentOp;
+        var ctxProduct = _work.IsViewMode ? _work.ViewProduct : _work.CurrentProduct;
+        bool canQcInline = hasProd && ctxProduct?.StatusCode == "complete";
+        // Tạm bỏ điều kiện "sản phẩm đã hoàn thiện gia công" (StatusCode=="complete") — 2026-06-24
+        bool canQcFinal = hasProd && ctxOp?.OpTypeCode == "INSP";
         if (role is "QC Inspector" or "Administrator")
         {
             Add("FAI Final",  "ClipboardCheckOutline","fai-final",  when: canQcFinal);

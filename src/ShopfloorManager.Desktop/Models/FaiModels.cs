@@ -16,7 +16,9 @@ public record DimensionData(
     decimal? MaxValue, decimal? MinValue, string? Unit,
     bool IsTextType, string? NominalText,
     string? CategoryCode, bool IsCritical, bool IsFinal, int SortOrder,
-    int? GageTypeId = null, string? GageTypeCode = null);
+    int? GageTypeId = null, string? GageTypeCode = null,
+    // OP gốc sở hữu dimension — chỉ set khi xem qua OP INS (gộp từ OP trước, null = dim riêng OP INS)
+    string? OpNumber = null);
 
 public record FaiRowData(
     string SerialNumber, int ProductId,
@@ -43,6 +45,24 @@ public record MeasureResultResponse(
 public record MesGageData(int Id, string GageNo, string Description, string? Unit, string? CategoryCode)
 {
     public string Display => $"{GageNo} — {Description}";
+}
+
+// ── Product switcher (FAI Final) ────────────────────────────────────────────
+
+/// <summary>Inactive = chưa đo xong InprocessFAI cho các dim gộp từ OP trước — không tap được.
+/// Ready = đủ điều kiện, chưa đo hết QCFinal. DonePass/DoneFail = đã đo hết QCFinal.</summary>
+public enum ProductChipStatus { Inactive, Ready, DonePass, DoneFail }
+
+public partial class ProductChipVm : ObservableObject
+{
+    public int ProductId { get; init; }
+    public string SerialNumber { get; init; } = "";
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsActive))]
+    private ProductChipStatus _status;
+
+    public bool IsActive => Status != ProductChipStatus.Inactive;
 }
 
 // ── Card ViewModel ─────────────────────────────────────────────────────────

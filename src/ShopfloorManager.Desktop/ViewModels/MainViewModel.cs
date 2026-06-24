@@ -162,8 +162,11 @@ public partial class MainViewModel : ViewModelBase
     public void NavigateToFaiFinal()
     {
         _keyboard.Hide();
-        if (_work.CurrentJob is null || _work.CurrentOp is null || _work.CurrentProduct is null
-            || _work.ActiveSession?.StartedAt.HasValue != true)
+        // QC Inspector luôn ở View Mode (không tạo session) — không thể yêu cầu ActiveSession.StartedAt.
+        var job     = _work.IsViewMode ? _work.ViewJob     : _work.CurrentJob;
+        var op      = _work.IsViewMode ? _work.ViewOp      : _work.CurrentOp;
+        var product = _work.IsViewMode ? _work.ViewProduct : _work.CurrentProduct;
+        if (job is null || op is null || product is null)
         {
             NavigateToDashboard();
             return;
@@ -181,8 +184,11 @@ public partial class MainViewModel : ViewModelBase
     public void NavigateToQcInline()
     {
         _keyboard.Hide();
-        if (_work.CurrentJob is null || _work.CurrentOp is null || _work.CurrentProduct is null
-            || _work.CurrentProduct.StatusCode != "complete")
+        // QC Inspector luôn ở View Mode (không tạo session) — đọc View*, không phải Current*.
+        var job     = _work.IsViewMode ? _work.ViewJob     : _work.CurrentJob;
+        var op      = _work.IsViewMode ? _work.ViewOp      : _work.CurrentOp;
+        var product = _work.IsViewMode ? _work.ViewProduct : _work.CurrentProduct;
+        if (job is null || op is null || product is null || product.StatusCode != "complete")
         {
             NavigateToDashboard();
             return;

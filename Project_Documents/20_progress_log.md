@@ -465,6 +465,45 @@ Trước đó `VIS` là 1 dòng trong `dimension_categories` (hack — category 
 
 ---
 
+## Desktop: FAI Final fixes + Product Switcher ✅ (2026-06-24)
+
+### Bug fix — `OpType.Code` so khớp nhầm "INS" thay vì "INSP"
+
+`GetFaiSheetQueryHandler`/`GetJobOpsQueryHandler` đã dùng đúng `"INSP"` từ trước, nhưng tài liệu `06_dimensions_fai.md` §3.11 vẫn ghi nhầm `"INS"` (một machine code, không phải OpType) — sửa lại tài liệu cho khớp code thật, không phải sửa code (commit liên quan: `9b3e333`).
+
+### Bug fix — shortcut "FAI Final" không hiện/không hoạt động được với QC Inspector
+
+QC Inspector luôn bị ép `View_Mode` (không tạo session, theo đúng thiết kế phân quyền) — 2 lớp logic chỉ đọc field của Operation Mode nên luôn fail với role này:
+
+- `DashboardViewModel.canQcFinal`/`canQcInline`: check cứng `!_work.IsViewMode` + đọc `_work.CurrentOp`/`_work.CurrentProduct` (null ở View Mode) → shortcut không bao giờ hiện. Sửa dùng `ctxOp`/`ctxProduct` = `ViewOp`/`ViewProduct` khi View Mode, `CurrentOp`/`CurrentProduct` khi Operation Mode (cùng pattern `hasJob`/`hasOp`/`hasProd` đã có).
+- `MainViewModel.NavigateToFaiFinal()`/`NavigateToQcInline()` + `FaiViewModel.InitializeAsync()`: cùng lỗi đọc `Current*` + check `ActiveSession.StartedAt` (QC Inspector không có `ActiveSession`) → bấm vào lại tự quay về Dashboard trong im lặng. Sửa tương tự bằng `ViewJob/ViewOp/ViewProduct`; bỏ check `ActiveSession.StartedAt` khỏi `NavigateToFaiFinal` (chỉ áp dụng Inprocess FAI của Operator).
+
+### Điều chỉnh tạm — bỏ điều kiện "hoàn thiện gia công" khỏi FAI Final
+
+Theo yêu cầu thực tế: muốn QC vào FAI Final sớm hơn để test/dùng ngay, chưa cần chờ điều kiện `Product.StatusCode == "complete"` (§3.10). `canQcFinal` giờ chỉ check `OpTypeCode == "INSP"`. **Lưu ý**: hiện không còn nơi nào (Desktop hay backend) enforce §3.10 nữa — cần quyết định lại trước khi lên production.
+
+### Feature — Product Switcher trong FAI Final
+
+QC tập kết nhiều sản phẩm về khu vực kiểm tra cùng lúc, muốn đo xong SP này chuyển ngay sang SP khác **không rời khỏi view**. Thiết kế đầy đủ + quy tắc trạng thái chip: xem `06_dimensions_fai.md` §4.4b.
+
+- Không cần API mới — `GET /api/v1/fai?jobId=&partOpId=` đã trả `Rows` cho mọi sản phẩm trong 1 lần gọi; Desktop cache lại (`FaiViewModel._cachedSheet`), chuyển sản phẩm chỉ dựng lại `Dimensions` từ cache.
+- 4 trạng thái chip tính ở client (`ComputeChipStatus`): Inactive (dim gộp từ OP trước chưa đủ InprocessFAI) / Ready / DonePass / DoneFail — loại trừ dimension riêng của chính OP INS khỏi điều kiện InprocessFAI (Operator không đo InprocessFAI cho OP loại Inspection).
+- Nút Trước/Sau nhảy tới chip Active gần nhất, bỏ qua Inactive.
+- Tính năng nhớ gage theo balloon (`WorkContext.LastGageIdByBalloon`) đã có sẵn từ trước — không cần sửa thêm gì để gợi ý lại đúng gage khi đổi sản phẩm cùng balloon.
+- Model `DimensionData` (Desktop) thêm `OpNumber` — field này backend đã trả từ lâu (`DimensionDto.OpNumber`) nhưng Desktop chưa từng deserialize, cần để tính điều kiện Inactive đúng.
+
+### Bug fix — `DragScrollBehavior` xung đột với scrollbar gốc
+
+Thêm `Orientation` (Horizontal/Vertical) cho dải chip cuộn ngang, phát hiện thêm bug có từ trước: kéo trực tiếp vào thanh scrollbar/thumb gốc bị `DragScrollBehavior` giành `CaptureMouse()` giữa lúc kéo → giật/nhảy bất thường — ảnh hưởng **mọi** ScrollViewer dùng behavior này (dimension grid, gage list...), không riêng dải chip mới. Sửa bằng cách bỏ qua hoàn toàn gesture bắt đầu từ `ScrollBar`/`Thumb` (`IsFromScrollBar` helper, walk visual tree từ `e.OriginalSource`).
+
+### Lessons learned
+
+- **Tài liệu business rule (vd. OpType code) phải đối chiếu lại code thật khi nghi ngờ** — tài liệu có thể chép sai/lỗi thời dù code đã đúng từ trước; đừng tự suy ra code sai chỉ vì hành vi quan sát được không khớp tài liệu.
+- **`IsViewMode` forced theo role (QC Inspector) cần audit toàn bộ chỗ đọc `Current*`/`ActiveSession`** — bug loại này dễ lặp lại vì nhiều method độc lập (Dashboard gating, Navigation guard, ViewModel init) đều giả định sai "đang ở Operation Mode".
+- **`DragScrollBehavior` gắn trực tiếp vào `ScrollViewer` cần loại trừ child là `ScrollBar`/`Thumb`** — nếu không, mọi ScrollViewer có scrollbar hiện rõ (content overflow) đều có nguy cơ xung đột capture mouse, không chỉ ScrollViewer mới thêm.
+
+---
+
 ## Các quyết định thiết kế quan trọng (theo thời gian)
 
 | Ngày | Quyết định |
@@ -477,10 +516,13 @@ Trước đó `VIS` là 1 dòng trong `dimension_categories` (hack — category 
 | 2026-06-15 | Bulk upload: naming convention bắt buộc cho auto-resolve |
 | 2026-06-15 | Import batch: RoutingRev upsert vào active (không tạo rev mới) |
 | 2026-06-17 | Approve/Reject Documents + Dimensions: `Lead Engineer|Manager|Admin` (không phải QC Inspector) |
-| 2026-06-18 | OP INS nhận diện bằng `OpType.Code == "INS"` so khớp cố định (không thêm cờ schema mới); gom dimension theo `OpNumberSort` nhỏ hơn, không gom toàn bộ job |
+| 2026-06-18 | OP INS nhận diện bằng `OpType.Code == "INSP"` so khớp cố định (không thêm cờ schema mới); gom dimension theo `OpNumberSort` nhỏ hơn, không gom toàn bộ job *(tài liệu ghi nhầm "INS" tới 2026-06-24 mới sửa lại đúng — xem mục Desktop: FAI Final fixes)* |
 | 2026-06-18 | Job-list panel `/fai` bỏ field "khách hàng" — domain chưa có bảng Customer để resolve tên, chỉ có `PoLine.CustomerId` |
 | 2026-06-23 | ProductionSession: chỉ Operator/Leader/Administrator tạo session mới — QC/Engineer/Manager luôn View_Mode kể cả máy trống |
 | 2026-06-23 | Gage Selection trong FAI: filter theo Category (không theo GageType cụ thể) — đúng granularity thiết kế ban đầu, không mở rộng thêm ràng buộc |
 | 2026-06-23 | Thêm category `VIS` (Visual) — thứ 6 ngoài LIN/ANG/THD/GEO/SFC — chỉ cho dimension kiểm bằng mắt thuần túy, không gộp chung dimension thiếu tolerance số nói chung |
+| 2026-06-24 | Bỏ tạm điều kiện "hoàn thiện gia công" (§3.10) khỏi shortcut FAI Final — chưa có enforcement nào khác thay thế, cần quyết định lại trước production |
+| 2026-06-24 | Product Switcher trong FAI Final: không gọi API riêng, cache 1 lần `GET /api/v1/fai` rồi tính trạng thái chip hoàn toàn ở client |
+| 2026-06-24 | `DragScrollBehavior` loại trừ gesture bắt đầu từ `ScrollBar`/`Thumb` gốc — áp dụng chung toàn app, không chỉ ScrollViewer mới thêm Orientation |
 | 2026-06-24 | Đảo quyết định 2026-06-23 "filter theo Category" → đổi sang `Dimension.GageTypeId` là nguồn duy nhất (chi tiết hơn), bỏ hẳn `Dimension.CategoryId` để tránh trùng lặp dữ liệu |
 | 2026-06-24 | `VIS` chuyển từ 1 dòng trong `dimension_categories` sang 1 dòng trong `gage_types` (category_id NULL) — nhất quán hơn vì giờ chỉ còn 1 field phân loại (`GageTypeId`) trên Dimension |

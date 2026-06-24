@@ -164,17 +164,23 @@ Pending → Approved   (Lead Engineer / Manager / Administrator duyệt)
 
 ### 3.11 OP INS — OP kiểm tra (không sở hữu Dimension riêng)
 
-`OpType.Code = "INS"` (so khớp cố định, không phân biệt hoa thường) đánh dấu một **OP kiểm tra** — dùng để QC đo lại các Dimension đã định nghĩa ở các OP gia công trước đó, KHÔNG sở hữu Dimension riêng của chính nó.
+`OpType.Code = "INSP"` (so khớp cố định, không phân biệt hoa thường) đánh dấu một **OP kiểm tra** — dùng để QC đo lại các Dimension đã định nghĩa ở các OP gia công trước đó. OP INS **có thể** sở hữu Dimension riêng của chính nó (xem quy tắc `IsFinal` dưới đây) khi QC cần dung sai khác với kỹ thuật.
+
+> Lưu ý lịch sử: trước đây code so khớp nhầm `OpType.Code` với `"INS"` (một machine code, không phải OpType) — đã sửa thành `"INSP"` (commit `9b3e333`).
 
 - **Một routing có thể có nhiều OP INS** — điển hình quanh 1 bước Coating/Finishing. Ví dụ thật:
   ```
-  ...OP90 → OP100 STP → OP110 INS → OP120 PPG (Phosphating) → OP130 INS
+  ...OP90 → OP100 STP → OP110 INSP → OP120 PPG (Phosphating) → OP130 INSP
   ```
-  Trước khi mạ, tất cả kích thước gia công cần được kiểm tra (OP110 INS); sau khi mạ, kiểm tra lại toàn bộ vì mạ có thể ảnh hưởng kích thước (OP130 INS).
-- **Quy tắc gom Dimension**: khi xem FAI sheet của 1 OP INS, hệ thống gom Dimension của **các PartOp có `OpNumberSort` nhỏ hơn OP INS đó** (không phải toàn bộ Job, không phải chỉ OP liền trước). Vì các OP trung gian không sở hữu Dimension (OP INS khác, OP Coating...) không góp phần vào tập hợp, nhiều OP INS liên tiếp quanh 1 bước Coating sẽ tự nhiên cho ra **cùng một tập Dimension** — đúng ý đồ nghiệp vụ (đo lại y nguyên bộ kích thước, trước và sau mạ).
+  Trước khi mạ, tất cả kích thước gia công cần được kiểm tra (OP110 INSP); sau khi mạ, kiểm tra lại toàn bộ vì mạ có thể ảnh hưởng kích thước (OP130 INSP).
+- **Quy tắc gom Dimension** (`GetFaiSheetQueryHandler`):
+  1. Lấy **Dimension riêng của chính OP INS** (`PartOpId == op.Id`) — nếu QC cần dung sai khác kỹ thuật cho 1 balloon, QC tạo dimension mới (cùng `BalloonNumber`) gán trực tiếp cho OP INS này.
+  2. Gom thêm Dimension của **các PartOp có `OpNumberSort` nhỏ hơn OP INS đó** (không phải toàn bộ Job, không phải chỉ OP liền trước) **và có `IsFinal=true`** — đây là các kích thước kỹ thuật mà QC chấp nhận tái sử dụng nguyên dung sai, không cần tạo riêng.
+  3. **Trùng `BalloonNumber`** giữa (1) và (2) → Dimension riêng của OP INS (1) **luôn thắng**, dimension `IsFinal=true` từ OP trước bị loại khỏi tập hợp.
+  - Vì các OP trung gian không sở hữu Dimension (OP INS khác, OP Coating...) không góp phần vào tập hợp, nhiều OP INS liên tiếp quanh 1 bước Coating sẽ tự nhiên cho ra **cùng một tập Dimension** (trừ khi 1 trong số đó có dimension riêng ghi đè) — đúng ý đồ nghiệp vụ (đo lại y nguyên bộ kích thước, trước và sau mạ).
   - `OpNumberSort` null → fallback `9999` khi so sánh.
-  - Áp dụng cho cả `GetFaiSheetQueryHandler` (ma trận đo) và `GetJobOpsQueryHandler` (đếm số dimension hiển thị trên dropdown chọn OP).
-- **"Tất cả OP"** (lựa chọn riêng trên web FAI, không phải OP INS): gom Dimension của **toàn bộ PartOp trong routing của Job** (không lọc theo `OpNumberSort`). Dùng khi cần xem/duyệt toàn bộ kích thước của Job bất kể OP nào sở hữu.
+  - **`GetJobOpsQueryHandler`** (đếm số dimension hiển thị trên dropdown chọn OP) dùng cùng pattern `OpNumberSort` nhỏ hơn nhưng **đơn giản hơn** — cộng tổng toàn bộ dimension của các OP trước đó, KHÔNG lọc theo `IsFinal` và KHÔNG khử trùng `BalloonNumber` với dimension riêng của OP INS → số hiển thị trên badge có thể **lệch** so với số dimension thực tế trong ma trận FAI (`GetFaiSheetQueryHandler`). Đây là sai khác đã biết, chưa đồng bộ.
+- **"Tất cả OP"** (lựa chọn riêng trên web FAI, không phải OP INS): gom Dimension của **toàn bộ PartOp trong routing của Job** (không lọc theo `OpNumberSort`, không lọc `IsFinal`). Dùng khi cần xem/duyệt toàn bộ kích thước của Job bất kể OP nào sở hữu.
 - Cả 2 trường hợp trên đều gắn thêm `OpNumber` (OP gốc sở hữu Dimension) vào `DimensionDto` để phân biệt khi nhiều OP gộp lại trên cùng 1 ma trận.
 
 ---
@@ -229,13 +235,14 @@ QC Inspector login (Desktop) → FAI Basic
 ### 4.3 QC Final (QC Inspector — xuất xưởng)
 
 **Ai**: QC Inspector. **Operator và Leader không truy cập được**.
-**Điều kiện**: Product "hoàn thiện gia công" (xem §3.10).
+**Điều kiện hiện tại (Desktop)**: OP đang chọn là loại `INSP`. **Tạm bỏ** điều kiện "Product hoàn thiện gia công" (§3.10) — 2026-06-24, xem note dưới.
 **Phạm vi**: Toàn bộ Dimensions của sản phẩm (tất cả OP) — ưu tiên `IsFinal=true`.
+
+> **Tạm thời (2026-06-24)**: shortcut "FAI Final" trên Dashboard chỉ check `OpTypeCode == "INSP"` (`DashboardViewModel.canQcFinal`), KHÔNG còn check `Product.StatusCode == "complete"` (tức "hoàn thiện gia công" §3.10). Đây là điều chỉnh tạm để QC có thể vào FAI Final sớm hơn; cần quyết định lại có khôi phục điều kiện này không trước khi lên production.
 
 ```
 QC Inspector login (Desktop) → Tiện ích "FAI Final" (ẩn với Operator/Leader)
   → Chọn Job → chọn Product Serial
-  → Điều kiện check: tất cả OP có Dimension đều có session completed
   → Hiện TOÀN BỘ Dimensions (không giới hạn theo OP)
       Ưu tiên IsFinal=true (badge đặc biệt)
       Màu: Xám=chưa đo | Xanh=Pass | Đỏ=Fail (lọc MeasureStage=QCFinal)
@@ -245,21 +252,45 @@ QC Inspector login (Desktop) → Tiện ích "FAI Final" (ẩn với Operator/Le
   → Hoàn tất đủ IsFinal dims → Product cho phép đóng gói / xuất xưởng
 ```
 
-### 4.4 Gage Selection (Chọn dụng cụ đo) — kế hoạch Phase 5
+### 4.4 Gage Selection (Chọn dụng cụ đo) — ✅ Done (2026-06-23)
 
-Mỗi kết quả đo nên ghi nhận dụng cụ nào đã dùng — phục vụ truy vết sau này khi gage bị thu hồi hoặc calibration lỗi.
+Mỗi kết quả đo ghi nhận dụng cụ nào đã dùng — phục vụ truy vết sau này khi gage bị thu hồi hoặc calibration lỗi.
 
 ```
 Tap Balloon Number → Input Panel mở:
   ① Chọn Gage (tùy chọn):
-       → GET /api/v1/gages?categoryId={dim.categoryId}&status=available
-       → Hiện danh sách: GageNo, GageName, GageType
-       → Filter: is_calibrated=true + status=available
+       → GET /api/v1/mes/gages?categoryCode={dim.categoryCode}
+       → Hiện danh sách: GageNo, GageName, GageType (dạng thẻ)
+       → Filter: is_valid=true + chưa bị mượn
   ② Nhập giá trị
-  ③ Confirm → POST với gageId (null nếu không chọn)
+  ③ Confirm → POST /api/v1/fai/measure với gageId (null nếu không chọn)
 ```
 
-> **Trạng thái implement:** Gage selection chưa có trên Desktop (⏳ Phase 5). Hiện tại `measure_values.gage_id` để null.
+### 4.4b Chuyển sản phẩm trong view FAI Final — ✅ Done (2026-06-24)
+
+QC tập kết nhiều sản phẩm về khu vực kiểm tra cùng lúc — đo xong SP 001 muốn chuyển ngay sang SP 002/003 mà **không rời khỏi view** (không quay về Dashboard). Dải chip S/N ngay dưới title bar (Desktop `FaiPage`, chỉ hiện khi `Mode=Final` và Job có >1 sản phẩm):
+
+```
+[<]  [001*] [002] [003] [004 ] [005] ...  [>]
+      đang   sẵn   sẵn   chưa         done
+      chọn   sàng  sàng  hoàn thiện
+                          InprocessFAI
+                          (xám, không tap được)
+```
+
+- **Không gọi lại API khi chuyển sản phẩm** — `GET /api/v1/fai?jobId=&partOpId=` đã trả về `Rows` cho TẤT CẢ sản phẩm của Job/OP trong 1 lần gọi; Desktop cache lại response này, chuyển sản phẩm chỉ là dựng lại `Dimensions` từ cache.
+- **4 trạng thái chip** (tính ở client từ `Cells[].ByStage`):
+  - **Inactive** (xám, không tap được): còn dimension gộp từ OP trước (không tính dimension riêng của chính OP INS) **chưa có** kết quả `ByStage[InprocessFAI]`.
+  - **Sẵn sàng** (trắng): đủ điều kiện InprocessFAI, nhưng chưa đo hết `ByStage[QCFinal]` cho mọi dimension.
+  - **Đã xong — Pass** (xanh): đủ 100% dimension có `ByStage[QCFinal]`, không có Fail nào.
+  - **Đã xong — có Fail** (đỏ): đủ 100% nhưng có ít nhất 1 Fail.
+- **Nút Trước/Sau**: nhảy tới chip Active gần nhất theo hướng đó (bỏ qua chip Inactive) — không cần dò qua từng sản phẩm chưa đủ điều kiện.
+- **Gage nhớ theo balloon đã hoạt động sẵn** (`WorkContext.LastGageIdByBalloon`, key `OpId:BalloonNumber`) — đổi sản phẩm xong, đo lại đúng balloon vừa dùng gage A ở SP trước thì tự gợi ý lại gage A, không cần chọn lại. Không cần thay đổi gì thêm cho yêu cầu này.
+
+- Filter theo `Category` (nhóm rộng — LIN/ANG/THD/GEO/SFC), không phải `GageType` cụ thể.
+- Đổi dimension → luôn chọn lại gage (không carry-over), **trừ** khi cùng `BalloonNumber` đã đo ở serial khác trong cùng Job → tự gợi ý lại gage cũ (`WorkContext.LastGageIdByBalloon`, reset khi đổi Job).
+- Dimension có `GageTypeCode == "VIS"` (Visual Inspection — không cần dụng cụ đo) → ẩn hẳn bước chọn gage.
+- `measure_values.gage_id` hiện đã được populate khi QC/Operator chọn gage; null khi không chọn (tùy chọn, không bắt buộc).
 
 ---
 
