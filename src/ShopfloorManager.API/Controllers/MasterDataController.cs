@@ -7,7 +7,7 @@ using ShopfloorManager.Application.MasterData;
 namespace ShopfloorManager.API.Controllers;
 
 /// <summary>
-/// CRUD cho dữ liệu danh mục nền tảng: Machine, MachineGroup, OpType, DimensionCategory, FileType.
+/// CRUD cho dữ liệu danh mục nền tảng: Machine, MachineGroup, OpType, GageCategory, FileType.
 /// </summary>
 [ApiController]
 [Authorize]
@@ -112,37 +112,37 @@ public class MasterDataController(IMediator mediator) : ControllerBase
             : BadRequest(ApiResponse<OpTypeDto>.Fail(result.Errors));
     }
 
-    // ── DimensionCategories ───────────────────────────────────
+    // ── GageCategories ────────────────────────────────────────
 
-    [HttpGet("api/v1/dimension-categories")]
-    [ProducesResponseType(typeof(ApiResponse<List<DimensionCategoryDto>>), 200)]
-    public async Task<IActionResult> GetDimensionCategories([FromQuery] bool activeOnly = false)
+    [HttpGet("api/v1/gage-categories")]
+    [ProducesResponseType(typeof(ApiResponse<List<GageCategoryDto>>), 200)]
+    public async Task<IActionResult> GetGageCategories([FromQuery] bool activeOnly = false)
     {
-        var result = await mediator.Send(new GetDimensionCategoriesQuery(activeOnly));
-        return Ok(ApiResponse<List<DimensionCategoryDto>>.Ok(result.Value));
+        var result = await mediator.Send(new GetGageCategoriesQuery(activeOnly));
+        return Ok(ApiResponse<List<GageCategoryDto>>.Ok(result.Value));
     }
 
-    [HttpPost("api/v1/dimension-categories")]
+    [HttpPost("api/v1/gage-categories")]
     [Authorize(Roles = "Administrator")]
-    [ProducesResponseType(typeof(ApiResponse<DimensionCategoryDto>), 201)]
-    public async Task<IActionResult> CreateDimensionCategory([FromBody] CreateDimensionCategoryCommand command)
+    [ProducesResponseType(typeof(ApiResponse<GageCategoryDto>), 201)]
+    public async Task<IActionResult> CreateGageCategory([FromBody] CreateGageCategoryCommand command)
     {
         var result = await mediator.Send(command);
         return result.IsSuccess
-            ? StatusCode(201, ApiResponse<DimensionCategoryDto>.Ok(result.Value))
-            : BadRequest(ApiResponse<DimensionCategoryDto>.Fail(result.Errors));
+            ? StatusCode(201, ApiResponse<GageCategoryDto>.Ok(result.Value))
+            : BadRequest(ApiResponse<GageCategoryDto>.Fail(result.Errors));
     }
 
-    [HttpPut("api/v1/dimension-categories/{id:int}")]
+    [HttpPut("api/v1/gage-categories/{id:int}")]
     [Authorize(Roles = "Administrator")]
-    [ProducesResponseType(typeof(ApiResponse<DimensionCategoryDto>), 200)]
-    public async Task<IActionResult> UpdateDimensionCategory(int id, [FromBody] UpdateDimensionCategoryCommand command)
+    [ProducesResponseType(typeof(ApiResponse<GageCategoryDto>), 200)]
+    public async Task<IActionResult> UpdateGageCategory(int id, [FromBody] UpdateGageCategoryCommand command)
     {
-        if (id != command.Id) return BadRequest(ApiResponse<DimensionCategoryDto>.Fail("ID không khớp."));
+        if (id != command.Id) return BadRequest(ApiResponse<GageCategoryDto>.Fail("ID không khớp."));
         var result = await mediator.Send(command);
         return result.IsSuccess
-            ? Ok(ApiResponse<DimensionCategoryDto>.Ok(result.Value))
-            : BadRequest(ApiResponse<DimensionCategoryDto>.Fail(result.Errors));
+            ? Ok(ApiResponse<GageCategoryDto>.Ok(result.Value))
+            : BadRequest(ApiResponse<GageCategoryDto>.Fail(result.Errors));
     }
 
     // ── FileTypes ─────────────────────────────────────────────

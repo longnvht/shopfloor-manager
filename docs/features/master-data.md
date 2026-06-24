@@ -102,9 +102,9 @@ All items have an **Active** toggle. Inactive items are hidden from selection dr
 | `GET` | `/api/v1/op-types` | Op type list |
 | `POST` | `/api/v1/op-types` | Create op type |
 | `PUT` | `/api/v1/op-types/{id}` | Update op type |
-| `GET` | `/api/v1/dimension-categories` | Category list |
-| `POST` | `/api/v1/dimension-categories` | Create category |
-| `PUT` | `/api/v1/dimension-categories/{id}` | Update category |
+| `GET` | `/api/v1/gage-categories` | Gage category list (LIN/ANG/THD/GEO/SFC) |
+| `POST` | `/api/v1/gage-categories` | Create category |
+| `PUT` | `/api/v1/gage-categories/{id}` | Update category |
 | `GET` | `/api/v1/tech-documents/file-types` | Document type list |
 | `POST` | `/api/v1/tech-documents/file-types` | Create document type |
 | `PUT` | `/api/v1/tech-documents/file-types/{id}` | Update document type |

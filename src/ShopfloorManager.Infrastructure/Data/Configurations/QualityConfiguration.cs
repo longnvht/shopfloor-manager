@@ -4,17 +4,6 @@ using ShopfloorManager.Domain.Entities;
 
 namespace ShopfloorManager.Infrastructure.Data.Configurations;
 
-public class DimensionCategoryConfiguration : IEntityTypeConfiguration<DimensionCategory>
-{
-    public void Configure(EntityTypeBuilder<DimensionCategory> builder)
-    {
-        builder.HasIndex(c => c.Code).IsUnique();
-        builder.Property(c => c.Code).HasMaxLength(10).IsRequired();
-        builder.Property(c => c.Name).HasMaxLength(100).IsRequired();
-        builder.Property(c => c.Description).HasMaxLength(300);
-    }
-}
-
 public class DimensionConfiguration : IEntityTypeConfiguration<Dimension>
 {
     public void Configure(EntityTypeBuilder<Dimension> builder)
@@ -40,8 +29,8 @@ public class DimensionConfiguration : IEntityTypeConfiguration<Dimension>
         builder.HasOne(d => d.PartOp).WithMany(o => o.Dimensions)
             .HasForeignKey(d => d.PartOpId).OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasOne(d => d.Category).WithMany(c => c.Dimensions)
-            .HasForeignKey(d => d.CategoryId).OnDelete(DeleteBehavior.SetNull);
+        builder.HasOne(d => d.GageType).WithMany()
+            .HasForeignKey(d => d.GageTypeId).OnDelete(DeleteBehavior.SetNull);
     }
 }
 

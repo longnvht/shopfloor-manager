@@ -4,20 +4,20 @@ import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { api, type MachineDto, type MachineGroupDto, type OpTypeDto, type DimensionCategoryDto, type FileTypeDto, type QcInlineRateDto, type JobDto, type PartOpDto } from '@/lib/api-client'
+import { api, type MachineDto, type MachineGroupDto, type OpTypeDto, type GageCategoryDto, type FileTypeDto, type QcInlineRateDto, type JobDto, type PartOpDto } from '@/lib/api-client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
-export type MasterKind = 'machine' | 'machineGroup' | 'opType' | 'dimCategory' | 'fileType' | 'qcInlineRate'
-export type MasterItem = MachineDto | MachineGroupDto | OpTypeDto | DimensionCategoryDto | FileTypeDto | QcInlineRateDto
+export type MasterKind = 'machine' | 'machineGroup' | 'opType' | 'gageCategory' | 'fileType' | 'qcInlineRate'
+export type MasterItem = MachineDto | MachineGroupDto | OpTypeDto | GageCategoryDto | FileTypeDto | QcInlineRateDto
 
 const TITLES: Record<MasterKind, string> = {
   machine: 'Máy',
   machineGroup: 'Nhóm máy',
   opType: 'Loại OP',
-  dimCategory: 'Dimension Category',
+  gageCategory: 'Gage Category',
   fileType: 'Loại tài liệu',
   qcInlineRate: 'Mức kiểm QC Inline',
 }
@@ -94,8 +94,8 @@ export function MasterItemDialog({ open, kind, item, onClose, onSaved }: Props) 
         reset({ code: o.code, name: o.name ?? '', description: o.description ?? '', isActive: o.isActive })
         break
       }
-      case 'dimCategory': {
-        const d = item as DimensionCategoryDto
+      case 'gageCategory': {
+        const d = item as GageCategoryDto
         reset({ code: d.code, name: d.name, description: d.description ?? '', isActive: d.isActive })
         break
       }
@@ -156,13 +156,13 @@ export function MasterItemDialog({ open, kind, item, onClose, onSaved }: Props) 
         if (res.success) { onClose(); onSaved() } else setError(res.error ?? 'Lỗi lưu loại OP')
         break
       }
-      case 'dimCategory': {
+      case 'gageCategory': {
         if (!data.name?.trim()) { setError('Nhập tên'); return }
         const body = { code, name: data.name.trim(), description: data.description?.trim() || null, isActive }
         const res = item
-          ? await api.dimCategories.update((item as DimensionCategoryDto).id, { id: (item as DimensionCategoryDto).id, ...body })
-          : await api.dimCategories.create(body)
-        if (res.success) { onClose(); onSaved() } else setError(res.error ?? 'Lỗi lưu dimension category')
+          ? await api.gageCategories.update((item as GageCategoryDto).id, { id: (item as GageCategoryDto).id, ...body })
+          : await api.gageCategories.create(body)
+        if (res.success) { onClose(); onSaved() } else setError(res.error ?? 'Lỗi lưu gage category')
         break
       }
       case 'fileType': {
@@ -234,7 +234,7 @@ export function MasterItemDialog({ open, kind, item, onClose, onSaved }: Props) 
               </>
             )}
 
-            {(kind === 'opType' || kind === 'dimCategory') && (
+            {(kind === 'opType' || kind === 'gageCategory') && (
               <div className="space-y-1.5">
                 <Label>Mô tả</Label>
                 <Input {...register('description')} />

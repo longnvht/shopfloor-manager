@@ -4,6 +4,17 @@ using ShopfloorManager.Domain.Entities;
 
 namespace ShopfloorManager.Infrastructure.Data.Configurations;
 
+public class GageCategoryConfiguration : IEntityTypeConfiguration<GageCategory>
+{
+    public void Configure(EntityTypeBuilder<GageCategory> builder)
+    {
+        builder.HasIndex(c => c.Code).IsUnique();
+        builder.Property(c => c.Code).HasMaxLength(10).IsRequired();
+        builder.Property(c => c.Name).HasMaxLength(100).IsRequired();
+        builder.Property(c => c.Description).HasMaxLength(300);
+    }
+}
+
 public class GageTypeConfiguration : IEntityTypeConfiguration<GageType>
 {
     public void Configure(EntityTypeBuilder<GageType> b)
@@ -12,7 +23,7 @@ public class GageTypeConfiguration : IEntityTypeConfiguration<GageType>
         b.Property(g => g.Code).HasMaxLength(30).IsRequired();
         b.Property(g => g.Name).HasMaxLength(150).IsRequired();
 
-        b.HasOne(g => g.Category).WithMany()
+        b.HasOne(g => g.Category).WithMany(c => c.GageTypes)
             .HasForeignKey(g => g.CategoryId).OnDelete(DeleteBehavior.SetNull);
         b.HasOne(g => g.DefaultProcedure).WithMany()
             .HasForeignKey(g => g.DefaultProcedureId).OnDelete(DeleteBehavior.SetNull);

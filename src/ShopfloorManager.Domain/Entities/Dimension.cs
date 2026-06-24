@@ -43,7 +43,11 @@ public class Dimension
     public string? NominalText { get; set; }       // "M10x1.5-6H", "Ra 0.8"
 
     // ── Classification ────────────────────────────────────────
-    public int? CategoryId { get; set; }           // → DimensionCategory (LIN/ANG/THD/GEO/SFC)
+    /// <summary>Loại dụng cụ đo cụ thể (MIC/CAL/BOR/VIS...) — nguồn duy nhất xác định dụng cụ đo, dùng
+    /// để filter gage khi nhập đo (xem GetMesGagesQuery). "VIS" = kiểm bằng mắt, không cần dụng cụ.
+    /// Nhóm rộng (LIN/ANG/THD/GEO/SFC) lấy gián tiếp qua GageType.Category — không lưu riêng trên
+    /// Dimension để tránh trùng lặp dữ liệu.</summary>
+    public int? GageTypeId { get; set; }
     public bool IsCritical { get; set; }
     /// <summary>
     /// QC tái sử dụng dimension này (do kỹ thuật tạo) cho QC Final — không cần QC tạo riêng.
@@ -67,6 +71,6 @@ public class Dimension
     public DateTimeOffset? DeletedAt { get; set; }
 
     public PartOp PartOp { get; set; } = null!;
-    public DimensionCategory? Category { get; set; }
+    public GageType? GageType { get; set; }
     public ICollection<MeasureValue> MeasureValues { get; set; } = [];
 }

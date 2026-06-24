@@ -426,6 +426,45 @@ So với mockup gốc, layout ban đầu đặt sai vị trí filter + nút expo
 
 ---
 
+## Loại bỏ Dimension.CategoryId — thay bằng GageTypeId duy nhất ✅ (2026-06-24)
+
+Phát hiện trùng lặp dữ liệu: `Dimension` lưu cả `CategoryId` (nhóm rộng LIN/ANG/THD/GEO/SFC) **và** `GageTypeId` (cụ thể) — 2 nơi lưu cùng ý nghĩa phân loại. Quyết định: bỏ hẳn `CategoryId`, `GageTypeId` là nguồn duy nhất; nhóm rộng suy ra gián tiếp qua `GageType.CategoryId → DimensionCategory`.
+
+### Xử lý VIS (kiểm bằng mắt — không cần gage)
+
+Trước đó `VIS` là 1 dòng trong `dimension_categories` (hack — category giả lập cờ "không cần gage"). Sau khi bỏ `CategoryId`, đổi sang: **`VIS` là 1 dòng trong `gage_types`** (`category_id = NULL`) — `Dimension.GageTypeId` trỏ vào đây để đánh dấu "không cần gage". `FaiViewModel.ShowGageSelection`/`LoadGagesAsync` đổi check từ `CategoryCode == "VIS"` → `GageTypeCode == "VIS"`.
+
+### Backend
+
+- Domain: `Dimension` bỏ `CategoryId`/`Category` nav, chỉ còn `GageTypeId`/`GageType`. `DimensionCategory` bỏ `Dimensions` collection, thêm `GageTypes` collection (inverse của `GageType.CategoryId`).
+- Migration `RemoveDimensionCategoryId` — drop FK + index + column (EF cảnh báo "may result in data loss" — đã backfill `GageTypeId` cho dữ liệu hiện có trước khi xoá cột, xem dưới).
+- `GetFaiSheetQueryHandler`, `GetOpDimensionsQueryHandler`, `GetDimensionsByRoutingRevQueryHandler`: `.Include(d => d.Category)` → `.Include(d => d.GageType).ThenInclude(t => t!.Category)`; `DimensionDto.CategoryCode` giờ là giá trị suy ra (`d.GageType?.Category?.Code`), không phải cột riêng.
+- `CreateDimensionCommand` bỏ tham số `CategoryId`, chỉ còn `GageTypeId`.
+- `ImportDimensionRow`/`ImportBulkDimensionRow`: field `CategoryCode` đổi tên `GageTypeCode`, resolve qua `db.GageTypes` (không phải `db.DimensionCategories`) → set `GageTypeId`.
+- `ExcelTemplateBuilder`: cột template đổi `"Category"` → `"GageType"`, giá trị mẫu đổi từ `"LIN"`/`"SFC"` sang `"MIC"`/`"SRM"`. `OperationsController` đọc cell với alias `Cell(row, "gagetype", "category")` — vẫn nhận file cũ có cột `Category`.
+- `GetMesGagesQuery` giữ nguyên (đã có từ trước) — `GageTypeId` ưu tiên hơn `CategoryCode` khi cả hai cùng truyền.
+
+### Data backfill (dev DB, trước khi xoá cột)
+
+- Tạo `gage_types` row `VIS` (category_id NULL).
+- Migrate 4 dimension đang category=VIS → `gage_type_id` = VIS.
+- Backfill dimension còn `category_id` (LIN/ANG/THD/GEO/SFC) nhưng chưa có `gage_type_id` cụ thể → gán 1 GageType đại diện mỗi category (LIN→MIC, ANG→ANG, THD→PLG, GEO→CMM, SFC→SRM) — best-effort, cần kỹ sư rà soát lại sau.
+- Xoá row `VIS` khỏi `dimension_categories` (không còn dùng).
+- Phát hiện thêm lỗi: `GageType` "GBS" ("API Ref. Master") đang gán category GEO nhưng 5 gage thực tế (`STD-011/012/014/016/065` — "Micrometer Standard") đều là chuẩn panme → sửa thành LIN.
+- Postgres sequence `gage_types_id_seq` bị lệch (insert thất bại do thiếu `created_at` vẫn tiêu tốn giá trị sequence) → phải `setval` lại trước khi insert lại.
+
+### Web app (`clients/web`)
+
+- `lib/api-client.ts`: `DimensionDto`/`RoutingRevDimensionDto` thêm `gageTypeId`/`gageTypeCode`.
+- `dimsheet/page.tsx`, `fai-matrix.tsx`, `jobs/[id]/operations`, `parts/[id]/operations`: hiển thị `gageTypeCode ?? categoryCode` (chi tiết hơn khi có) thay vì chỉ `categoryCode`. Màu/filter theo category (`CAT_COLORS`, `ALL_CATS`) giữ nguyên — vẫn hoạt động vì `categoryCode` vẫn được trả về (suy ra, không phải cột riêng).
+
+### Lessons learned
+
+- **Trùng lặp dữ liệu giữa 2 field có cùng ý nghĩa phân loại** (CategoryId rộng + GageTypeId cụ thể, cả hai đều có thể suy ra nhau qua GageType→Category) là dấu hiệu nên gộp về 1 nguồn — refactor sớm trước khi data thật tích lũy nhiều sẽ rẻ hơn.
+- **"Cờ giả lập bằng category" (VIS) nên là field/marker rõ nghĩa** ngay từ đầu — dùng category để biểu diễn "không cần gage" gây nhầm lẫn khi category bị xoá; chuyển sang 1 dòng GageType riêng (category_id NULL) sạch hơn vì vẫn nằm trong đúng khái niệm "loại dụng cụ đo" (chỉ là loại đặc biệt = không dụng cụ).
+
+---
+
 ## Các quyết định thiết kế quan trọng (theo thời gian)
 
 | Ngày | Quyết định |
@@ -443,3 +482,5 @@ So với mockup gốc, layout ban đầu đặt sai vị trí filter + nút expo
 | 2026-06-23 | ProductionSession: chỉ Operator/Leader/Administrator tạo session mới — QC/Engineer/Manager luôn View_Mode kể cả máy trống |
 | 2026-06-23 | Gage Selection trong FAI: filter theo Category (không theo GageType cụ thể) — đúng granularity thiết kế ban đầu, không mở rộng thêm ràng buộc |
 | 2026-06-23 | Thêm category `VIS` (Visual) — thứ 6 ngoài LIN/ANG/THD/GEO/SFC — chỉ cho dimension kiểm bằng mắt thuần túy, không gộp chung dimension thiếu tolerance số nói chung |
+| 2026-06-24 | Đảo quyết định 2026-06-23 "filter theo Category" → đổi sang `Dimension.GageTypeId` là nguồn duy nhất (chi tiết hơn), bỏ hẳn `Dimension.CategoryId` để tránh trùng lặp dữ liệu |
+| 2026-06-24 | `VIS` chuyển từ 1 dòng trong `dimension_categories` sang 1 dòng trong `gage_types` (category_id NULL) — nhất quán hơn vì giờ chỉ còn 1 field phân loại (`GageTypeId`) trên Dimension |

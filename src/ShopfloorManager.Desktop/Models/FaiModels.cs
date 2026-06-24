@@ -15,7 +15,8 @@ public record DimensionData(
     decimal? NominalValue, decimal? TolerancePlus, decimal? ToleranceMinus,
     decimal? MaxValue, decimal? MinValue, string? Unit,
     bool IsTextType, string? NominalText,
-    string? CategoryCode, bool IsCritical, bool IsFinal, int SortOrder);
+    string? CategoryCode, bool IsCritical, bool IsFinal, int SortOrder,
+    int? GageTypeId = null, string? GageTypeCode = null);
 
 public record FaiRowData(
     string SerialNumber, int ProductId,
@@ -63,6 +64,10 @@ public partial class DimensionCardVm : ObservableObject
     public bool IsFinal { get; init; }
     public bool IsCritical { get; init; }
     public string? CategoryCode { get; init; }
+    /// <summary>Loại dụng cụ đo cụ thể (MIC/CAL/BOR...) — chi tiết hơn CategoryCode, ưu tiên dùng để
+    /// filter gage khi nhập đo nếu có (xem FaiViewModel.LoadGagesAsync).</summary>
+    public int? GageTypeId { get; init; }
+    public string? GageTypeCode { get; init; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsMeasured))]
@@ -73,6 +78,9 @@ public partial class DimensionCardVm : ObservableObject
     private decimal? _measuredValue;
 
     public bool IsMeasured => State is MeasureState.Pass or MeasureState.Fail;
+
+    /// <summary>Hiện GageTypeCode (chi tiết hơn, ví dụ "MIC") nếu có, fallback về CategoryCode (ví dụ "LIN").</summary>
+    public string? GageBadgeText => GageTypeCode ?? CategoryCode;
 
     public string NominalDisplay => IsTextType
         ? (NominalText ?? "TEXT")

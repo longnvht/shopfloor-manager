@@ -44,7 +44,7 @@ GageType (Loại dụng cụ: Micrometer, Caliper, Ring Gauge...)
 - Trạng thái `EXPIRED` tự động set khi `last_calibration + calib_frequency_days < TODAY`.
 
 ### 3.3 Gage Type & Category
-- `gage_types.category_id → dimension_categories`: liên kết loại gage với loại kích thước.
+- `gage_types.category_id → gage_categories`: liên kết loại gage với loại kích thước.
 - Khi operator đo kích thước thuộc category `LIN` → chỉ hiện gage có `gage_type.category_id = 'LIN'`.
 - Một gage type có một `procedure_id` (quy trình hiệu chuẩn mặc định).
 
@@ -68,14 +68,16 @@ due_date = last_calibration + calib_frequency_days
 - `has_pending_calib`: đang có yêu cầu hiệu chuẩn chờ xử lý.
 - Hai flags này là **denormalized** để query nhanh — cập nhật đồng thời với borrow_transactions và calib_requests.
 
-### 3.7 Gage Selection trong FAI (Desktop MES) — ✅ Done (2026-06-23)
+### 3.7 Gage Selection trong FAI (Desktop MES) — ✅ Done (2026-06-23, cập nhật 2026-06-24)
 
-Khi nhập kết quả đo, Desktop hiện danh sách gage hợp lệ lọc theo category của dimension đang đo (`Dimension.CategoryId → DimensionCategory.Code → GageType.CategoryId`).
+Khi nhập kết quả đo, hệ thống filter gage theo **`Dimension.GageTypeId`** khi có (chính xác — đúng 1 loại dụng cụ, ví dụ chỉ Micrometer), fallback về `CategoryCode` (suy ra qua `GageType.Category`) khi dimension chưa được gán GageType cụ thể. Xem chi tiết thiết kế tại `06_dimensions_fai.md` §3.6 (Dimension không còn cột `CategoryId` riêng từ 2026-06-24 — tránh trùng lặp với phân loại trên `GageType`).
 
-- **`Dimension.CategoryCode = 'VIS'`** (Visual) → **bỏ qua hoàn toàn** bước chọn dụng cụ đo — dùng cho dimension kiểm bằng mắt (không có min/max số, ví dụ "No burr, no scratch"). Dimension đo góc/ren/độ nhám không có tolerance số (ví dụ "45°", "HƯỚNG REN PHẢI") **không** thuộc `VIS` — vẫn giữ category LIN/ANG/THD/GEO/SFC và vẫn cần chọn dụng cụ.
+- **`GET /api/v1/mes/gages?gageTypeId=` ưu tiên hơn `?categoryCode=`** — `GetMesGagesQueryHandler` chọn `gageTypeId` nếu có, không kết hợp cả hai.
+- **GageType code `'VIS'`** (Visual, `CategoryId = NULL`) → **bỏ qua hoàn toàn** bước chọn dụng cụ đo — dùng cho dimension kiểm bằng mắt (không có min/max số, ví dụ "No burr, no scratch"). Dimension đo góc/ren/độ nhám không có tolerance số (ví dụ "45°", "HƯỚNG REN PHẢI") **không** gán GageType `VIS` — vẫn cần GageType thật (thước góc, dưỡng ren...) và vẫn cần chọn dụng cụ.
 - **UI tìm dụng cụ** (touch-friendly): nhập để filter theo `GageNo`/`Description` → kết quả hiện dạng thẻ. Click chỉ highlight (không xung đột với kéo-thả cuộn danh sách) — double-click hoặc nút "Chọn" mới xác nhận.
 - **Đổi dimension → luôn yêu cầu chọn lại gage** (không carry-over từ dimension trước), **trừ khi** cùng balloon đã được đo ở serial khác trong cùng Job — khi đó tự động gợi ý lại gage đã dùng lần trước (`WorkContext.LastGageIdByBalloon`, key `PartOpId:BalloonNumber`, reset khi đổi Job).
 - `MeasureValue.GageId` lưu lựa chọn — gage là **tùy chọn**, không chặn lưu kết quả đo nếu không chọn.
+- **Excel import dimension** (`/dimsheet`, bulk import RoutingRev): cột `Category` đổi tên thành `GageType` (giá trị là `GageType.Code` như "MIC", "PLG" — không phải mã category rộng như "LIN" nữa). Vẫn nhận alias cột cũ `category` để tương thích file đã phát hành trước đó.
 
 ---
 
@@ -127,7 +129,7 @@ gage_statuses (
 gage_types (
     id, code [UNIQUE], name, description,
     procedure_id → calib_procedures,
-    category_id  → dimension_categories
+    category_id  → gage_categories
 )
 
 gage_locations (

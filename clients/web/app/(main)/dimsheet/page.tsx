@@ -475,7 +475,7 @@ function DimSheetDetail({ part }: { part: PartDto }) {
                   <td style={{ padding: '10px 14px', borderBottom: `1px solid ${va.separator}` }}>
                     <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: 44, height: 24, borderRadius: 6, background: va.primary, color: '#fff', fontFamily: va.mono, fontWeight: 600, fontSize: 11 }}>{d.opNumber}</span>
                   </td>
-                  <td style={{ padding: '10px 14px', borderBottom: `1px solid ${va.separator}`, fontFamily: va.mono, fontWeight: 700, fontSize: 11, color: d.categoryCode ? (CAT_COLORS[d.categoryCode] ?? va.text2) : va.text3 }}>{d.categoryCode ?? '—'}</td>
+                  <td style={{ padding: '10px 14px', borderBottom: `1px solid ${va.separator}`, fontFamily: va.mono, fontWeight: 700, fontSize: 11, color: d.categoryCode ? (CAT_COLORS[d.categoryCode] ?? va.text2) : va.text3 }} title={d.categoryCode ?? undefined}>{d.gageTypeCode ?? d.categoryCode ?? '—'}</td>
                   {editing ? (
                     <>
                       <td style={{ padding: '6px 14px', borderBottom: `1px solid ${va.separator}`, textAlign: 'center' }}>

@@ -124,7 +124,7 @@ public static class ExcelTemplateBuilder
         using var wb = new XLWorkbook();
         var ws = wb.AddWorksheet("Dimensions");
 
-        string[] headers = ["BalloonNumber", "Code", "Description", "Nominal", "TolPlus", "TolMinus", "Unit", "Category", "IsFinal"];
+        string[] headers = ["BalloonNumber", "Code", "Description", "Nominal", "TolPlus", "TolMinus", "Unit", "GageType", "IsFinal"];
         for (var i = 0; i < headers.Length; i++) ws.Cell(1, i + 1).Value = headers[i];
 
         ws.Cell(2, 1).Value = "Ø1";
@@ -134,7 +134,7 @@ public static class ExcelTemplateBuilder
         ws.Cell(2, 5).Value = 0.05;
         ws.Cell(2, 6).Value = 0.05;
         ws.Cell(2, 7).Value = "mm";
-        ws.Cell(2, 8).Value = "LIN";
+        ws.Cell(2, 8).Value = "MIC";
         ws.Cell(2, 9).Value = "FALSE";
 
         ws.Columns().AdjustToContents();
@@ -152,7 +152,7 @@ public static class ExcelTemplateBuilder
         using var wb = new XLWorkbook();
         var ws = wb.AddWorksheet("Dimensions");
 
-        string[] headers = ["OpNumber", "BalloonNumber", "Code", "Description", "Nominal", "TolPlus", "TolMinus", "Unit", "Category", "IsFinal"];
+        string[] headers = ["OpNumber", "BalloonNumber", "Code", "Description", "Nominal", "TolPlus", "TolMinus", "Unit", "GageType", "IsFinal"];
         for (var i = 0; i < headers.Length; i++)
         {
             ws.Cell(1, i + 1).Value = headers[i];
@@ -170,7 +170,7 @@ public static class ExcelTemplateBuilder
         ws.Cell(2, 6).Value = 0.05;
         ws.Cell(2, 7).Value = 0.05;
         ws.Cell(2, 8).Value = "mm";
-        ws.Cell(2, 9).Value = "LIN";
+        ws.Cell(2, 9).Value = "MIC";
         ws.Cell(2, 10).Value = "TRUE";
 
         // Dòng ví dụ 2 — dimension text, OP 10
@@ -182,7 +182,7 @@ public static class ExcelTemplateBuilder
         ws.Cell(3, 6).Value = "";
         ws.Cell(3, 7).Value = "";
         ws.Cell(3, 8).Value = "";
-        ws.Cell(3, 9).Value = "SFC";
+        ws.Cell(3, 9).Value = "SRM";
         ws.Cell(3, 10).Value = "FALSE";
 
         // Dòng ví dụ 3 — dimension số, OP 20
@@ -194,7 +194,7 @@ public static class ExcelTemplateBuilder
         ws.Cell(4, 6).Value = 0.1;
         ws.Cell(4, 7).Value = 0.1;
         ws.Cell(4, 8).Value = "mm";
-        ws.Cell(4, 9).Value = "LIN";
+        ws.Cell(4, 9).Value = "MIC";
         ws.Cell(4, 10).Value = "FALSE";
 
         ws.Columns().AdjustToContents();

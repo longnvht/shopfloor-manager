@@ -366,8 +366,8 @@
                                            Foreground="{StaticResource BrandText}"/>
                                 <Border Margin="10,6,0,0" CornerRadius="4" Padding="6,2"
                                         Background="{StaticResource BrandAccentLight}" VerticalAlignment="Top"
-                                        Visibility="{Binding SelectedDimension.CategoryCode, Converter={StaticResource StringToVisibilityConverter}}">
-                                    <TextBlock Text="{Binding SelectedDimension.CategoryCode, Mode=OneWay}"
+                                        Visibility="{Binding SelectedDimension.GageBadgeText, Converter={StaticResource StringToVisibilityConverter}}">
+                                    <TextBlock Text="{Binding SelectedDimension.GageBadgeText, Mode=OneWay}"
                                                FontSize="10" FontWeight="Bold"
                                                Foreground="{StaticResource BrandPrimary}"/>
                                 </Border>
@@ -496,8 +496,8 @@
                                            Foreground="{StaticResource BrandText}"/>
                                 <Border Margin="10,6,0,0" CornerRadius="4" Padding="6,2"
                                         Background="{StaticResource BrandAccentLight}" VerticalAlignment="Top"
-                                        Visibility="{Binding SelectedDimension.CategoryCode, Converter={StaticResource StringToVisibilityConverter}}">
-                                    <TextBlock Text="{Binding SelectedDimension.CategoryCode, Mode=OneWay}"
+                                        Visibility="{Binding SelectedDimension.GageBadgeText, Converter={StaticResource StringToVisibilityConverter}}">
+                                    <TextBlock Text="{Binding SelectedDimension.GageBadgeText, Mode=OneWay}"
                                                FontSize="10" FontWeight="Bold"
                                                Foreground="{StaticResource BrandPrimary}"/>
                                 </Border>

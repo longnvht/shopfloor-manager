@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using ShopfloorManager.Infrastructure.Data;
@@ -11,9 +12,11 @@ using ShopfloorManager.Infrastructure.Data;
 namespace ShopfloorManager.Infrastructure.Data.Migrations
 {
     [DbContext(typeof(ShopfloorDbContext))]
-    partial class ShopfloorDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260624032602_RemoveDimensionCategoryId")]
+    partial class RemoveDimensionCategoryId
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -651,6 +654,88 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                     b.ToTable("dimensions", (string)null);
                 });
 
+            modelBuilder.Entity("ShopfloorManager.Domain.Entities.DimensionCategory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("code");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("description");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.HasKey("Id")
+                        .HasName("pk_dimension_categories");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasDatabaseName("ix_dimension_categories_code");
+
+                    b.ToTable("dimension_categories", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            Code = "LIN",
+                            Description = "Thước cặp, panme",
+                            IsActive = true,
+                            Name = "Linear"
+                        },
+                        new
+                        {
+                            Id = 2,
+                            Code = "ANG",
+                            Description = "Thước góc",
+                            IsActive = true,
+                            Name = "Angular"
+                        },
+                        new
+                        {
+                            Id = 3,
+                            Code = "THD",
+                            Description = "Dưỡng ren, ring gauge",
+                            IsActive = true,
+                            Name = "Thread"
+                        },
+                        new
+                        {
+                            Id = 4,
+                            Code = "GEO",
+                            Description = "CMM, dial indicator",
+                            IsActive = true,
+                            Name = "Geometric"
+                        },
+                        new
+                        {
+                            Id = 5,
+                            Code = "SFC",
+                            Description = "Surface tester",
+                            IsActive = true,
+                            Name = "Surface"
+                        });
+                });
+
             modelBuilder.Entity("ShopfloorManager.Domain.Entities.ErpConnection", b =>
                 {
                     b.Property<int>("Id")
@@ -1054,88 +1139,6 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                         .HasDatabaseName("ix_gages_vendor_id");
 
                     b.ToTable("gages", (string)null);
-                });
-
-            modelBuilder.Entity("ShopfloorManager.Domain.Entities.GageCategory", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("character varying(10)")
-                        .HasColumnName("code");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(300)
-                        .HasColumnType("character varying(300)")
-                        .HasColumnName("description");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_active");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("name");
-
-                    b.HasKey("Id")
-                        .HasName("pk_gage_categories");
-
-                    b.HasIndex("Code")
-                        .IsUnique()
-                        .HasDatabaseName("ix_gage_categories_code");
-
-                    b.ToTable("gage_categories", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            Code = "LIN",
-                            Description = "Thước cặp, panme",
-                            IsActive = true,
-                            Name = "Linear"
-                        },
-                        new
-                        {
-                            Id = 2,
-                            Code = "ANG",
-                            Description = "Thước góc",
-                            IsActive = true,
-                            Name = "Angular"
-                        },
-                        new
-                        {
-                            Id = 3,
-                            Code = "THD",
-                            Description = "Dưỡng ren, ring gauge",
-                            IsActive = true,
-                            Name = "Thread"
-                        },
-                        new
-                        {
-                            Id = 4,
-                            Code = "GEO",
-                            Description = "CMM, dial indicator",
-                            IsActive = true,
-                            Name = "Geometric"
-                        },
-                        new
-                        {
-                            Id = 5,
-                            Code = "SFC",
-                            Description = "Surface tester",
-                            IsActive = true,
-                            Name = "Surface"
-                        });
                 });
 
             modelBuilder.Entity("ShopfloorManager.Domain.Entities.GageLocation", b =>
@@ -4712,11 +4715,11 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
 
             modelBuilder.Entity("ShopfloorManager.Domain.Entities.GageType", b =>
                 {
-                    b.HasOne("ShopfloorManager.Domain.Entities.GageCategory", "Category")
+                    b.HasOne("ShopfloorManager.Domain.Entities.DimensionCategory", "Category")
                         .WithMany("GageTypes")
                         .HasForeignKey("CategoryId")
                         .OnDelete(DeleteBehavior.SetNull)
-                        .HasConstraintName("fk_gage_types_gage_categories_category_id");
+                        .HasConstraintName("fk_gage_types_dimension_categories_category_id");
 
                     b.HasOne("ShopfloorManager.Domain.Entities.CalibProcedure", "DefaultProcedure")
                         .WithMany()
@@ -5228,6 +5231,11 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                     b.Navigation("MeasureValues");
                 });
 
+            modelBuilder.Entity("ShopfloorManager.Domain.Entities.DimensionCategory", b =>
+                {
+                    b.Navigation("GageTypes");
+                });
+
             modelBuilder.Entity("ShopfloorManager.Domain.Entities.FileType", b =>
                 {
                     b.Navigation("TechDocuments");
@@ -5238,11 +5246,6 @@ namespace ShopfloorManager.Infrastructure.Data.Migrations
                     b.Navigation("BorrowTransactions");
 
                     b.Navigation("CalibRequests");
-                });
-
-            modelBuilder.Entity("ShopfloorManager.Domain.Entities.GageCategory", b =>
-                {
-                    b.Navigation("GageTypes");
                 });
 
             modelBuilder.Entity("ShopfloorManager.Domain.Entities.GageLocation", b =>

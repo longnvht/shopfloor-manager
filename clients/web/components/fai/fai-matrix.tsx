@@ -142,7 +142,7 @@ export function FaiMatrix({ sheet, stageFilter }: Props) {
                           {d.isTextType ? d.nominalText : `${d.nominalValue ?? ''} +${d.tolerancePlus ?? 0}/-${d.toleranceMinus ?? 0}`}
                         </div>
                         <div style={{ fontFamily: va.mono, fontSize: 8.5, color: va.text3, lineHeight: 1.25 }}>
-                          {d.categoryCode ?? d.unit}
+                          {d.gageTypeCode ?? d.categoryCode ?? d.unit}
                         </div>
                         {d.opNumber && (
                           <div style={{ fontFamily: va.mono, fontSize: 8, color: va.text3, opacity: 0.7 }}>OP{d.opNumber}</div>

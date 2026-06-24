@@ -129,7 +129,7 @@ Dữ liệu mặc định được seed qua EF Core `HasData` trong `ShopfloorDb
 | `roles` | Administrator, Manager, Engineer, QC Inspector, Operator, Planner, **Leader** | **7** |
 | `op_types` | CNC, INSP, GRIND, WIRE, MILL, TURN | 6 |
 | `file_types` | DRW, GCD, RTC, FXT, THD, TLS, CAM, CAD | 8 |
-| `dimension_categories` | LIN, ANG, THD, GEO, SFC | 5 |
+| `gage_categories` | LIN, ANG, THD, GEO, SFC (gắn trên `GageType`, không gắn trực tiếp trên `Dimension`) | 5 |
 | `ncr_reasons` | 15 lý do theo phòng ban (PROD×6, QC×3, ENG×5, Other×1) | 15 |
 | `machines` | 115 máy active từ legacy (migration `AddMachines`, 2026-06-04) | 115 |
 
@@ -172,10 +172,10 @@ Cấu hình lưu trong `local.json` tại thư mục chạy app:
 ⏳ POST   /api/v1/op-types
 ⏳ PUT    /api/v1/op-types/{id}
 
--- Dimension Categories --
-✅ GET    /api/v1/dimension-categories
-⏳ POST   /api/v1/dimension-categories
-⏳ PUT    /api/v1/dimension-categories/{id}
+-- Gage Categories (trước đây "Dimension Categories" — đổi tên 2026-06-24, xem 06_dimensions_fai.md §3.6) --
+✅ GET    /api/v1/gage-categories
+✅ POST   /api/v1/gage-categories
+✅ PUT    /api/v1/gage-categories/{id}
 
 -- File Types --
 ✅ GET    /api/v1/tech-documents/file-types
@@ -229,7 +229,7 @@ Import rule: `OpNumberSort = decimal.Parse(OpNumber)` nếu parse được, nế
 
 - **Đổi tên machine code**: ảnh hưởng đến MQTT topic (phải update cả cấu hình trên MDC Agent). Hiện cảnh báo khi đổi.
 - **Xóa OP Type đang có PartOP**: không cho xóa.
-- **Xóa Dimension Category đang có Dimensions**: không cho xóa.
+- **Xóa Gage Category đang có GageType gắn vào**: `GageType.CategoryId` set `NULL` (`OnDelete(SetNull)`) — không chặn xóa nhưng các GageType đó mất phân loại, cần gán lại category khác.
 - **Machine config không tìm thấy**: Desktop MES hiện màn hình chọn máy thủ công — không crash.
 - **Multi-factory (tương lai)**: đã chuẩn bị `factory_id` trên các bảng liên quan, nhưng Phase 0-4 chỉ support 1 factory.
 

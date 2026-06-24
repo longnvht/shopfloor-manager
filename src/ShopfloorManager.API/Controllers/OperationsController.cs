@@ -85,8 +85,8 @@ public class OperationsController(IMediator mediator) : ControllerBase
         var result = await mediator.Send(new CreateDimensionCommand(
             opId, req.BalloonNumber, req.Code, req.Description,
             req.NominalValue, req.TolerancePlus, req.ToleranceMinus,
-            req.Unit, req.IsTextType, req.NominalText, req.CategoryId,
-            req.IsCritical, req.IsFinal, req.SortOrder, UserId));
+            req.Unit, req.IsTextType, req.NominalText,
+            req.IsCritical, req.IsFinal, req.SortOrder, UserId, req.GageTypeId));
         return result.IsSuccess
             ? StatusCode(201, ApiResponse<DimensionDto>.Ok(result.Value))
             : BadRequest(ApiResponse<DimensionDto>.Fail(result.Errors));
@@ -171,7 +171,7 @@ public class OperationsController(IMediator mediator) : ControllerBase
                 ExcelImportReader.CellDecimal(row, "tolplus", "tol+"),
                 ExcelImportReader.CellDecimal(row, "tolminus", "tol-"),
                 ExcelImportReader.Cell(row, "unit"),
-                ExcelImportReader.Cell(row, "category"),
+                ExcelImportReader.Cell(row, "gagetype", "category"),
                 isFinal);
         }).ToList();
 
@@ -228,7 +228,7 @@ public class OperationsController(IMediator mediator) : ControllerBase
                 ExcelImportReader.CellDecimal(row, "tolplus", "tol+"),
                 ExcelImportReader.CellDecimal(row, "tolminus", "tol-"),
                 ExcelImportReader.Cell(row, "unit"),
-                ExcelImportReader.Cell(row, "category"),
+                ExcelImportReader.Cell(row, "gagetype", "category"),
                 isFinal);
         }).ToList();
 
@@ -256,8 +256,9 @@ public record CreateDimensionRequest(
     string BalloonNumber, string? Code, string? Description,
     decimal? NominalValue, decimal? TolerancePlus, decimal? ToleranceMinus,
     string Unit,
-    bool IsTextType = false, string? NominalText = null, int? CategoryId = null,
-    bool IsCritical = false, bool IsFinal = false, int SortOrder = 0);
+    bool IsTextType = false, string? NominalText = null,
+    bool IsCritical = false, bool IsFinal = false, int SortOrder = 0,
+    int? GageTypeId = null);
 
 public record UpdateDimensionRequest(decimal? NominalValue, decimal? TolerancePlus, decimal? ToleranceMinus);
 

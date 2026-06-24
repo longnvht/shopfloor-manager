@@ -120,9 +120,12 @@ export type DimensionDto = {
   nominalValue: number | null; tolerancePlus: number | null; toleranceMinus: number | null
   maxValue: number | null; minValue: number | null; unit: string
   isTextType: boolean; nominalText: string | null
+  // categoryCode suy ra qua GageType.Category (Dimension không lưu category riêng — tránh trùng lặp)
   categoryCode: string | null; isCritical: boolean; isFinal: boolean; sortOrder: number
   status: string; reviewedBy: number | null; reviewedAt: string | null; reviewNote: string | null
   opNumber: string | null
+  // Loại dụng cụ đo cụ thể — chi tiết hơn categoryCode; "VIS" = kiểm bằng mắt, không cần dụng cụ
+  gageTypeId: number | null; gageTypeCode: string | null
 }
 
 export type RoutingRevDimensionDto = {
@@ -133,6 +136,7 @@ export type RoutingRevDimensionDto = {
   isTextType: boolean; nominalText: string | null
   categoryCode: string | null; isCritical: boolean; isFinal: boolean; sortOrder: number
   status: string; reviewedBy: number | null; reviewedAt: string | null; reviewNote: string | null
+  gageTypeId: number | null; gageTypeCode: string | null
 }
 
 export type FaiSheetDto = {
@@ -376,12 +380,12 @@ export const api = {
     update: (id: number, body: { id: number; code: string; name?: string | null; description?: string | null; isActive: boolean }) =>
       request<OpTypeDto>(`/api/v1/op-types/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   },
-  dimCategories: {
-    list:   (activeOnly = false) => request<DimensionCategoryDto[]>(`/api/v1/dimension-categories?activeOnly=${activeOnly}`),
+  gageCategories: {
+    list:   (activeOnly = false) => request<GageCategoryDto[]>(`/api/v1/gage-categories?activeOnly=${activeOnly}`),
     create: (body: { code: string; name: string; description?: string | null; isActive: boolean }) =>
-      request<DimensionCategoryDto>('/api/v1/dimension-categories', { method: 'POST', body: JSON.stringify(body) }),
+      request<GageCategoryDto>('/api/v1/gage-categories', { method: 'POST', body: JSON.stringify(body) }),
     update: (id: number, body: { id: number; code: string; name: string; description?: string | null; isActive: boolean }) =>
-      request<DimensionCategoryDto>(`/api/v1/dimension-categories/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+      request<GageCategoryDto>(`/api/v1/gage-categories/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   },
   fileTypes2: {
     list:   (activeOnly = false) => request<FileTypeDto[]>(`/api/v1/tech-documents/file-types?activeOnly=${activeOnly}`),
@@ -591,7 +595,7 @@ export type MachineDto = {
 
 export type MachineGroupDto = { id: number; code: string; name: string; isActive: boolean; machineCount: number }
 export type OpTypeDto = { id: number; code: string; name: string | null; description: string | null; isActive: boolean }
-export type DimensionCategoryDto = { id: number; code: string; name: string; description: string | null; isActive: boolean }
+export type GageCategoryDto = { id: number; code: string; name: string; description: string | null; isActive: boolean }
 
 export type UploadDocBody = {
   fileTypeId: number; fileName: string

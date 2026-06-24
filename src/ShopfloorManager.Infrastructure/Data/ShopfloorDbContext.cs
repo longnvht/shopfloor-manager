@@ -41,6 +41,7 @@ public class ShopfloorDbContext(DbContextOptions<ShopfloorDbContext> options)
     public DbSet<MachineEvent> MachineEvents => Set<MachineEvent>();
 
     // ── Gage Management ───────────────────────────────────────
+    public DbSet<GageCategory>      GageCategories     => Set<GageCategory>();
     public DbSet<GageType>          GageTypes          => Set<GageType>();
     public DbSet<GageLocation>      GageLocations      => Set<GageLocation>();
     public DbSet<GageSlot>          GageSlots          => Set<GageSlot>();
@@ -60,7 +61,6 @@ public class ShopfloorDbContext(DbContextOptions<ShopfloorDbContext> options)
     public DbSet<ShiftAssignment> ShiftAssignments => Set<ShiftAssignment>();
 
     // ── Phase 3: Quality ──────────────────────────────────────
-    public DbSet<DimensionCategory> DimensionCategories => Set<DimensionCategory>();
     public DbSet<Dimension> Dimensions => Set<Dimension>();
     public DbSet<MeasureValue> MeasureValues => Set<MeasureValue>();
     public DbSet<QcInlineRate> QcInlineRates => Set<QcInlineRate>();
@@ -92,7 +92,6 @@ public class ShopfloorDbContext(DbContextOptions<ShopfloorDbContext> options)
         modelBuilder.ApplyConfiguration(new TechDocumentConfiguration());
 
         // Phase 3
-        modelBuilder.ApplyConfiguration(new DimensionCategoryConfiguration());
         modelBuilder.ApplyConfiguration(new DimensionConfiguration());
         modelBuilder.ApplyConfiguration(new MeasureValueConfiguration());
         modelBuilder.ApplyConfiguration(new NcrReasonConfiguration());
@@ -121,6 +120,7 @@ public class ShopfloorDbContext(DbContextOptions<ShopfloorDbContext> options)
         });
 
         // Gage Management
+        modelBuilder.ApplyConfiguration(new GageCategoryConfiguration());
         modelBuilder.ApplyConfiguration(new GageTypeConfiguration());
         modelBuilder.ApplyConfiguration(new GageLocationConfiguration());
         modelBuilder.ApplyConfiguration(new GageSlotConfiguration());
@@ -218,13 +218,13 @@ public class ShopfloorDbContext(DbContextOptions<ShopfloorDbContext> options)
                 IsPartNumber = true,  IsRevision = true,  IsOpNumber = false, IsJobNumber = false, SortOrder = 8 }
         );
 
-        // DimensionCategory seed (từ 06_dimensions_fai.md)
-        modelBuilder.Entity<DimensionCategory>().HasData(
-            new DimensionCategory { Id = 1, Code = "LIN", Name = "Linear",    Description = "Thước cặp, panme" },
-            new DimensionCategory { Id = 2, Code = "ANG", Name = "Angular",   Description = "Thước góc" },
-            new DimensionCategory { Id = 3, Code = "THD", Name = "Thread",    Description = "Dưỡng ren, ring gauge" },
-            new DimensionCategory { Id = 4, Code = "GEO", Name = "Geometric", Description = "CMM, dial indicator" },
-            new DimensionCategory { Id = 5, Code = "SFC", Name = "Surface",   Description = "Surface tester" }
+        // GageCategory seed (từ 06_dimensions_fai.md) — nhóm rộng gắn trên GageType
+        modelBuilder.Entity<GageCategory>().HasData(
+            new GageCategory { Id = 1, Code = "LIN", Name = "Linear",    Description = "Thước cặp, panme" },
+            new GageCategory { Id = 2, Code = "ANG", Name = "Angular",   Description = "Thước góc" },
+            new GageCategory { Id = 3, Code = "THD", Name = "Thread",    Description = "Dưỡng ren, ring gauge" },
+            new GageCategory { Id = 4, Code = "GEO", Name = "Geometric", Description = "CMM, dial indicator" },
+            new GageCategory { Id = 5, Code = "SFC", Name = "Surface",   Description = "Surface tester" }
         );
 
         // NcrReason seed — gắn DepartmentId để NCR dialog filter đúng

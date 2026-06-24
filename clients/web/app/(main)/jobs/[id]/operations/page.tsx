@@ -225,7 +225,7 @@ export default function JobCustomOperationsPage() {
                               {d.balloonNumber}
                               {d.code && d.code !== d.balloonNumber && <span style={{ marginLeft: 4, fontWeight: 400, fontSize: 11, color: va.text3 }}>({d.code})</span>}
                             </td>
-                            <td style={{ padding: '10px 14px', borderBottom: `1px solid ${va.separator}`, color: va.text2 }}>{d.categoryCode ?? '—'}</td>
+                            <td style={{ padding: '10px 14px', borderBottom: `1px solid ${va.separator}`, color: va.text2 }}>{d.gageTypeCode ?? d.categoryCode ?? '—'}</td>
                             {d.isTextType ? (
                               <td colSpan={5} style={{ padding: '10px 14px', borderBottom: `1px solid ${va.separator}`, fontFamily: va.mono, color: va.text2, textAlign: 'center' }}>{d.nominalText ?? '—'}</td>
                             ) : (

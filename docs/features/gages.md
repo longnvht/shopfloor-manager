@@ -54,7 +54,7 @@ Tracks the metrology equipment inventory — calipers, micrometers, bore gauges,
 
 ## Gage Types
 
-Aligned to `DimensionCategory` for traceability (which gage type is valid for which dimension):
+Aligned to `GageCategory` for traceability (which gage type is valid for which dimension — `Dimension.GageTypeId → GageType.CategoryId → GageCategory`):
 
 | Type | Category | Instrument |
 |---|---|---|

@@ -27,11 +27,12 @@ public class GagesController(IMediator mediator) : ControllerBase
         return Ok(ApiResponse<List<GageDto>>.Ok(result.Value));
     }
 
-    /// <summary>MES (Desktop): danh sách gage hợp lệ, chưa bị mượn — chọn khi nhập measure value.</summary>
+    /// <summary>MES (Desktop): danh sách gage hợp lệ, chưa bị mượn — chọn khi nhập measure value.
+    /// gageTypeId (nếu có) chính xác hơn categoryCode — ưu tiên dùng khi dimension đã gán GageType cụ thể.</summary>
     [HttpGet("mes/gages")]
-    public async Task<IActionResult> GetMesGages([FromQuery] string? categoryCode)
+    public async Task<IActionResult> GetMesGages([FromQuery] string? categoryCode, [FromQuery] int? gageTypeId)
     {
-        var result = await mediator.Send(new GetMesGagesQuery(categoryCode));
+        var result = await mediator.Send(new GetMesGagesQuery(categoryCode, gageTypeId));
         return Ok(ApiResponse<List<MesGageDto>>.Ok(result.Value));
     }
 

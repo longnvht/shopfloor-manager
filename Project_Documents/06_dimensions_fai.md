@@ -88,24 +88,29 @@ Kích thước **không có trên bản vẽ** — do Engineer tạo thêm khi x
 - **Không dùng** để kiểm soát chất lượng sản phẩm cuối — chỉ dùng trong process control
 - Người dùng có thể toggle ẩn/hiện kích thước trung gian trên Dimsheet
 
-### 3.6 Dimension Category
-Mỗi dimension thuộc một category (phương pháp đo):
+### 3.6 Dimension → GageType (KHÔNG còn CategoryId riêng — đổi 2026-06-24)
 
-| Code | Tên | Gage thường dùng |
-|---|---|---|
-| `LIN` | Linear | Thước cặp (CAL), panme (MIC), bore gage (BOR), depth gage (DPG), height gage (HEG) |
-| `ANG` | Angular | Thước góc (ANG) |
-| `THD` | Thread | Dưỡng ren (PLG/RIG), pitch diameter gage (PDG), taper gage (ETG/IGT), thread height gage (THG) |
-| `GEO` | Geometric | CMM, dial indicator (IND), profile projector (PPM), radius gage (RAD) |
-| `SFC` | Surface | Surface roughness machine (SRM), surface roughness template (SRT) |
-| `VIS` | Visual | Kiểm bằng mắt (No burr, Visual Inspection...) — **không cần chọn dụng cụ đo** trong FAI (xem `08_gage_management.md` §3.7) |
+`Dimension.GageTypeId` (nullable, FK → `GageType`) là **nguồn duy nhất** xác định dụng cụ đo cho 1 dimension — chi tiết hơn hẳn "category" cũ (ví dụ "MIC" panme, không chỉ "LIN"). `Dimension` **không còn cột `CategoryId`** — nhóm rộng (LIN/ANG/THD/GEO/SFC) lấy **gián tiếp** qua `GageType.CategoryId → GageCategory`, tránh lưu trùng 2 lần cùng một thông tin phân loại.
 
-**Tần suất sử dụng thực tế (từ dữ liệu legacy 94,100 dimensions):**
-PPM 34% · CAL 16% · CMM 7% · IND 6% · MIC 5% · VIS 4% · BOR 4% · DPG 4% · PLG 4% · SRM 4%
+```
+Dimension.GageTypeId → GageType.CategoryId → GageCategory (LIN/ANG/THD/GEO/SFC)
+```
 
-→ GEO (PPM+CMM+IND) chiếm ~47%, LIN (CAL+MIC+BOR+DPG+HEG) chiếm ~35%, THD ~8%, SFC ~4%, VIS ~4%.
+`DimensionDto.CategoryCode` (API response) vẫn tồn tại nhưng giờ là **giá trị suy ra** (qua `GageType.Category.Code`), không phải cột riêng — khi `GageTypeId = null`, `CategoryCode` cũng `null`.
 
-> `VIS` được thêm thành category thứ 6 (2026-06-23) — trước đó bị gộp nhầm vào `GEO`. Chỉ dimension thực sự kiểm bằng mắt (không có min/max số, text mô tả tiêu chí định tính) mới gán `VIS`; dimension đo góc/ren/độ nhám không có tolerance số nhưng vẫn cần dụng cụ đo thật (thước góc, dưỡng ren, máy đo nhám) **không** gán `VIS` — vẫn giữ category LIN/ANG/THD/GEO/SFC tương ứng.
+**`GageType` code "VIS"** (Visual Inspection, `CategoryId = NULL`) là GageType đặc biệt đại diện "kiểm bằng mắt — không cần dụng cụ đo". Desktop FAI (`FaiViewModel.ShowGageSelection`) ẩn hẳn bước chọn gage khi `GageTypeCode == "VIS"`. Chỉ dimension thực sự kiểm bằng mắt (không có min/max số, text mô tả tiêu chí định tính — "No burr", "Visual Inspection") mới gán GageType này; dimension đo góc/ren/độ nhám thiếu tolerance số nhưng vẫn cần dụng cụ thật (thước góc, dưỡng ren, máy đo nhám) **không** gán VIS.
+
+| GageType code (ví dụ) | Category suy ra | 
+|---|---|
+| CAL, MIC, BOR, DPG, HEG | LIN |
+| ANG | ANG |
+| PLG, RIG, PDG, ETG, THG | THD |
+| CMM, IND, PPM, RAD | GEO |
+| SRM, SRT | SFC |
+| VIS | *(không có category)* |
+| HRT, PRESSURE GAGE, TACH | *(không có category — không đo kích thước)* |
+
+> Lịch sử: trước 2026-06-24, `Dimension` có cả `CategoryId` (nhóm rộng) **và** `GageTypeId` (cụ thể) — gây trùng lặp dữ liệu (2 chỗ lưu cùng ý nghĩa phân loại). Đã bỏ hẳn `CategoryId` khỏi `Dimension`, migration `RemoveDimensionCategoryId`. Excel import cũng đổi cột `Category` → `GageType` (vẫn nhận alias `category` để không phá file cũ). Cùng ngày: đổi tên bảng `dimension_categories` → `gage_categories` (entity `DimensionCategory` → `GageCategory`, endpoint `/api/v1/dimension-categories` → `/api/v1/gage-categories`) — tên cũ gây hiểu nhầm vì giờ chỉ còn `GageType` tham chiếu tới nó, không phải `Dimension`.
 
 ### 3.7 Lịch sử thay đổi Dimension
 - Mỗi khi thay đổi nominal/tolerance → tạo record trong `dimension_history`.
@@ -132,7 +137,7 @@ Pending → Approved   (Lead Engineer / Manager / Administrator duyệt)
 
 **Import per-OP** (hiện tại — `/parts/[id]/operations`):
 - Engineer import Dimension cho từng OP riêng lẻ
-- Cột Excel: `BalloonNumber`, `Code`, `Description`, `Nominal`, `TolPlus`, `TolMinus`, `Unit`, `Category`
+- Cột Excel: `BalloonNumber`, `Code`, `Description`, `Nominal`, `TolPlus`, `TolMinus`, `Unit`, `GageType` (giá trị là `GageType.Code` như "MIC"/"PLG" — đổi từ `Category` 2026-06-24, vẫn nhận alias cột `Category` cho file cũ)
 - Validation: BalloonNumber không trùng trong OP, Nominal phải là số (trừ `is_text_type`)
 
 **Import bulk — toàn bộ Part** (kế hoạch — `/dimsheet`):
@@ -261,7 +266,7 @@ Tap Balloon Number → Input Panel mở:
 ## 5. Data Model
 
 ```sql
-dimension_categories (id, code [UNIQUE], name, description)
+gage_categories (id, code [UNIQUE], name, description)  -- đổi tên từ dimension_categories, 2026-06-24
 
 dimensions (
     id              [BIGSERIAL],
@@ -276,7 +281,7 @@ dimensions (
     nominal_text    [VARCHAR(100)],
     is_text_type    [BOOLEAN],
     is_final        [BOOLEAN],      -- bắt buộc đo tại QC Final
-    category_id     → dimension_categories,
+    category_id     → gage_categories,
     status          [SMALLINT DEFAULT 0],  -- Pending=0, Approved=1, Rejected=2
     reviewed_by     → users,        -- người duyệt (Lead Engineer/Manager/Admin)
     reviewed_at     [TIMESTAMPTZ],

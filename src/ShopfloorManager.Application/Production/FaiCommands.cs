@@ -20,7 +20,9 @@ public record DimensionDto(
     // Approval workflow
     string Status = "Approved", int? ReviewedBy = null, DateTimeOffset? ReviewedAt = null, string? ReviewNote = null,
     // OP gốc sở hữu dimension — chỉ set khi xem qua OP INS (xem GetFaiSheetQueryHandler)
-    string? OpNumber = null);
+    string? OpNumber = null,
+    // Loại dụng cụ đo cụ thể — chi tiết hơn CategoryCode, dùng để filter gage chính xác hơn khi có (08_gage_management.md §3.7)
+    int? GageTypeId = null, string? GageTypeCode = null);
 
 // ── FAI Sheet ─────────────────────────────────────────────────
 
@@ -81,7 +83,7 @@ public class GetFaiSheetQueryHandler(IShopfloorDbContext db)
             var scopedOpIds = routingOps.Select(p => p.Id).ToList();
 
             dims = await db.Dimensions
-                .Include(d => d.Category).Include(d => d.PartOp)
+                .Include(d => d.GageType).ThenInclude(t => t!.Category).Include(d => d.PartOp)
                 .Where(d => scopedOpIds.Contains(d.PartOpId))
                 .OrderBy(d => d.PartOp.OpNumberSort ?? 9999).ThenBy(d => d.BalloonSort ?? 9999).ThenBy(d => d.BalloonNumber)
                 .ToListAsync(ct);
@@ -95,12 +97,12 @@ public class GetFaiSheetQueryHandler(IShopfloorDbContext db)
             var priorOpIds = routingOps.Where(p => EffectiveSort(p) < EffectiveSort(op!)).Select(p => p.Id).ToList();
 
             var priorFinalDims = await db.Dimensions
-                .Include(d => d.Category).Include(d => d.PartOp)
+                .Include(d => d.GageType).ThenInclude(t => t!.Category).Include(d => d.PartOp)
                 .Where(d => priorOpIds.Contains(d.PartOpId) && d.IsFinal)
                 .ToListAsync(ct);
 
             var ownDims = await db.Dimensions
-                .Include(d => d.Category).Include(d => d.PartOp)
+                .Include(d => d.GageType).ThenInclude(t => t!.Category).Include(d => d.PartOp)
                 .Where(d => d.PartOpId == op!.Id)
                 .ToListAsync(ct);
 
@@ -113,7 +115,7 @@ public class GetFaiSheetQueryHandler(IShopfloorDbContext db)
         else
         {
             dims = await db.Dimensions
-                .Include(d => d.Category)
+                .Include(d => d.GageType).ThenInclude(t => t!.Category)
                 .Where(d => d.PartOpId == req.PartOpId)
                 .OrderBy(d => d.BalloonSort ?? 9999).ThenBy(d => d.BalloonNumber)
                 .ToListAsync(ct);
@@ -149,8 +151,9 @@ public class GetFaiSheetQueryHandler(IShopfloorDbContext db)
         var dimDtos = dims.Select(d => new DimensionDto(
             d.Id, d.PartOpId, d.BalloonNumber, d.BalloonSort, d.Code, d.Description,
             d.NominalValue, d.TolerancePlus, d.ToleranceMinus, d.MaxValue, d.MinValue, d.Unit,
-            d.IsTextType, d.NominalText, d.Category?.Code, d.IsCritical, d.IsFinal, d.SortOrder,
-            OpNumber: tagOpNumber && d.PartOpId != (op?.Id ?? -1) ? d.PartOp.OpNumber : null))
+            d.IsTextType, d.NominalText, d.GageType?.Category?.Code, d.IsCritical, d.IsFinal, d.SortOrder,
+            OpNumber: tagOpNumber && d.PartOpId != (op?.Id ?? -1) ? d.PartOp.OpNumber : null,
+            GageTypeId: d.GageTypeId, GageTypeCode: d.GageType?.Code))
             .ToList();
 
         var rows = products.Select(p =>
@@ -215,7 +218,7 @@ public class GetProductMeasureSheetQueryHandler(IShopfloorDbContext db)
         var opIds = ops.Select(o => o.Id).ToList();
 
         var dims = await db.Dimensions
-            .Include(d => d.Category)
+            .Include(d => d.GageType).ThenInclude(t => t!.Category)
             .Where(d => opIds.Contains(d.PartOpId))
             .ToListAsync(ct);
         var dimIds = dims.Select(d => d.Id).ToList();
@@ -247,7 +250,7 @@ public class GetProductMeasureSheetQueryHandler(IShopfloorDbContext db)
                 rows.Add(new ProductMeasureRowDto(
                     op.OpNumber, d.Id, d.BalloonNumber, d.Code, d.Description,
                     d.NominalValue, d.TolerancePlus, d.ToleranceMinus, d.Unit,
-                    d.IsTextType, d.NominalText, d.Category?.Code, d.IsCritical, d.IsFinal,
+                    d.IsTextType, d.NominalText, d.GageType?.Category?.Code, d.IsCritical, d.IsFinal,
                     mv?.Value, mv?.Result.ToString(), mv != null ? (int)mv.MeasureStage : null, inspectorName, mv?.MeasuredAt,
                     gageNo, mv?.HasNcr ?? false, mv?.NcrCode));
             }
@@ -274,15 +277,17 @@ public class GetOpDimensionsQueryHandler(IShopfloorDbContext db)
     public async Task<Result<IReadOnlyList<DimensionDto>>> Handle(GetOpDimensionsQuery req, CancellationToken ct)
     {
         var dims = await db.Dimensions
-            .Include(d => d.Category)
+            .Include(d => d.GageType).ThenInclude(t => t!.Category)
             .Where(d => d.PartOpId == req.PartOpId)
             .OrderBy(d => d.BalloonSort ?? 9999).ThenBy(d => d.BalloonNumber)
             .Select(d => new DimensionDto(
                 d.Id, d.PartOpId, d.BalloonNumber, d.BalloonSort, d.Code, d.Description,
                 d.NominalValue, d.TolerancePlus, d.ToleranceMinus, d.MaxValue, d.MinValue, d.Unit,
-                d.IsTextType, d.NominalText, d.Category != null ? d.Category.Code : null,
+                d.IsTextType, d.NominalText,
+                d.GageType != null && d.GageType.Category != null ? d.GageType.Category.Code : null,
                 d.IsCritical, d.IsFinal, d.SortOrder,
-                d.Status.ToString(), d.ReviewedBy, d.ReviewedAt, d.ReviewNote, null))
+                d.Status.ToString(), d.ReviewedBy, d.ReviewedAt, d.ReviewNote, null,
+                d.GageTypeId, d.GageType != null ? d.GageType.Code : null))
             .ToListAsync(ct);
 
         return Result.Ok<IReadOnlyList<DimensionDto>>(dims);
@@ -299,7 +304,8 @@ public record RoutingRevDimensionDto(
     decimal? MaxValue, decimal? MinValue, string Unit,
     bool IsTextType, string? NominalText,
     string? CategoryCode, bool IsCritical, bool IsFinal, int SortOrder,
-    string Status = "Approved", int? ReviewedBy = null, DateTimeOffset? ReviewedAt = null, string? ReviewNote = null);
+    string Status = "Approved", int? ReviewedBy = null, DateTimeOffset? ReviewedAt = null, string? ReviewNote = null,
+    int? GageTypeId = null, string? GageTypeCode = null);
 
 public record GetDimensionsByRoutingRevQuery(int RoutingRevId) : IRequest<Result<List<RoutingRevDimensionDto>>>;
 
@@ -309,7 +315,7 @@ public class GetDimensionsByRoutingRevQueryHandler(IShopfloorDbContext db)
     public async Task<Result<List<RoutingRevDimensionDto>>> Handle(GetDimensionsByRoutingRevQuery req, CancellationToken ct)
     {
         var items = await db.Dimensions
-            .Include(d => d.Category)
+            .Include(d => d.GageType).ThenInclude(t => t!.Category)
             .Include(d => d.PartOp)
             .Where(d => d.PartOp.RoutingRevId == req.RoutingRevId && !d.PartOp.ForJobOnly && d.PartOp.IsVisible)
             .OrderBy(d => d.PartOp.OpNumberSort ?? 9999).ThenBy(d => d.PartOp.OpNumber)
@@ -318,9 +324,11 @@ public class GetDimensionsByRoutingRevQueryHandler(IShopfloorDbContext db)
                 d.Id, d.PartOpId, d.PartOp.OpNumber, d.PartOp.OpNumberSort,
                 d.BalloonNumber, d.BalloonSort, d.Code, d.Description,
                 d.NominalValue, d.TolerancePlus, d.ToleranceMinus, d.MaxValue, d.MinValue, d.Unit,
-                d.IsTextType, d.NominalText, d.Category != null ? d.Category.Code : null,
+                d.IsTextType, d.NominalText,
+                d.GageType != null && d.GageType.Category != null ? d.GageType.Category.Code : null,
                 d.IsCritical, d.IsFinal, d.SortOrder,
-                d.Status.ToString(), d.ReviewedBy, d.ReviewedAt, d.ReviewNote))
+                d.Status.ToString(), d.ReviewedBy, d.ReviewedAt, d.ReviewNote,
+                d.GageTypeId, d.GageType != null ? d.GageType.Code : null))
             .ToListAsync(ct);
 
         return Result.Ok(items);
@@ -336,9 +344,9 @@ public record CreateDimensionCommand(
     decimal? NominalValue, decimal? TolerancePlus, decimal? ToleranceMinus,
     string Unit,
     bool IsTextType, string? NominalText,
-    int? CategoryId,
     bool IsCritical, bool IsFinal, int SortOrder,
-    int? RequesterId)
+    int? RequesterId,
+    int? GageTypeId = null)
     : IRequest<Result<DimensionDto>>;
 
 public class CreateDimensionCommandValidator : AbstractValidator<CreateDimensionCommand>
@@ -384,20 +392,22 @@ public class CreateDimensionCommandHandler(IShopfloorDbContext db)
             NominalValue = req.NominalValue, TolerancePlus = req.TolerancePlus, ToleranceMinus = req.ToleranceMinus,
             MaxValue = maxValue, MinValue = minValue, Unit = req.Unit,
             IsTextType = req.IsTextType, NominalText = req.NominalText,
-            CategoryId = req.CategoryId, IsCritical = req.IsCritical, IsFinal = req.IsFinal,
-            SortOrder = req.SortOrder, CreatedBy = req.RequesterId
+            IsCritical = req.IsCritical, IsFinal = req.IsFinal,
+            SortOrder = req.SortOrder, CreatedBy = req.RequesterId, GageTypeId = req.GageTypeId
         };
         db.Dimensions.Add(dim);
         await db.SaveChangesAsync(ct);
 
-        var cat = req.CategoryId.HasValue
-            ? await db.DimensionCategories.FindAsync([req.CategoryId.Value], ct) : null;
+        var gageType = req.GageTypeId.HasValue
+            ? await db.GageTypes.Include(g => g.Category).FirstOrDefaultAsync(g => g.Id == req.GageTypeId.Value, ct)
+            : null;
 
         return Result.Ok(new DimensionDto(dim.Id, dim.PartOpId,
             dim.BalloonNumber, dim.BalloonSort, dim.Code, dim.Description,
             dim.NominalValue, dim.TolerancePlus, dim.ToleranceMinus, dim.MaxValue, dim.MinValue, dim.Unit,
-            dim.IsTextType, dim.NominalText, cat?.Code, dim.IsCritical, dim.IsFinal, dim.SortOrder,
-            dim.Status.ToString(), dim.ReviewedBy, dim.ReviewedAt, dim.ReviewNote));
+            dim.IsTextType, dim.NominalText, gageType?.Category?.Code, dim.IsCritical, dim.IsFinal, dim.SortOrder,
+            dim.Status.ToString(), dim.ReviewedBy, dim.ReviewedAt, dim.ReviewNote,
+            GageTypeId: dim.GageTypeId, GageTypeCode: gageType?.Code));
     }
 }
 
@@ -421,7 +431,7 @@ public class UpdateDimensionCommandHandler(IShopfloorDbContext db)
 {
     public async Task<Result<DimensionDto>> Handle(UpdateDimensionCommand req, CancellationToken ct)
     {
-        var dim = await db.Dimensions.Include(d => d.Category).FirstOrDefaultAsync(d => d.Id == req.Id, ct);
+        var dim = await db.Dimensions.Include(d => d.GageType).ThenInclude(t => t!.Category).FirstOrDefaultAsync(d => d.Id == req.Id, ct);
         if (dim is null) return Result.Fail($"Không tìm thấy Dimension ID {req.Id}.");
         if (dim.IsTextType) return Result.Fail("Không thể sửa Nominal/Tolerance của dimension dạng text.");
 
@@ -438,7 +448,7 @@ public class UpdateDimensionCommandHandler(IShopfloorDbContext db)
         return Result.Ok(new DimensionDto(dim.Id, dim.PartOpId,
             dim.BalloonNumber, dim.BalloonSort, dim.Code, dim.Description,
             dim.NominalValue, dim.TolerancePlus, dim.ToleranceMinus, dim.MaxValue, dim.MinValue, dim.Unit,
-            dim.IsTextType, dim.NominalText, dim.Category?.Code, dim.IsCritical, dim.IsFinal, dim.SortOrder,
+            dim.IsTextType, dim.NominalText, dim.GageType?.Category?.Code, dim.IsCritical, dim.IsFinal, dim.SortOrder,
             dim.Status.ToString(), dim.ReviewedBy, dim.ReviewedAt, dim.ReviewNote));
     }
 }
@@ -447,7 +457,7 @@ public class UpdateDimensionCommandHandler(IShopfloorDbContext db)
 
 public record ImportDimensionRow(
     string BalloonNumber, string? Code, string? Description, string? NominalRaw,
-    decimal? TolPlus, decimal? TolMinus, string? Unit, string? CategoryCode,
+    decimal? TolPlus, decimal? TolMinus, string? Unit, string? GageTypeCode,
     bool IsFinal = false);
 
 // ── Import Bulk Dimensions cho toàn bộ RoutingRev từ 1 file Excel ─────────
@@ -458,7 +468,7 @@ public record ImportDimensionRow(
 public record ImportBulkDimensionRow(
     string OpNumber,
     string BalloonNumber, string? Code, string? Description, string? NominalRaw,
-    decimal? TolPlus, decimal? TolMinus, string? Unit, string? CategoryCode,
+    decimal? TolPlus, decimal? TolMinus, string? Unit, string? GageTypeCode,
     bool IsFinal = false);
 
 public record ImportBulkDimensionsCommand(int RoutingRevId, List<ImportBulkDimensionRow> Rows, int? RequesterId)
@@ -497,7 +507,7 @@ public class ImportBulkDimensionsCommandHandler(IShopfloorDbContext db)
             .ToDictionary(g => g.Key, g => g.Select(x => x.BalloonNumber)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase));
 
-        var categories = await db.DimensionCategories.ToListAsync(ct);
+        var gageTypes = await db.GageTypes.ToListAsync(ct);
 
         var errors = new List<ImportRowError>();
         int created = 0, skipped = 0;
@@ -546,14 +556,14 @@ public class ImportBulkDimensionsCommandHandler(IShopfloorDbContext db)
             var numPart = new string(row.BalloonNumber.TakeWhile(char.IsDigit).ToArray());
             if (decimal.TryParse(numPart, out var bs)) balloonSort = bs;
 
-            int? categoryId = null;
-            if (!string.IsNullOrWhiteSpace(row.CategoryCode))
+            int? gageTypeId = null;
+            if (!string.IsNullOrWhiteSpace(row.GageTypeCode))
             {
-                var cat = categories.FirstOrDefault(c => string.Equals(c.Code, row.CategoryCode, StringComparison.OrdinalIgnoreCase));
-                if (cat is null)
-                    errors.Add(new ImportRowError(rowNumber, $"Không tìm thấy Category '{row.CategoryCode}'."));
+                var gageType = gageTypes.FirstOrDefault(g => string.Equals(g.Code, row.GageTypeCode, StringComparison.OrdinalIgnoreCase));
+                if (gageType is null)
+                    errors.Add(new ImportRowError(rowNumber, $"Không tìm thấy GageType '{row.GageTypeCode}'."));
                 else
-                    categoryId = cat.Id;
+                    gageTypeId = gageType.Id;
             }
 
             var dim = new Dimension
@@ -561,7 +571,7 @@ public class ImportBulkDimensionsCommandHandler(IShopfloorDbContext db)
                 PartOpId = op.Id,
                 BalloonNumber = row.BalloonNumber, BalloonSort = balloonSort,
                 Code = row.Code, Description = row.Description,
-                CategoryId = categoryId, CreatedBy = req.RequesterId,
+                GageTypeId = gageTypeId, CreatedBy = req.RequesterId,
                 IsFinal = row.IsFinal,
                 Status = FileStatus.Pending,  // Bulk import cần Lead Engineer duyệt
             };
@@ -622,7 +632,7 @@ public class ImportDimensionsCommandHandler(IShopfloorDbContext db)
             .ToListAsync(ct))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        var categories = await db.DimensionCategories.ToListAsync(ct);
+        var gageTypes = await db.GageTypes.ToListAsync(ct);
 
         var errors = new List<ImportRowError>();
         int created = 0, skipped = 0;
@@ -651,14 +661,14 @@ public class ImportDimensionsCommandHandler(IShopfloorDbContext db)
             var numPart = new string(row.BalloonNumber.TakeWhile(char.IsDigit).ToArray());
             if (decimal.TryParse(numPart, out var bs)) balloonSort = bs;
 
-            int? categoryId = null;
-            if (!string.IsNullOrWhiteSpace(row.CategoryCode))
+            int? gageTypeId = null;
+            if (!string.IsNullOrWhiteSpace(row.GageTypeCode))
             {
-                var cat = categories.FirstOrDefault(c => string.Equals(c.Code, row.CategoryCode, StringComparison.OrdinalIgnoreCase));
-                if (cat is null)
-                    errors.Add(new ImportRowError(rowNumber, $"Không tìm thấy Category '{row.CategoryCode}'."));
+                var gageType = gageTypes.FirstOrDefault(g => string.Equals(g.Code, row.GageTypeCode, StringComparison.OrdinalIgnoreCase));
+                if (gageType is null)
+                    errors.Add(new ImportRowError(rowNumber, $"Không tìm thấy GageType '{row.GageTypeCode}'."));
                 else
-                    categoryId = cat.Id;
+                    gageTypeId = gageType.Id;
             }
 
             var dim = new Dimension
@@ -666,7 +676,7 @@ public class ImportDimensionsCommandHandler(IShopfloorDbContext db)
                 PartOpId = req.PartOpId,
                 BalloonNumber = row.BalloonNumber, BalloonSort = balloonSort,
                 Code = row.Code, Description = row.Description,
-                CategoryId = categoryId, CreatedBy = req.RequesterId,
+                GageTypeId = gageTypeId, CreatedBy = req.RequesterId,
                 IsFinal = row.IsFinal,
                 Status = FileStatus.Pending,  // Import per-OP cũng cần duyệt
             };
@@ -727,7 +737,7 @@ public class SaveMeasureCommandHandler(IShopfloorDbContext db, IRealtimeNotifier
 {
     public async Task<Result<MeasureValueDto>> Handle(SaveMeasureCommand req, CancellationToken ct)
     {
-        var dim = await db.Dimensions.Include(d => d.Category)
+        var dim = await db.Dimensions.Include(d => d.GageType).ThenInclude(t => t!.Category)
             .FirstOrDefaultAsync(d => d.Id == req.DimensionId, ct);
         if (dim is null) return Result.Fail("Dimension không tồn tại.");
 
@@ -781,7 +791,7 @@ public class ReviewDimensionCommandHandler(IShopfloorDbContext db)
 {
     public async Task<Result<DimensionDto>> Handle(ReviewDimensionCommand req, CancellationToken ct)
     {
-        var dim = await db.Dimensions.Include(d => d.Category)
+        var dim = await db.Dimensions.Include(d => d.GageType).ThenInclude(t => t!.Category)
             .FirstOrDefaultAsync(d => d.Id == req.Id, ct);
         if (dim is null) return Result.Fail($"Không tìm thấy Dimension ID {req.Id}.");
         if (dim.Status == FileStatus.Approved)
@@ -798,7 +808,7 @@ public class ReviewDimensionCommandHandler(IShopfloorDbContext db)
         return Result.Ok(new DimensionDto(dim.Id, dim.PartOpId,
             dim.BalloonNumber, dim.BalloonSort, dim.Code, dim.Description,
             dim.NominalValue, dim.TolerancePlus, dim.ToleranceMinus, dim.MaxValue, dim.MinValue, dim.Unit,
-            dim.IsTextType, dim.NominalText, dim.Category?.Code, dim.IsCritical, dim.IsFinal, dim.SortOrder,
+            dim.IsTextType, dim.NominalText, dim.GageType?.Category?.Code, dim.IsCritical, dim.IsFinal, dim.SortOrder,
             dim.Status.ToString(), dim.ReviewedBy, dim.ReviewedAt, dim.ReviewNote));
     }
 }

@@ -89,7 +89,7 @@ public class GetGagesQueryHandler(IShopfloorDbContext db)
 // ── MES: chọn gage khi nhập measure value ──────────────────────────────────
 // Chỉ trả gage is_valid=true, chưa bị mượn, sorted by gage_no (xem 08_gage_management.md §6).
 
-public record GetMesGagesQuery(string? CategoryCode = null) : IRequest<Result<List<MesGageDto>>>;
+public record GetMesGagesQuery(string? CategoryCode = null, int? GageTypeId = null) : IRequest<Result<List<MesGageDto>>>;
 
 public class GetMesGagesQueryHandler(IShopfloorDbContext db)
     : IRequestHandler<GetMesGagesQuery, Result<List<MesGageDto>>>
@@ -101,7 +101,10 @@ public class GetMesGagesQueryHandler(IShopfloorDbContext db)
             .Where(g => (g.StatusCode == GageStatusCode.Valid || g.StatusCode == GageStatusCode.Borrowed) && !g.IsBorrowed)
             .AsQueryable();
 
-        if (!string.IsNullOrWhiteSpace(req.CategoryCode))
+        // GageTypeId chính xác hơn CategoryCode (1 category có thể gồm nhiều GageType) — ưu tiên khi có.
+        if (req.GageTypeId.HasValue)
+            q = q.Where(g => g.GageTypeId == req.GageTypeId);
+        else if (!string.IsNullOrWhiteSpace(req.CategoryCode))
             q = q.Where(g => g.GageType != null && g.GageType.Category != null
                            && g.GageType.Category.Code == req.CategoryCode);
 

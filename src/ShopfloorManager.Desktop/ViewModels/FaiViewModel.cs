@@ -110,7 +110,7 @@ public partial class FaiViewModel : Base.ViewModelBase
     private DimensionCardVm? _selectedDimension;
 
     /// <summary>Category VIS = kiểm bằng mắt (visual inspection) — không cần dụng cụ đo.</summary>
-    public bool ShowGageSelection => SelectedDimension is not null && SelectedDimension.CategoryCode != "VIS";
+    public bool ShowGageSelection => SelectedDimension is not null && SelectedDimension.GageTypeCode != "VIS";
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(ConfirmCommand))]
@@ -169,7 +169,7 @@ public partial class FaiViewModel : Base.ViewModelBase
     /// tại đã có gage dùng cho đúng balloon này ở serial khác (xem WorkContext.LastGageIdByBalloon).</summary>
     private async Task LoadGagesAsync(DimensionCardVm? dim)
     {
-        if (dim?.CategoryCode == "VIS")
+        if (dim?.GageTypeCode == "VIS")
         {
             AvailableGages.Clear();
             FilteredGages.Clear();
@@ -180,10 +180,12 @@ public partial class FaiViewModel : Base.ViewModelBase
 
         try
         {
-            var categoryCode = dim?.CategoryCode;
-            var url = string.IsNullOrWhiteSpace(categoryCode)
-                ? "/api/v1/mes/gages"
-                : $"/api/v1/mes/gages?categoryCode={categoryCode}";
+            // GageTypeId chính xác hơn CategoryCode (1 category có thể gồm nhiều GageType) — ưu tiên khi có.
+            var url = dim?.GageTypeId is int gageTypeId
+                ? $"/api/v1/mes/gages?gageTypeId={gageTypeId}"
+                : string.IsNullOrWhiteSpace(dim?.CategoryCode)
+                    ? "/api/v1/mes/gages"
+                    : $"/api/v1/mes/gages?categoryCode={dim!.CategoryCode}";
             var resp = await _api.GetAsync<List<MesGageData>>(url);
 
             AvailableGages.Clear();
@@ -271,6 +273,8 @@ public partial class FaiViewModel : Base.ViewModelBase
                     IsFinal       = dim.IsFinal,
                     IsCritical    = dim.IsCritical,
                     CategoryCode  = dim.CategoryCode,
+                    GageTypeId    = dim.GageTypeId,
+                    GageTypeCode  = dim.GageTypeCode,
                     State         = state,
                     MeasuredValue = stageCell?.Value
                 });

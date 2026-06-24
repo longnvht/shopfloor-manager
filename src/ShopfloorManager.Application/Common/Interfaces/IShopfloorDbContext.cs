@@ -41,6 +41,7 @@ public interface IShopfloorDbContext
     DbSet<MachineEvent> MachineEvents { get; }
 
     // Gage Management
+    DbSet<GageCategory>     GageCategories    { get; }
     DbSet<GageType>         GageTypes         { get; }
     DbSet<GageLocation>     GageLocations     { get; }
     DbSet<GageSlot>         GageSlots         { get; }
@@ -60,7 +61,6 @@ public interface IShopfloorDbContext
     DbSet<ShiftAssignment> ShiftAssignments { get; }
 
     // Phase 3 — Quality
-    DbSet<DimensionCategory> DimensionCategories { get; }
     DbSet<Dimension> Dimensions { get; }
     DbSet<MeasureValue> MeasureValues { get; }
     DbSet<QcInlineRate> QcInlineRates { get; }
