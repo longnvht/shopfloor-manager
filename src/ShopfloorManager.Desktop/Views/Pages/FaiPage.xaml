@@ -221,7 +221,7 @@
                             <Button Grid.Column="1" Content="Đổi" Command="{Binding ChangeGageCommand}"
                                     Style="{StaticResource MaterialDesignOutlinedButton}"
                                     BorderBrush="{StaticResource BrandPrimary}" Foreground="{StaticResource BrandPrimary}"
-                                    Height="36" Padding="14,0" FontSize="12"/>
+                                    Height="36" Width="96" FontSize="12"/>
                         </Grid>
 
                         <!-- Tìm dụng cụ — nhập để filter, chọn từ danh sách thẻ -->
@@ -234,19 +234,20 @@
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
+
                                 <Border Grid.Column="0" CornerRadius="8" Background="White"
                                         BorderBrush="{StaticResource BrandPrimaryLight}"
-                                        BorderThickness="1.5" Height="40">
+                                        BorderThickness="1.5" Height="52">
                                     <Grid>
                                         <TextBox Text="{Binding GageSearchText, UpdateSourceTrigger=PropertyChanged}"
                                                  kb:KeyboardBehavior.Mode="Qwerty"
                                                  Style="{x:Null}"
                                                  Background="Transparent" BorderThickness="0"
-                                                 FontSize="13" Padding="10,0"
+                                                 FontSize="13" Padding="14,0"
                                                  VerticalContentAlignment="Center"/>
                                         <TextBlock Text="Nhập mã hoặc tên dụng cụ..."
                                                    Foreground="{StaticResource BrandTextSecondary}" Opacity="0.7"
-                                                   FontSize="13" Margin="10,0" VerticalAlignment="Center"
+                                                   FontSize="13" Margin="14,0" VerticalAlignment="Center"
                                                    IsHitTestVisible="False">
                                             <TextBlock.Style>
                                                 <Style TargetType="TextBlock">
@@ -263,11 +264,12 @@
                                 </Border>
 
                                 <!-- Xác nhận thẻ đang highlight — thay thế cho double-click -->
-                                <Button Grid.Column="1" Content="Chọn" Margin="6,0,0,0"
+                                <Button Grid.Column="1" Content="Chọn" Margin="8,0,0,0"
                                         Command="{Binding ConfirmHighlightedGageCommand}"
                                         Style="{StaticResource MaterialDesignRaisedButton}"
                                         Background="{StaticResource BrandAccent}" Foreground="White"
-                                        Height="40" Padding="14,0" FontSize="13"/>
+                                        md:ButtonAssist.CornerRadius="8"
+                                        Width="100" Height="52" Padding="0" FontSize="13"/>
                             </Grid>
 
                             <!-- Click chỉ highlight (kéo để cuộn) — double-click hoặc nút "Chọn" mới xác nhận -->
